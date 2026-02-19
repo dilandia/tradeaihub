@@ -407,6 +407,7 @@
     "clearFilters": "Clear filters",
     "noDataFound": "No data found",
     "addTradesDesc": "To view your metrics and charts, you need to add your trades. Choose one of the options below to get started.",
+    "demoBanner": "You're viewing a demo example. Import your data to see your real performance.",
     "noTradesFound": "No trades found",
     "filtersNoResults": "The applied filters returned no results. Try adjusting the period or criteria.",
     "netPnlDollar": "Net P&L ($)",

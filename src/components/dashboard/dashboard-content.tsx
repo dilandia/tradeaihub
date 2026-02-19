@@ -90,6 +90,8 @@ type Props = {
   initialBalance?: number | null;
   /** Saldo atual da conta (para Account Balance & P&L) */
   currentAccountBalance?: number | null;
+  /** Quando true, exibe dados demonstrativos e banner para novos usuários */
+  isDemoMode?: boolean;
 };
 
 /* ─── Formatters ─── */
@@ -155,6 +157,7 @@ export function DashboardContent({
   hasAnySource,
   initialBalance = null,
   currentAccountBalance = null,
+  isDemoMode = false,
 }: Props) {
   const { t } = useLanguage();
   const [viewMode, setViewMode] = useState<ViewMode>("dollar");
@@ -619,6 +622,23 @@ export function DashboardContent({
 
   return (
     <div className="min-h-screen">
+      {/* Banner demonstrativo para novos usuários */}
+      {isDemoMode && (
+        <div className="border-b border-violet-500/30 bg-violet-500/10 px-4 py-3">
+          <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-2 text-center sm:justify-between sm:flex-nowrap sm:text-left">
+            <p className="text-sm text-foreground">
+              {t("dashboard.demoBanner")}
+            </p>
+            <NextLink
+              href="/import"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-700"
+            >
+              {t("import.importTrades")}
+              <ArrowRight className="h-4 w-4" />
+            </NextLink>
+          </div>
+        </div>
+      )}
       {/* ═══════ TOOLBAR (filtros, view mode, widgets) ═══════ */}
       <div className="sticky top-14 z-20 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-12 items-center gap-2 px-4 lg:px-6">
