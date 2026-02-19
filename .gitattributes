@@ -1,0 +1,2 @@
+# Shell scripts devem usar LF no Linux
+*.sh text eol=lf

@@ -1,0 +1,15 @@
+=== Credenciais TakeZ Plan VPS ===
+
+Usuário takez:
+qvZstYia0drblNYV
+
+Senha do banco:
+TkZ9Bd7Hm2QxR4vLp8Wn
+
+DATABASE_URL completa:
+postgresql://takez_user:TkZ9Bd7Hm2QxR4vLp8Wn@localhost:5432/takez_plan
+
+IP do servidor:
+116.203.190.102
+
+=== Troque essas senhas depois do primeiro acesso ===

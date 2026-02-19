@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #121212;
+    --foreground: #e2e8f0;
+    --card: #1e1e2e;
+    --card-foreground: #e2e8f0;
+    --muted: #1e1e2e;
+    --muted-foreground: #94a3b8;
+    --border: #2d2d3d;
+    --profit: #10b981;
+    --loss: #ef4444;
+    --score: #7c3aed;
+    --score-alt: #6366f1;
+    --primary: #6366f1;
+    --primary-foreground: #ffffff;
+    --radius: 0.75rem;
+  }
+
+  .light {
+    --background: #f8fafc;
+    --foreground: #0f172a;
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --border: #e2e8f0;
+    --profit: #059669;
+    --loss: #dc2626;
+    --score: #6d28d9;
+    --score-alt: #4f46e5;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .text-profit {
+    color: var(--profit);
+  }
+  .text-loss {
+    color: var(--loss);
+  }
+  .text-score {
+    color: var(--score);
+  }
+  .bg-profit\/10 {
+    background-color: rgb(16 185 129 / 0.1);
+  }
+  .bg-profit\/15 {
+    background-color: rgb(16 185 129 / 0.15);
+  }
+  .bg-profit\/20 {
+    background-color: rgb(16 185 129 / 0.2);
+  }
+  .bg-loss\/10 {
+    background-color: rgb(239 68 68 / 0.1);
+  }
+  .bg-loss\/15 {
+    background-color: rgb(239 68 68 / 0.15);
+  }
+  .bg-loss\/20 {
+    background-color: rgb(239 68 68 / 0.2);
+  }
+  .bg-score\/10 {
+    background-color: rgb(124 58 237 / 0.1);
+  }
+  .bg-score\/20 {
+    background-color: rgb(124 58 237 / 0.2);
+  }
+  .border-profit {
+    border-color: var(--profit);
+  }
+  .border-loss {
+    border-color: var(--loss);
+  }
+  .border-score {
+    border-color: var(--score);
+  }
+  .ring-profit {
+    --tw-ring-color: var(--profit);
+  }
+  .ring-loss {
+    --tw-ring-color: var(--loss);
+  }
+  .ring-score {
+    --tw-ring-color: var(--score);
+  }
+}
+
+/* MQL5/Tradays Economic Calendar Widget – tamanho e cores */
+.economic-calendar-widget-wrapper {
+  --ecw-accent: var(--score);
+  --ecw-profit: var(--profit);
+  --ecw-loss: var(--loss);
+  --ecw-bg: var(--card);
+  --ecw-border: var(--border);
+  --ecw-text: var(--foreground);
+  --ecw-muted: var(--muted-foreground);
+}
+.economic-calendar-widget-wrapper #economicCalendarWidget,
+.economic-calendar-widget-wrapper #economicCalendarWidget iframe {
+  width: 100% !important;
+  height: 700px !important;
+  min-height: 700px !important;
+  border: none;
+}

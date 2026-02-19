@@ -1,0 +1,253 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { parseNumber, parseExcel, parseCsv, parseHtml } from "@/lib/parsers";
+import type { TradeInsert } from "@/lib/parsers";
+import { getPlanInfo } from "@/lib/plan";
+
+/* ─────────────────────────────────────────────
+ * Criar trade manualmente
+ * ───────────────────────────────────────────── */
+
+export async function createTrade(formData: FormData): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado." };
+
+  const trade_date = (formData.get("trade_date") as string)?.trim();
+  const pair = (formData.get("pair") as string)?.trim().toUpperCase();
+  const entry_price = parseNumber(formData.get("entry_price"));
+  const exit_price = parseNumber(formData.get("exit_price"));
+  let pips = parseNumber(formData.get("pips"));
+  const is_win = String(formData.get("is_win")).toLowerCase() === "true";
+  const risk_reward = formData.get("risk_reward")
+    ? parseNumber(formData.get("risk_reward"))
+    : undefined;
+  const tagsRaw = (formData.get("tags") as string) ?? "";
+  const tags = tagsRaw.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+  const notes = (formData.get("notes") as string)?.trim() || undefined;
+
+  if (!trade_date || !pair) return { error: "Data e par são obrigatórios." };
+
+  if (pips === 0 && entry_price !== 0 && exit_price !== 0) {
+    pips = Math.abs(exit_price - entry_price) * 10000;
+    if (pair.includes("JPY")) pips *= 0.01;
+  }
+
+  const { error } = await supabase.from("trades").insert({
+    user_id: user.id,
+    trade_date,
+    pair,
+    entry_price,
+    exit_price,
+    pips: is_win ? Math.abs(pips) : -Math.abs(pips),
+    is_win,
+    risk_reward: risk_reward ?? null,
+    tags: tags.length ? tags : [],
+    notes: notes ?? null,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/", "layout");
+  revalidatePath("/import");
+  return {};
+}
+
+/* ─────────────────────────────────────────────
+ * Importar trades de arquivo (CSV / Excel / HTML)
+ * ───────────────────────────────────────────── */
+
+export async function importTradesFromFile(formData: FormData): Promise<{
+  error?: string;
+  imported?: number;
+}> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado." };
+
+  const planInfo = await getPlanInfo(user.id);
+  if (planInfo) {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const [{ count: totalManual }, { count: importsThisMonth }] = await Promise.all([
+      supabase
+        .from("import_summaries")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+      supabase
+        .from("import_summaries")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("created_at", startOfMonth.toISOString()),
+    ]);
+
+    if ((totalManual ?? 0) >= planInfo.maxManualAccounts) {
+      return { error: "planErrors.maxManualFree" };
+    }
+    if ((importsThisMonth ?? 0) >= planInfo.importLimitPerMonth) {
+      return { error: "planErrors.importLimit" };
+    }
+  }
+
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return { error: "Selecione um arquivo." };
+
+  const name = file.name.toLowerCase();
+  const isCsv = name.endsWith(".csv");
+  const isExcel = name.endsWith(".xlsx") || name.endsWith(".xls");
+  const isHtml = name.endsWith(".html") || name.endsWith(".htm");
+
+  if (!isCsv && !isExcel && !isHtml) {
+    return { error: "Formato não suportado. Use .csv, .xlsx, .xls, .html ou .htm." };
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  let trades: TradeInsert[] = [];
+  let summary = null;
+
+  if (isHtml) {
+    const result = parseHtml(buffer.toString("utf-8"));
+    if (result.htmlJsonOnly) {
+      return {
+        error: "Este HTML é um relatório visual do broker (dashboard) sem trades individuais. Use o Excel (.xlsx) exportado do MT5.",
+      };
+    }
+    trades = result.trades;
+    summary = result.summary;
+  } else if (isCsv) {
+    const result = parseCsv(buffer.toString("utf-8"));
+    trades = result.trades;
+    summary = result.summary;
+  } else {
+    const result = parseExcel(buffer);
+    trades = result.trades;
+    summary = result.summary;
+  }
+
+  if (trades.length === 0) {
+    return { error: "Nenhum trade válido encontrado. Certifique-se de que o arquivo contém Time, Symbol, Price e Profit." };
+  }
+
+  // 1) Sempre criar registro de importação (com métricas se disponíveis)
+  const importPayload: Record<string, unknown> = {
+    user_id: user.id,
+    source_filename: file.name,
+    imported_trades_count: trades.length,
+  };
+
+  if (summary) {
+    Object.assign(importPayload, summary);
+  }
+
+  const { data: summaryRow, error: sumErr } = await supabase
+    .from("import_summaries")
+    .insert(importPayload)
+    .select("id")
+    .single();
+
+  if (sumErr) {
+    console.error("Erro ao salvar import:", sumErr.message);
+    return { error: `Erro ao registrar importação: ${sumErr.message}` };
+  }
+
+  const importId = summaryRow.id;
+
+  // 2) Inserir trades vinculados à importação
+  const toInsert = trades.map((t) => ({
+    user_id: user.id,
+    trade_date: t.trade_date,
+    pair: t.pair,
+    entry_price: t.entry_price,
+    exit_price: t.exit_price,
+    pips: t.pips,
+    is_win: t.is_win,
+    risk_reward: t.risk_reward ?? null,
+    tags: t.tags ?? [],
+    notes: t.notes ?? null,
+    import_id: importId,
+    entry_time: t.entry_time ?? null,
+    exit_time: t.exit_time ?? null,
+    duration_minutes: t.duration_minutes ?? null,
+    profit_dollar: t.profit_dollar ?? null,
+  }));
+
+  const { error } = await supabase.from("trades").insert(toInsert);
+  if (error) return { error: error.message };
+
+  revalidatePath("/", "layout");
+  revalidatePath("/import");
+  return { imported: trades.length };
+}
+
+/* ─────────────────────────────────────────────
+ * Deletar importação e todos os trades associados
+ * ───────────────────────────────────────────── */
+
+export async function deleteImport(importId: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado." };
+
+  // 1) Deletar trades vinculados pelo import_id
+  const { error: tradesErr } = await supabase
+    .from("trades")
+    .delete()
+    .eq("import_id", importId)
+    .eq("user_id", user.id);
+
+  if (tradesErr) return { error: `Erro ao remover trades: ${tradesErr.message}` };
+
+  // 2) Deletar o registro de importação
+  const { error: importErr } = await supabase
+    .from("import_summaries")
+    .delete()
+    .eq("id", importId)
+    .eq("user_id", user.id);
+
+  if (importErr) return { error: `Erro ao remover importação: ${importErr.message}` };
+
+  // 3) Limpar trades órfãos (sem import_id e sem trading_account_id)
+  //    Podem existir de importações antigas antes do sistema de vinculação
+  await supabase
+    .from("trades")
+    .delete()
+    .is("import_id", null)
+    .is("trading_account_id", null)
+    .eq("user_id", user.id);
+
+  revalidatePath("/", "layout");
+  revalidatePath("/import");
+  return {};
+}
+
+/* ─────────────────────────────────────────────
+ * Atualizar notes e tags de um trade
+ * ───────────────────────────────────────────── */
+
+export async function updateTradeNotesAndTags(
+  tradeId: string,
+  notes: string | null,
+  tags: string[]
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado." };
+
+  const { error } = await supabase
+    .from("trades")
+    .update({
+      notes: notes?.trim() || null,
+      tags: tags?.length ? tags : [],
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", tradeId)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/trades");
+  revalidatePath("/", "layout");
+  return {};
+}

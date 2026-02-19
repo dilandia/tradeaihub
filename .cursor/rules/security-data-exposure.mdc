@@ -1,0 +1,42 @@
+---
+description: Segurança - exposição de dados e console. Nunca logue ou exponha tokens, IDs de conta, dados sensíveis.
+globs: "**/*.{ts,tsx,js,jsx}"
+alwaysApply: false
+---
+
+# Segurança – Exposição de Dados e Console
+
+## Console
+
+- **Nunca** `console.log` com: tokens, senhas, `account_id`, `user_id`, objetos de erro completos
+- **Evitar** `console.error` com `err` completo ou `err.stack` em código que pode ir para produção
+- **Preferir**: mensagens genéricas, correlation ID, ou logs condicionais `NODE_ENV === "development"`
+
+```typescript
+// ❌ Evitar
+console.log("[metaApi] Account:", { id: data.id, login });
+console.error("Error:", err);
+
+// ✅ Preferir
+console.log("[metaApi] Account created successfully");
+console.error("[tag] Error:", err?.message ?? "Unknown");
+```
+
+## Respostas de API
+
+- **Nunca** retornar ao cliente: stack trace, mensagem de exceção interna, corpo de erro completo
+- **Sempre** retornar mensagem genérica + correlation ID em erros 500
+
+```typescript
+// ❌ Evitar
+return NextResponse.json({ error: err.message }, { status: 500 });
+
+// ✅ Preferir
+const cid = crypto.randomUUID();
+console.error(`[${cid}]`, err?.message);
+return NextResponse.json({ error: "An error occurred.", correlationId: cid }, { status: 500 });
+```
+
+## Dados sensíveis no TakeZ-Plan
+
+Não expor em logs nem respostas: `SUPABASE_SERVICE_ROLE_KEY`, `METAAPI_TOKEN`, `ENCRYPTION_KEY`, `OPENAI_API_KEY`, IDs de conta MetaApi, dados de trades (valores, P&L).

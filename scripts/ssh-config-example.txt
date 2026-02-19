@@ -1,0 +1,7 @@
+# Cole isso em C:\Users\Diego\.ssh\config
+# (crie o arquivo se não existir)
+
+Host takez-vps
+    HostName 116.203.190.102
+    User takez
+    IdentityFile C:/Users/Diego/.ssh/hetzner_takez_new
