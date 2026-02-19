@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "stripe:setup": "node scripts/stripe-setup-products.js",
-    "stripe:webhook": "node scripts/stripe-setup-webhook.js"
+    "stripe:webhook": "node scripts/stripe-setup-webhook.js",
+    "upgrade:pro": "node scripts/upgrade-user-to-pro.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

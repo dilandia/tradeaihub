@@ -32,6 +32,24 @@
     "noData": "No data available",
     "selectLanguage": "Select language"
   },
+  "landing": {
+    "heroTitle": "Journaling and metrics for forex traders",
+    "heroDesc": "Analyze your trades, track performance, and evolve with data. Sync MT4/MT5 or import manually.",
+    "ctaStart": "Start for free",
+    "benefitsTitle": "Why TakeZ Plan?",
+    "benefitsDesc": "Tools for traders who want to evolve with data.",
+    "benefit1Title": "Real-time metrics",
+    "benefit1Desc": "P&L, win rate, profit factor and more. Complete dashboard for your analysis.",
+    "benefit2Title": "Advanced reports",
+    "benefit2Desc": "Calendar, performance by time, strategies and comparisons.",
+    "benefit3Title": "Auto sync",
+    "benefit3Desc": "Sync MT4/MT5 via MetaApi or import CSV. No manual work.",
+    "benefit4Title": "Secure and private",
+    "benefit4Desc": "Encrypted credentials. Your data stays protected.",
+    "ctaTitle": "Ready to evolve?",
+    "ctaDesc": "Create your account and start analyzing your trades in minutes.",
+    "footerRights": "All rights reserved."
+  },
   "onboarding": {
     "welcome": "Welcome to TakeZ Plan",
     "welcomeDesc": "Let's personalize your experience. This will only take a minute.",
@@ -94,7 +112,8 @@
     "aiInsights": "AI-powered insights",
     "aiHub": "AI Hub",
     "settings": "Settings",
-    "upgradeToPro": "Upgrade to Pro"
+    "upgradeToPro": "Upgrade to Pro",
+    "upgradeToElite": "Upgrade to Elite"
   },
   "aiInsights": {
     "title": "AI-powered insights",

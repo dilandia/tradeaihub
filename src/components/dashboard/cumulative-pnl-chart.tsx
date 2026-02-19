@@ -24,6 +24,7 @@ interface CumulativePnlChartProps {
   className?: string;
   privacy?: boolean;
   unit?: string;
+  compact?: boolean;
 }
 
 function fmtVal(v: number, unit: string): string {
@@ -38,6 +39,7 @@ export function CumulativePnlChart({
   className,
   privacy = false,
   unit = "pips",
+  compact,
 }: CumulativePnlChartProps) {
   return (
     <Card className={cn("flex h-[315px] flex-col overflow-hidden", className)}>

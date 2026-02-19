@@ -93,7 +93,10 @@ export async function updateTradePreferences(
       .from("user_preferences")
       .insert({ user_id: user.id, ...payload });
 
-    if (insertError) return { success: false, error: insertError.message };
+    if (insertError) {
+      console.error("[trade-settings] insert:", insertError.message);
+      return { success: false, error: "Erro ao salvar configurações. Tente novamente." };
+    }
   }
 
   revalidatePath("/settings/trade-settings");

@@ -83,7 +83,8 @@ export async function createTag(
     if (error.code === "23505") {
       return { success: false, error: "Já existe uma tag com esse nome." };
     }
-    return { success: false, error: error.message };
+    console.error("[tags] createTag:", error.message);
+    return { success: false, error: "Erro ao criar tag. Tente novamente." };
   }
 
   revalidatePath("/settings/tags");
@@ -128,7 +129,8 @@ export async function updateTag(
     if (error.code === "23505") {
       return { success: false, error: "Já existe uma tag com esse nome." };
     }
-    return { success: false, error: error.message };
+    console.error("[tags] updateTag:", error.message);
+    return { success: false, error: "Erro ao atualizar tag. Tente novamente." };
   }
 
   // Renomear tag nos trades se o nome mudou
@@ -195,7 +197,10 @@ export async function deleteTag(
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) {
+    console.error("[tags] deleteTag:", error.message);
+    return { success: false, error: "Erro ao deletar tag. Tente novamente." };
+  }
 
   revalidatePath("/settings/tags");
   return { success: true };

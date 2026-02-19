@@ -30,16 +30,43 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isAuthPage =
-    request.nextUrl.pathname === "/login" ||
-    request.nextUrl.pathname === "/register";
+  const path = request.nextUrl.pathname;
+  /* Debug: /api/debug-host sempre passa (diagnóstico de Host) */
+  if (path === "/api/debug-host") return response;
+  /* Host: prioriza headers (Cloudflare/Nginx passam o host real); nextUrl.hostname = localhost atrás de proxy */
+  const host =
+    request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||
+    request.headers.get("host")?.split(":")[0] ||
+    request.nextUrl.hostname ||
+    "";
+  const isAuthPage = path === "/login" || path === "/register";
+
+  /* tradeaihub.com e www: landing pública em /, auth em app */
+  const isLandingDomain =
+    host === "tradeaihub.com" || host === "www.tradeaihub.com";
+  if (isLandingDomain) {
+    if (path === "/") return response;
+    /* Login/register na landing: redireciona para app */
+    if (path === "/login" || path === "/register") {
+      return NextResponse.redirect(
+        new URL(path, "https://app.tradeaihub.com")
+      );
+    }
+    /* Outras rotas na landing: 404 ou redireciona para / */
+    return NextResponse.redirect(new URL("/", request.url));
+  }
 
   if (isAuthPage && user) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   if (!isAuthPage && !user) {
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  /* app.tradeaihub.com: rota raiz com usuário logado → dashboard */
+  if (path === "/" && user) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return response;

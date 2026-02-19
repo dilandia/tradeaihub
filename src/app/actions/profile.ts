@@ -81,7 +81,7 @@ export async function updateProfile(
 
   if (error) {
     console.error("[updateProfile]", error.message);
-    return { success: false, error: error.message };
+    return { success: false, error: "Erro ao atualizar perfil. Tente novamente." };
   }
 
   // Atualizar metadata do auth também (para o nome aparecer no header)
@@ -110,7 +110,10 @@ export async function updateAvatar(
     .update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() })
     .eq("id", user.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) {
+    console.error("[updateAvatar]", error.message);
+    return { success: false, error: "Erro ao atualizar avatar. Tente novamente." };
+  }
 
   revalidatePath("/settings/profile");
   return { success: true };
@@ -131,7 +134,10 @@ export async function deleteAvatar(): Promise<{
     .update({ avatar_url: null, updated_at: new Date().toISOString() })
     .eq("id", user.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) {
+    console.error("[deleteAvatar]", error.message);
+    return { success: false, error: "Erro ao remover avatar. Tente novamente." };
+  }
 
   revalidatePath("/settings/profile");
   return { success: true };

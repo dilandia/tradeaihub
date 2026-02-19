@@ -31,7 +31,7 @@ export async function saveOnboardingResponse(
 
   if (error) {
     console.error("[saveOnboardingResponse]", error.message);
-    return { success: false, error: error.message };
+    return { success: false, error: "Erro ao salvar respostas. Tente novamente." };
   }
 
   return { success: true };

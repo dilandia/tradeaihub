@@ -264,8 +264,8 @@ export function TradeChartLightweight({
       })
       .catch((err) => {
         if (cancelled) return;
-        console.warn("[chart] Fallback to synthetic:", err.message);
-        setErrorMsg(err.message);
+        console.warn("[chart] Fallback to synthetic:", err instanceof Error ? err.message : "Unknown");
+        setErrorMsg("Dados do gráfico indisponíveis. Exibindo visualização simplificada.");
         setUseRealData(false);
         const synth = buildMinimalSynthetic(entryTs, exitTs, Number(trade.entry_price), Number(trade.exit_price));
         const markerEntryTime = synth.bars[0]?.time ?? (entryTs as UTCTimestamp);

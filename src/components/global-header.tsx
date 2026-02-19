@@ -2,8 +2,10 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useDataSource } from "@/contexts/data-source-context";
 import { useLanguage } from "@/contexts/language-context";
+import { usePlan } from "@/contexts/plan-context";
 import {
   DataSourceSelector,
   type DataSourceSelection,
@@ -18,7 +20,11 @@ type Props = {
 export function GlobalHeader({ userName }: Props) {
   const { selection, setSelection, accounts, imports } = useDataSource();
   const { t } = useLanguage();
+  const { planInfo } = usePlan();
   const pathname = usePathname();
+
+  const plan = planInfo?.plan ?? "free";
+  const planLabel = t(`plans.${plan}`);
   const router = useRouter();
 
   const hasAnySource = accounts.length > 0 || imports.length > 0;
@@ -66,8 +72,18 @@ export function GlobalHeader({ userName }: Props) {
 
         <div className="flex-1" />
 
-        {/* Right: Language + Data source selector + logout */}
+        {/* Right: Plan badge + Language + Data source selector + logout */}
         <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              "hidden rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide sm:inline-block",
+              plan === "elite" && "bg-amber-500/20 text-amber-600 dark:text-amber-400",
+              plan === "pro" && "bg-violet-500/20 text-violet-600 dark:text-violet-400",
+              plan === "free" && "bg-muted text-muted-foreground"
+            )}
+          >
+            {planLabel}
+          </span>
           <LanguageSelector />
           {hasAnySource && (
             <DataSourceSelector

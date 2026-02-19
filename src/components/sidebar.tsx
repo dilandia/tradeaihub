@@ -21,11 +21,12 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useDataSource } from "@/contexts/data-source-context";
 import { useLanguage } from "@/contexts/language-context";
+import { usePlan } from "@/contexts/plan-context";
 import { signOut } from "@/app/actions/auth";
 
 /* Itens principais — pro: recurso premium, ai: destaque glass roxo */
 const mainNavItems = [
-  { href: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, pro: false, ai: false },
+  { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard, pro: false, ai: false },
   { href: "/day-view", labelKey: "nav.dayView", icon: Calendar, pro: false, ai: false },
   { href: "/trades", labelKey: "nav.tradeView", icon: ListOrdered, pro: false, ai: false },
   { href: "/economic-events", labelKey: "nav.economicEvents", icon: CalendarClock, pro: false, ai: false },
@@ -46,6 +47,10 @@ export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { selection } = useDataSource();
   const { t } = useLanguage();
+  const { planInfo } = usePlan();
+
+  const plan = planInfo?.plan ?? "free";
+  const upgradeLabel = plan === "free" ? "nav.upgradeToPro" : plan === "pro" ? "nav.upgradeToElite" : null;
 
   /** Constrói query string baseada na seleção de data source ativa */
   function buildHref(base: string): string {
@@ -89,7 +94,7 @@ export function Sidebar() {
       >
         <div className="shrink-0 flex h-16 items-center gap-2 border-b border-border px-4 lg:pl-6">
           <Link
-            href={buildHref("/")}
+            href={buildHref("/dashboard")}
             className="text-lg font-bold text-foreground"
             onClick={() => setMobileOpen(false)}
           >
@@ -125,22 +130,24 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* CTA Pro — chamada para upgrade */}
-        <div className="shrink-0 px-4 pb-3">
-          <Link
-            href="/settings/subscription"
-            onClick={() => setMobileOpen(false)}
-            className={cn(
-              "flex items-center gap-3 rounded-xl border border-violet-500/30 bg-gradient-to-r from-violet-500/15 to-amber-500/10 px-3 py-2.5",
-              "text-sm font-semibold text-violet-700 dark:text-violet-300",
-              "transition-all hover:from-violet-500/25 hover:to-amber-500/20 hover:border-violet-500/50"
-            )}
-          >
-            <Crown className="h-5 w-5 shrink-0 text-amber-500" />
-            <span className="flex-1">{t("nav.upgradeToPro")}</span>
-            <ArrowRight className="h-4 w-4 shrink-0 opacity-70" />
-          </Link>
-        </div>
+        {/* CTA upgrade — Free→Pro, Pro→Elite, Elite→oculto */}
+        {upgradeLabel && (
+          <div className="shrink-0 px-4 pb-3">
+            <Link
+              href="/settings/subscription"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border border-violet-500/30 bg-gradient-to-r from-violet-500/15 to-amber-500/10 px-3 py-2.5",
+                "text-sm font-semibold text-violet-700 dark:text-violet-300",
+                "transition-all hover:from-violet-500/25 hover:to-amber-500/20 hover:border-violet-500/50"
+              )}
+            >
+              <Crown className="h-5 w-5 shrink-0 text-amber-500" />
+              <span className="flex-1">{t(upgradeLabel)}</span>
+              <ArrowRight className="h-4 w-4 shrink-0 opacity-70" />
+            </Link>
+          </div>
+        )}
 
         {/* Rodapé: Importar, Configurações e Sair */}
         <div className="shrink-0 border-t border-border p-4">

@@ -32,6 +32,24 @@
     "noData": "Nenhum dado disponível",
     "selectLanguage": "Selecionar idioma"
   },
+  "landing": {
+    "heroTitle": "Journaling e métricas para traders de forex",
+    "heroDesc": "Analise seus trades, acompanhe performance e evoluir com dados. Sincronize MT4/MT5 ou importe manualmente.",
+    "ctaStart": "Começar grátis",
+    "benefitsTitle": "Por que o TakeZ Plan?",
+    "benefitsDesc": "Ferramentas para traders que querem evoluir com dados.",
+    "benefit1Title": "Métricas em tempo real",
+    "benefit1Desc": "P&L, win rate, profit factor e mais. Dashboard completo para sua análise.",
+    "benefit2Title": "Relatórios avançados",
+    "benefit2Desc": "Calendário, performance por horário, estratégias e comparações.",
+    "benefit3Title": "Sync automático",
+    "benefit3Desc": "Sincronize MT4/MT5 via MetaApi ou importe CSV. Sem trabalho manual.",
+    "benefit4Title": "Seguro e privado",
+    "benefit4Desc": "Credenciais criptografadas. Seus dados ficam protegidos.",
+    "ctaTitle": "Pronto para evoluir?",
+    "ctaDesc": "Crie sua conta e comece a analisar seus trades em minutos.",
+    "footerRights": "Todos os direitos reservados."
+  },
   "onboarding": {
     "welcome": "Bem-vindo ao TakeZ Plan",
     "welcomeDesc": "Vamos personalizar sua experiência. Leva apenas um minuto.",
@@ -94,7 +112,8 @@
     "aiInsights": "Insights com IA",
     "aiHub": "Central IA",
     "settings": "Configurações",
-    "upgradeToPro": "Fazer upgrade Pro"
+    "upgradeToPro": "Fazer upgrade Pro",
+    "upgradeToElite": "Fazer upgrade Elite"
   },
   "aiInsights": {
     "title": "Insights com IA",

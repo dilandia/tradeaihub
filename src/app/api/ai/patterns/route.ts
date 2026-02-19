@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generatePatternInsights } from "@/lib/ai/agents/pattern-detection";
 import { getCachedInsight, setCachedInsight } from "@/lib/ai/cache";
-import { checkAndConsumeAiCredits } from "@/lib/ai/plan-gate";
+import { checkAiCredits, consumeCreditsAfterSuccess } from "@/lib/ai/plan-gate";
 import { getTrades, toCalendarTrades } from "@/lib/trades";
 import { filterByDateRange } from "@/lib/dashboard-calc";
 import type { CalendarTrade } from "@/lib/calendar-utils";
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     const cached = await getCachedInsight("patterns", cacheParams);
     if (cached) return NextResponse.json({ insights: cached, cached: true });
 
-    const gate = await checkAndConsumeAiCredits(user.id);
+    const gate = await checkAiCredits(user.id);
     if (!gate.ok) {
       return NextResponse.json(
         { error: gate.error, code: gate.code },
@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
     });
 
     await setCachedInsight("patterns", cacheParams, insights);
+    await consumeCreditsAfterSuccess(user.id);
     return NextResponse.json({ insights });
   } catch (err) {
     console.error("[AI patterns]", err);

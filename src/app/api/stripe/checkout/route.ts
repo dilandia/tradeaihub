@@ -108,7 +108,6 @@ export async function POST(req: Request) {
       cancel_url: `${appUrl}/settings/subscription?canceled=true`,
       subscription_data: {
         metadata: { supabase_user_id: user.id, plan: planId, interval },
-        trial_period_days: 0,
       },
       metadata: { supabase_user_id: user.id, plan: planId, interval },
       allow_promotion_codes: true,

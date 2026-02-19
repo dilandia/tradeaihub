@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getPlanInfo } from "@/lib/plan";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 /**
  * GET /api/plan
  * Retorna o PlanInfo do usuário autenticado.
@@ -22,5 +25,7 @@ export async function GET() {
     return NextResponse.json({ error: "Plan not found" }, { status: 404 });
   }
 
-  return NextResponse.json(planInfo);
+  const res = NextResponse.json(planInfo);
+  res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  return res;
 }

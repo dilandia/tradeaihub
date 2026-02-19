@@ -3,9 +3,11 @@ node_modules
 .pnp
 .pnp.js
 
-# Env (nunca commitar chaves)
+# Env e credenciais (nunca commitar)
 .env
 .env.local
+CREDENCIAIS*.txt
+*.pem
 .env.development.local
 .env.test.local
 .env.production.local
@@ -26,6 +28,7 @@ yarn-error.log*
 # IDE
 .idea
 .vscode
+.cursor
 *.swp
 *.swo
 

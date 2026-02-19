@@ -1,0 +1,30 @@
+#!/bin/bash
+# Configura Nginx para app.tradeaihub.com
+# Execute NO VPS: bash 5-nginx-app-tradeaihub.sh
+
+sudo tee /etc/nginx/sites-available/takez << 'EOF'
+server {
+    listen 80;
+    server_name tradeaihub.com www.tradeaihub.com app.tradeaihub.com 116.203.190.102;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+EOF
+
+sudo ln -sf /etc/nginx/sites-available/takez /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl reload nginx
+
+echo "Nginx configurado para app.tradeaihub.com"
+echo "Próximo: adicione o registro A 'app' na Hostinger apontando para 116.203.190.102"
+echo "Depois: sudo certbot --nginx -d app.tradeaihub.com"

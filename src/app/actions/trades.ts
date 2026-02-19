@@ -48,7 +48,10 @@ export async function createTrade(formData: FormData): Promise<{ error?: string 
     notes: notes ?? null,
   });
 
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("[trades] addTrade:", error.message);
+    return { error: "Erro ao salvar trade. Tente novamente." };
+  }
   revalidatePath("/", "layout");
   revalidatePath("/import");
   return {};
@@ -149,8 +152,8 @@ export async function importTradesFromFile(formData: FormData): Promise<{
     .single();
 
   if (sumErr) {
-    console.error("Erro ao salvar import:", sumErr.message);
-    return { error: `Erro ao registrar importação: ${sumErr.message}` };
+    console.error("[trades] Erro ao salvar import:", sumErr.message);
+    return { error: "Erro ao registrar importação. Tente novamente." };
   }
 
   const importId = summaryRow.id;
@@ -175,7 +178,10 @@ export async function importTradesFromFile(formData: FormData): Promise<{
   }));
 
   const { error } = await supabase.from("trades").insert(toInsert);
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("[trades] insert:", error.message);
+    return { error: "Erro ao importar trades. Tente novamente." };
+  }
 
   revalidatePath("/", "layout");
   revalidatePath("/import");
@@ -198,7 +204,10 @@ export async function deleteImport(importId: string): Promise<{ error?: string }
     .eq("import_id", importId)
     .eq("user_id", user.id);
 
-  if (tradesErr) return { error: `Erro ao remover trades: ${tradesErr.message}` };
+  if (tradesErr) {
+    console.error("[trades] deleteImport trades:", tradesErr.message);
+    return { error: "Erro ao remover trades. Tente novamente." };
+  }
 
   // 2) Deletar o registro de importação
   const { error: importErr } = await supabase
@@ -207,7 +216,10 @@ export async function deleteImport(importId: string): Promise<{ error?: string }
     .eq("id", importId)
     .eq("user_id", user.id);
 
-  if (importErr) return { error: `Erro ao remover importação: ${importErr.message}` };
+  if (importErr) {
+    console.error("[trades] deleteImport summary:", importErr.message);
+    return { error: "Erro ao remover importação. Tente novamente." };
+  }
 
   // 3) Limpar trades órfãos (sem import_id e sem trading_account_id)
   //    Podem existir de importações antigas antes do sistema de vinculação
@@ -246,7 +258,10 @@ export async function updateTradeNotesAndTags(
     .eq("id", tradeId)
     .eq("user_id", user.id);
 
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("[trades] updateTradeNotesAndTags:", error.message);
+    return { error: "Erro ao atualizar trade. Tente novamente." };
+  }
   revalidatePath("/trades");
   revalidatePath("/", "layout");
   return {};

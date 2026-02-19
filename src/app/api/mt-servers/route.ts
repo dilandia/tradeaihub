@@ -46,8 +46,7 @@ export async function GET(req: NextRequest) {
     else process.env.NODE_TLS_REJECT_UNAUTHORIZED = prevTls;
 
     if (!res.ok) {
-      const body = await res.text();
-      console.error("[mt-servers] MetaApi error:", res.status, body);
+      console.error("[mt-servers] MetaApi error:", res.status);
       return NextResponse.json({ brokers: {} });
     }
 
@@ -56,7 +55,7 @@ export async function GET(req: NextRequest) {
     // data = { "Raw Trading Ltd": ["ICMarketsSC-Demo", "ICMarketsSC-MT5"], ... }
     return NextResponse.json({ brokers: data });
   } catch (err) {
-    console.error("[mt-servers]", err);
+    console.error("[mt-servers]", err instanceof Error ? err.message : "Unknown");
     return NextResponse.json({ brokers: {} });
   }
 }

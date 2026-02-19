@@ -1,17 +1,18 @@
 /**
  * Gate de plano para rotas de IA.
- * Verifica se o usuário pode usar IA e consome créditos.
+ * Verifica se o usuário pode usar IA. Créditos são consumidos APÓS a resposta do agente.
  */
 
 import { getPlanInfo, consumeAiCredits, ensureAiCreditsForPeriod } from "@/lib/plan";
 
-const CREDITS_PER_ANALYSIS = 2;
+export const CREDITS_PER_ANALYSIS = 1;
 
 export type AiGateResult =
   | { ok: true }
   | { ok: false; error: string; code: "plan" | "credits" };
 
-export async function checkAndConsumeAiCredits(userId: string): Promise<AiGateResult> {
+/** Apenas verifica se pode usar IA (não consome créditos). */
+export async function checkAiCredits(userId: string): Promise<AiGateResult> {
   const planInfo = await getPlanInfo(userId);
   if (!planInfo) {
     return { ok: false, error: "planErrors.aiFree", code: "plan" };
@@ -26,10 +27,10 @@ export async function checkAndConsumeAiCredits(userId: string): Promise<AiGateRe
     return { ok: false, error: "planErrors.creditsZero", code: "credits" };
   }
 
-  const consumed = await consumeAiCredits(userId, CREDITS_PER_ANALYSIS);
-  if (!consumed) {
-    return { ok: false, error: "planErrors.creditsZero", code: "credits" };
-  }
-
   return { ok: true };
+}
+
+/** Consome créditos após análise bem-sucedida. Chamar só depois de receber a resposta do agente. */
+export async function consumeCreditsAfterSuccess(userId: string): Promise<void> {
+  await consumeAiCredits(userId, CREDITS_PER_ANALYSIS);
 }

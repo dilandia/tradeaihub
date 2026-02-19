@@ -40,7 +40,8 @@ export async function changePassword(
   });
 
   if (updateErr) {
-    return { success: false, error: updateErr.message };
+    console.error("[updatePassword]", updateErr.message);
+    return { success: false, error: "Erro ao atualizar senha. Verifique os requisitos e tente novamente." };
   }
 
   revalidatePath("/settings/security");
@@ -69,7 +70,8 @@ export async function updateEmail(
   const { error } = await supabase.auth.updateUser({ email: newEmail });
 
   if (error) {
-    return { success: false, error: error.message };
+    console.error("[updateEmail]", error.message);
+    return { success: false, error: "Erro ao atualizar email. Tente novamente." };
   }
 
   return {

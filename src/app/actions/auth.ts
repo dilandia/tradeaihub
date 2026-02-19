@@ -21,7 +21,7 @@ export async function signIn(formData: FormData): Promise<never> {
   }
 
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect("/dashboard");
 }
 
 export async function signUp(formData: FormData): Promise<never> {

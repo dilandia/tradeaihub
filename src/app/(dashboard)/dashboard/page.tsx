@@ -26,12 +26,10 @@ export default async function DashboardPage({
   const calendarTrades = toCalendarTrades(trades);
   const hasAnySource = tradingAccounts.length > 0 || summaries.length > 0;
 
-  // Summary do relatório selecionado
   const activeSummary = selectedImportId
     ? summaries.find((s) => s.id === selectedImportId) ?? null
     : null;
 
-  // Saldo inicial para ROI %: relatório = drawdown relativo; conta sync = balance
   const initialBalance =
     activeSummary?.balance_drawdown_relative != null &&
     activeSummary?.balance_drawdown_relative_pct != null &&
@@ -41,7 +39,6 @@ export default async function DashboardPage({
         ? (tradingAccounts.find((a) => a.id === selectedAccountId)?.balance ?? null)
         : null;
 
-  // Saldo atual da conta (para Account Balance & P&L)
   const currentAccountBalance = selectedAccountId
     ? (tradingAccounts.find((a) => a.id === selectedAccountId)?.balance ?? null)
     : null;
