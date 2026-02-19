@@ -24,6 +24,8 @@ git remote -v
 git remote add origin https://github.com/dilandia/tradeaihub.git
 ```
 
+**Repositório público?** O `git pull` deve funcionar sem autenticação.
+
 **Repositório privado?** Configure autenticação no VPS:
 
 - **Opção A – Deploy key (SSH):** Crie uma chave no VPS, adicione em GitHub → Settings → Deploy keys, e use `git@github.com:dilandia/tradeaihub.git` como remote.
