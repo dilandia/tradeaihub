@@ -3,17 +3,19 @@ import { redirect } from "next/navigation";
 import { LandingPage } from "@/components/landing/landing-page";
 
 const LANDING_HOSTS = ["tradeaihub.com", "www.tradeaihub.com"];
+const DEV_LANDING_HOSTS = ["localhost", "127.0.0.1"];
 
-/** Rota raiz: landing em tradeaihub.com/www, redirect em app.tradeaihub.com */
+/** Rota raiz: landing em tradeaihub.com/www (e localhost em dev), redirect em app */
 export default async function RootPage() {
   const headersList = await headers();
   const rawHost =
     headersList.get("host") ?? headersList.get("x-forwarded-host") ?? "";
   const host = rawHost.split(",")[0].trim().split(":")[0];
+  const isDev = process.env.NODE_ENV === "development";
 
-  const isLandingDomain = LANDING_HOSTS.some(
-    (h) => host === h || host.endsWith("." + h)
-  );
+  const isLandingDomain =
+    LANDING_HOSTS.some((h) => host === h || host.endsWith("." + h)) ||
+    (isDev && DEV_LANDING_HOSTS.some((h) => host === h || host.startsWith(h + ":")));
 
   if (isLandingDomain) {
     return <LandingPage />;

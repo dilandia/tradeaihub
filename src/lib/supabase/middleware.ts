@@ -33,17 +33,21 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   /* Debug: /api/debug-host sempre passa (diagnóstico de Host) */
   if (path === "/api/debug-host") return response;
-  /* Host: prioriza headers (Cloudflare/Nginx passam o host real); nextUrl.hostname = localhost atrás de proxy */
-  const host =
+  /* Host: prioriza headers; remove porta para comparar (localhost:3000 → localhost) */
+  const rawHost =
     request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||
-    request.headers.get("host")?.split(":")[0] ||
+    request.headers.get("host") ||
     request.nextUrl.hostname ||
     "";
+  const host = rawHost.split(":")[0];
   const isAuthPage = path === "/login" || path === "/register";
 
-  /* tradeaihub.com e www: landing pública em /, auth em app */
+  /* tradeaihub.com, www e localhost: landing pública em / */
   const isLandingDomain =
-    host === "tradeaihub.com" || host === "www.tradeaihub.com";
+    host === "tradeaihub.com" ||
+    host === "www.tradeaihub.com" ||
+    host === "localhost" ||
+    host === "127.0.0.1";
   if (isLandingDomain) {
     if (path === "/") return response;
     /* Login/register na landing: redireciona para app */

@@ -10,7 +10,8 @@ echo "=== Deploy via GitHub ==="
 echo "[1/3] git pull..."
 git pull origin master
 
-echo "[2/3] npm run build..."
+echo "[2/3] Limpando cache e build..."
+rm -rf .next
 npm run build
 
 echo "[3/3] pm2 restart..."

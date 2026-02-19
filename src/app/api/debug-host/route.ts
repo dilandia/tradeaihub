@@ -6,16 +6,22 @@ import { NextRequest, NextResponse } from "next/server";
  * REMOVER em produção após resolver o problema.
  */
 export async function GET(req: NextRequest) {
-  const host = req.headers.get("host") ?? "";
+  const hostHeader = req.headers.get("host") ?? "";
   const xForwardedHost = req.headers.get("x-forwarded-host") ?? "";
-  const hostname = req.nextUrl.hostname;
+  const rawHost = xForwardedHost.split(",")[0]?.trim() || hostHeader || "";
+  const host = rawHost.split(":")[0]; // remove porta
+
+  const deveMostrarLanding =
+    host === "tradeaihub.com" ||
+    host === "www.tradeaihub.com" ||
+    host === "localhost" ||
+    host === "127.0.0.1";
 
   return NextResponse.json({
     message: "Debug - remover após resolver",
-    host,
+    host: hostHeader,
     "x-forwarded-host": xForwardedHost,
-    "nextUrl.hostname": hostname,
-    "deveMostrarLanding":
-      hostname === "tradeaihub.com" || hostname === "www.tradeaihub.com",
+    hostNormalizado: host,
+    deveMostrarLanding,
   });
 }
