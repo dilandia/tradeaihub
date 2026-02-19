@@ -15,6 +15,7 @@ export type PlanInfo = {
   maxManualAccounts: number;
   importLimitPerMonth: number;
   canUseAi: boolean;
+  canUseAiCopilot: boolean;
   aiCreditsRemaining: number;
   aiCreditsPerMonth: number;
   aiCreditsPeriodEnd: string | null;
@@ -33,6 +34,7 @@ const PLAN_LIMITS: Record<
     maxManualAccounts: number;
     importLimitPerMonth: number;
     canUseAi: boolean;
+    canUseAiCopilot: boolean;
     aiCreditsPerMonth: number;
     canExportPdf: boolean;
     canAccessReports: boolean;
@@ -46,6 +48,7 @@ const PLAN_LIMITS: Record<
     maxManualAccounts: 1,
     importLimitPerMonth: 5,
     canUseAi: false,
+    canUseAiCopilot: false,
     aiCreditsPerMonth: 0,
     canExportPdf: false,
     canAccessReports: false,
@@ -58,6 +61,7 @@ const PLAN_LIMITS: Record<
     maxManualAccounts: 999,
     importLimitPerMonth: 999,
     canUseAi: true,
+    canUseAiCopilot: false,
     aiCreditsPerMonth: 60,
     canExportPdf: true,
     canAccessReports: true,
@@ -70,6 +74,7 @@ const PLAN_LIMITS: Record<
     maxManualAccounts: 999,
     importLimitPerMonth: 999,
     canUseAi: true,
+    canUseAiCopilot: true,
     aiCreditsPerMonth: 150,
     canExportPdf: true,
     canAccessReports: true,
@@ -156,6 +161,7 @@ export async function getPlanInfo(userId: string | null): Promise<PlanInfo | nul
     maxManualAccounts: limits.maxManualAccounts,
     importLimitPerMonth: limits.importLimitPerMonth,
     canUseAi: limits.canUseAi,
+    canUseAiCopilot: limits.canUseAiCopilot,
     aiCreditsRemaining: credits.creditsRemaining,
     aiCreditsPerMonth: limits.aiCreditsPerMonth,
     aiCreditsPeriodEnd: credits.periodEnd,

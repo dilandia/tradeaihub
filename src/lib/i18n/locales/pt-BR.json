@@ -170,7 +170,15 @@
     "footerContact": "Contato",
     "footerPrivacy": "Privacidade",
     "footerTerms": "Termos",
-    "footerMadeWith": "Feito com ❤️ para traders"
+    "footerMadeWith": "Feito com ❤️ para traders",
+    "aiCopilotSectionTitle": "Insights com IA",
+    "aiCopilotSectionDesc": "Obtenha análises inteligentes e sugestões personalizadas para melhorar sua estratégia de trading.",
+    "aiCopilotBullet1": "Reconhecimento de padrões",
+    "aiCopilotBullet2": "Análise de comportamento",
+    "aiCopilotBullet3": "Recomendações de trades",
+    "aiCopilotBullet4": "Consultas em linguagem natural",
+    "aiCopilotPowered": "Alimentado por GPT-4",
+    "aiCopilotCta": "Experimente o AI Copilot Grátis"
   },
   "onboarding": {
     "welcome": "Bem-vindo ao TakeZ Plan",
@@ -233,6 +241,7 @@
     "importTrades": "Importar Trades",
     "aiInsights": "Insights com IA",
     "aiHub": "Central IA",
+    "aiCopilot": "AI Copilot",
     "settings": "Configurações",
     "upgradeToPro": "Fazer upgrade Pro",
     "upgradeToElite": "Fazer upgrade Elite"
@@ -277,6 +286,54 @@
     "linkTakerzScore": "Takerz Score",
     "creditsRemaining": "{count} de {total} créditos restantes este mês",
     "buyCredits": "Comprar créditos"
+  },
+  "aiCopilot": {
+    "title": "AI Copilot",
+    "header": "AI Copilot",
+    "subtitle": "Seu consultor de trading — pergunte o que quiser",
+    "conversationHistory": "Conversas",
+    "placeholder": "Pergunte sobre sua performance de trading...",
+    "send": "Enviar",
+    "disclaimer": "Assistente de IA, não é aconselhamento financeiro",
+    "suggestions": {
+      "justAsk": "Apenas Pergunte",
+      "naturalQueries": "Consultas em linguagem natural",
+      "saveHours": "Economize Horas",
+      "instantInsights": "Insights instantâneos",
+      "moreThanData": "Mais que Dados",
+      "strategyAdvice": "Conselhos de estratégia"
+    },
+    "suggestedQueries": {
+      "riskConsistency": "Estou arriscando quantias consistentes?",
+      "performanceSummary": "Me dê um resumo rápido da minha performance",
+      "improve": "O que devo melhorar com base nos meus números?",
+      "bestWorstDay": "Qual é meu melhor e pior dia de trading?",
+      "overtrading": "Estou overtrading?",
+      "winRateConsistency": "Quão consistente é meu win rate?"
+    },
+    "suggestionReasons": {
+      "riskConsistencyLow": "Sua consistência de risco pode melhorar",
+      "winRateLow": "Seu win rate sugere espaço para melhoria",
+      "consecutiveLossesHigh": "Você teve várias perdas consecutivas",
+      "dayWinLow": "Sua taxa de dias positivos pode melhorar",
+      "profitFactorLow": "Seu profit factor precisa de atenção",
+      "manyTrades": "Você tem muitos trades para analisar",
+      "general": "Sugerido para você"
+    },
+    "newConversation": "Nova conversa",
+    "loadConversation": "Carregar conversa"
+  },
+  "aiAssistant": {
+    "title": "Assistente IA",
+    "barLabel": "Agentes IA",
+    "welcomeMessage": "Onde você quer ir? Posso te levar à Central de IA ou abrir o chat com o AI Copilot.",
+    "goToHub": "Central de IA",
+    "openCopilot": "AI Copilot"
+  },
+  "aiCopilotGate": {
+    "heading": "AI Copilot é um recurso Elite",
+    "description": "Faça perguntas em linguagem natural sobre seus trades, risco e performance. Obtenha insights instantâneos com IA.",
+    "upgradeCta": "Fazer upgrade para Elite"
   },
   "economicEvents": {
     "title": "Calendário Econômico",
@@ -996,6 +1053,7 @@
     "maxManualFree": "O plano Free permite apenas 1 conta manual. Faça upgrade para Pro para adicionar mais contas.",
     "creditsZero": "Seus créditos de análise acabaram. Compre mais créditos para continuar usando os agentes de IA.",
     "aiFree": "Os agentes de IA estão disponíveis no plano Pro. Faça upgrade para desbloquear.",
+    "aiCopilotElite": "O AI Copilot está disponível no plano Elite. Faça upgrade para desbloquear.",
     "importLimit": "Você atingiu o limite de importações deste mês. Faça upgrade para Pro para importações ilimitadas.",
     "reportsFree": "Relatórios avançados estão disponíveis no plano Pro. Faça upgrade para desbloquear.",
     "exportPdfFree": "Exportar PDF está disponível no plano Pro. Faça upgrade para desbloquear."

@@ -19,6 +19,7 @@ type PlanContextValue = {
   canAddManualAccount: (currentCount: number) => boolean;
   canImport: (importsThisMonth: number) => boolean;
   canUseAi: () => boolean;
+  canUseAiCopilot: () => boolean;
   canConsumeAiCredits: (amount?: number) => boolean;
   canExportPdf: () => boolean;
   canAccessReports: () => boolean;
@@ -82,6 +83,11 @@ export function PlanProvider({ children }: Props) {
     [planInfo]
   );
 
+  const canUseAiCopilot = useCallback(
+    () => planInfo?.canUseAiCopilot ?? false,
+    [planInfo]
+  );
+
   const canConsumeAiCredits = useCallback(
     (amount = 1) =>
       (planInfo?.canUseAi ?? false) &&
@@ -113,6 +119,7 @@ export function PlanProvider({ children }: Props) {
     canAddManualAccount,
     canImport,
     canUseAi,
+    canUseAiCopilot,
     canConsumeAiCredits,
     canExportPdf,
     canAccessReports,

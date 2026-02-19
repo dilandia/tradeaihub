@@ -32,3 +32,29 @@ export async function chatCompletion(
   const content = res.choices[0]?.message?.content?.trim();
   return content ?? "";
 }
+
+/** Streaming: retorna AsyncIterable de chunks de texto */
+export async function* chatCompletionStream(
+  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
+  options?: { model?: string; maxTokens?: number }
+): AsyncGenerator<string, void, unknown> {
+  const client = getOpenAIClient();
+  if (!client) {
+    throw new Error("OPENAI_API_KEY não configurada. Configure em .env.local");
+  }
+  const model = options?.model ?? "gpt-4o-mini";
+  const maxTokens = options?.maxTokens ?? 1024;
+
+  const stream = await client.chat.completions.create({
+    model,
+    messages,
+    max_tokens: maxTokens,
+    temperature: 0.7,
+    stream: true,
+  });
+
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta?.content;
+    if (delta) yield delta;
+  }
+}

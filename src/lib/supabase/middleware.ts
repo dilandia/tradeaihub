@@ -42,22 +42,25 @@ export async function updateSession(request: NextRequest) {
   const host = rawHost.split(":")[0];
   const isAuthPage = path === "/login" || path === "/register";
 
-  /* tradeaihub.com, www e localhost: landing pública em / */
-  const isLandingDomain =
-    host === "tradeaihub.com" ||
-    host === "www.tradeaihub.com" ||
-    host === "localhost" ||
-    host === "127.0.0.1";
-  if (isLandingDomain) {
+  /* tradeaihub.com, www: domínio de landing em prod */
+  const isProdLandingDomain =
+    host === "tradeaihub.com" || host === "www.tradeaihub.com";
+  /* localhost: em dev serve landing E app no mesmo host */
+  const isLocalhost = host === "localhost" || host === "127.0.0.1";
+
+  if (isProdLandingDomain || isLocalhost) {
     if (path === "/") return response;
-    /* Login/register na landing: redireciona para app */
-    if (path === "/login" || path === "/register") {
+    /* Login/register: em prod landing redireciona para app */
+    if ((path === "/login" || path === "/register") && isProdLandingDomain) {
       return NextResponse.redirect(
         new URL(path, "https://app.tradeaihub.com")
       );
     }
-    /* Outras rotas na landing: 404 ou redireciona para / */
-    return NextResponse.redirect(new URL("/", request.url));
+    /* Em prod landing: rotas do app (dashboard, trades, etc) redirecionam para app.tradeaihub.com */
+    if (isProdLandingDomain && path !== "/login" && path !== "/register") {
+      return NextResponse.redirect(new URL(path, "https://app.tradeaihub.com"));
+    }
+    /* Em localhost: permite todas as rotas (/, /login, /register, /dashboard, etc) - segue para checagens de auth */
   }
 
   if (isAuthPage && user) {

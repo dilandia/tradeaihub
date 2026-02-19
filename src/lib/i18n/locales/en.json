@@ -170,7 +170,15 @@
     "footerContact": "Contact",
     "footerPrivacy": "Privacy",
     "footerTerms": "Terms",
-    "footerMadeWith": "Made with ❤️ for traders"
+    "footerMadeWith": "Made with ❤️ for traders",
+    "aiCopilotSectionTitle": "AI-Powered Insights",
+    "aiCopilotSectionDesc": "Get intelligent analysis and personalized suggestions to improve your trading strategy.",
+    "aiCopilotBullet1": "Pattern recognition",
+    "aiCopilotBullet2": "Behavior analysis",
+    "aiCopilotBullet3": "Trade recommendations",
+    "aiCopilotBullet4": "Natural language queries",
+    "aiCopilotPowered": "Powered by GPT-4",
+    "aiCopilotCta": "Try AI Copilot Free"
   },
   "onboarding": {
     "welcome": "Welcome to TakeZ Plan",
@@ -233,6 +241,7 @@
     "importTrades": "Import Trades",
     "aiInsights": "AI-powered insights",
     "aiHub": "AI Hub",
+    "aiCopilot": "AI Copilot",
     "settings": "Settings",
     "upgradeToPro": "Upgrade to Pro",
     "upgradeToElite": "Upgrade to Elite"
@@ -277,6 +286,54 @@
     "linkTakerzScore": "Takerz Score",
     "creditsRemaining": "{count} of {total} credits remaining this month",
     "buyCredits": "Buy credits"
+  },
+  "aiCopilot": {
+    "title": "AI Copilot",
+    "header": "AI Copilot",
+    "subtitle": "Your trading advisor — ask anything",
+    "conversationHistory": "Conversations",
+    "placeholder": "Ask about your trading performance...",
+    "send": "Send",
+    "disclaimer": "AI assistant, not financial advice",
+    "suggestions": {
+      "justAsk": "Just Ask",
+      "naturalQueries": "Natural queries",
+      "saveHours": "Save Hours",
+      "instantInsights": "Instant insights",
+      "moreThanData": "More Than Data",
+      "strategyAdvice": "Strategy advice"
+    },
+    "suggestedQueries": {
+      "riskConsistency": "Am I risking consistent amounts?",
+      "performanceSummary": "Give me a quick summary of my performance",
+      "improve": "What should I improve based on my numbers?",
+      "bestWorstDay": "What's my best and worst trading day?",
+      "overtrading": "Am I overtrading?",
+      "winRateConsistency": "How consistent is my win rate?"
+    },
+    "suggestionReasons": {
+      "riskConsistencyLow": "Your risk consistency could be improved",
+      "winRateLow": "Your win rate suggests room for improvement",
+      "consecutiveLossesHigh": "You've had several consecutive losses",
+      "dayWinLow": "Your day win rate could be better",
+      "profitFactorLow": "Your profit factor needs attention",
+      "manyTrades": "You have many trades to analyze",
+      "general": "Suggested for you"
+    },
+    "newConversation": "New conversation",
+    "loadConversation": "Load conversation"
+  },
+  "aiAssistant": {
+    "title": "AI Assistant",
+    "barLabel": "Agentes IA",
+    "welcomeMessage": "Where do you want to go? I can take you to the AI Hub or open the chat with AI Copilot.",
+    "goToHub": "AI Hub",
+    "openCopilot": "AI Copilot"
+  },
+  "aiCopilotGate": {
+    "heading": "AI Copilot is an Elite feature",
+    "description": "Ask questions in natural language about your trades, risk, and performance. Get instant insights powered by AI.",
+    "upgradeCta": "Upgrade to Elite"
   },
   "economicEvents": {
     "title": "Economic Calendar",
@@ -1007,6 +1064,7 @@
     "maxManualFree": "The Free plan allows only 1 manual account. Upgrade to Pro to add more accounts.",
     "creditsZero": "Your analysis credits have run out. Buy more credits to continue using AI agents.",
     "aiFree": "AI agents are available on the Pro plan. Upgrade to unlock.",
+    "aiCopilotElite": "AI Copilot is available on the Elite plan. Upgrade to unlock.",
     "importLimit": "You've reached this month's import limit. Upgrade to Pro for unlimited imports.",
     "reportsFree": "Advanced reports are available on the Pro plan. Upgrade to unlock.",
     "exportPdfFree": "PDF export is available on the Pro plan. Upgrade to unlock."

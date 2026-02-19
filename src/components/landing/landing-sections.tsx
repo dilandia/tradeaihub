@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import NextLink from "next/link";
 
-import { APP_URL } from "@/lib/site-config";
+import { useAppUrl } from "@/contexts/app-url-context";
 
 const MOCK_PNL_DATA = [
   { date: "Jan", cumulative: 0 },
@@ -81,6 +81,7 @@ function buildMockCalendarData() {
 
 export function LandingHeader() {
   const { t } = useLanguage();
+  const appUrl = useAppUrl();
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
@@ -107,13 +108,13 @@ export function LandingHeader() {
         <div className="flex items-center gap-3">
           <LanguageSelector />
           <NextLink
-            href={`${APP_URL}/login`}
+            href={`${appUrl}/login`}
             className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:inline-block"
           >
             {t("landing.ctaLogin")}
           </NextLink>
           <NextLink
-            href={`${APP_URL}/register`}
+            href={`${appUrl}/register`}
             className="inline-flex items-center gap-1.5 rounded-xl bg-score px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-score/90"
           >
             {t("landing.ctaFreeTrial")}
@@ -127,6 +128,7 @@ export function LandingHeader() {
 
 export function LandingHero() {
   const { t } = useLanguage();
+  const appUrl = useAppUrl();
   return (
     <section className="relative overflow-hidden px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
       <div className="mx-auto max-w-4xl text-center">
@@ -149,14 +151,14 @@ export function LandingHero() {
         </p>
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <NextLink
-            href={`${APP_URL}/register`}
+            href={`${appUrl}/register`}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-score px-6 py-3.5 text-base font-semibold text-white shadow-lg transition-all hover:bg-score/90 hover:shadow-xl sm:w-auto"
           >
             {t("landing.ctaFreeTrial")}
             <ChevronRight className="h-5 w-5" />
           </NextLink>
           <NextLink
-            href={`${APP_URL}/login`}
+            href={`${appUrl}/login`}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card px-6 py-3.5 text-base font-medium text-foreground transition-colors hover:bg-muted sm:w-auto"
           >
             <Play className="h-4 w-4" />
@@ -277,6 +279,95 @@ export function LandingDashboardPreview() {
               }}
               onDayClick={() => {}}
             />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function LandingAiCopilotFeature() {
+  const { t } = useLanguage();
+  const appUrl = useAppUrl();
+
+  const bullets = [
+    t("landing.aiCopilotBullet1"),
+    t("landing.aiCopilotBullet2"),
+    t("landing.aiCopilotBullet3"),
+    t("landing.aiCopilotBullet4"),
+  ];
+
+  return (
+    <section className="border-t border-border bg-muted/20 px-4 py-20 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl">
+        <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+          {/* Left: Description */}
+          <div>
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-500/40 bg-violet-500/15 px-4 py-1.5 text-sm font-medium text-violet-600 dark:text-violet-400">
+              <Sparkles className="h-4 w-4" />
+              {t("landing.aiCopilotSectionTitle")}
+            </div>
+            <h2 className="text-2xl font-bold text-foreground sm:text-3xl">
+              {t("landing.aiCopilotSectionDesc")}
+            </h2>
+            <ul className="mt-6 space-y-3">
+              {bullets.map((bullet) => (
+                <li key={bullet} className="flex items-center gap-2 text-muted-foreground">
+                  <Check className="h-5 w-5 shrink-0 text-profit" />
+                  <span>{bullet}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 text-sm text-muted-foreground">
+              {t("landing.aiCopilotPowered")}
+            </p>
+            <NextLink
+              href={`${appUrl}/register`}
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-score px-6 py-3.5 text-base font-semibold text-white transition-colors hover:bg-score/90"
+            >
+              {t("landing.aiCopilotCta")}
+              <ArrowRight className="h-5 w-5" />
+            </NextLink>
+          </div>
+
+          {/* Right: Chat mockup */}
+          <div className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
+            <div className="flex items-center gap-2 border-b border-border bg-muted/50 px-4 py-2.5">
+              <div className="flex gap-1.5">
+                <span className="h-3 w-3 rounded-full bg-red-500/80" />
+                <span className="h-3 w-3 rounded-full bg-amber-500/80" />
+                <span className="h-3 w-3 rounded-full bg-emerald-500/80" />
+              </div>
+              <span className="ml-2 text-xs text-muted-foreground">
+                app.tradeaihub.com/ai-copilot
+              </span>
+            </div>
+            <div className="p-4 space-y-4 min-h-[280px]">
+              <div className="flex justify-end">
+                <div className="max-w-[80%] rounded-2xl rounded-br-md bg-score/20 border border-score/30 px-4 py-2.5">
+                  <p className="text-sm">Am I risking consistent amounts?</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">03:25 PM</p>
+                </div>
+              </div>
+              <div className="flex justify-start gap-2">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/20">
+                  <Zap className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                </div>
+                <div className="max-w-[80%] rounded-2xl rounded-bl-md border border-border bg-muted/50 px-4 py-2.5">
+                  <p className="text-sm">No, you are not risking consistent amounts.</p>
+                  <p className="mt-2 text-xs font-medium text-foreground">Your Risk Amount Summary:</p>
+                  <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
+                    <li>• Average risk per trade: +$76.20</li>
+                    <li>• Max Risk per Trade: +$161.22 ▲</li>
+                    <li>• Risk Consistency Score: 38.1/100 ▲</li>
+                  </ul>
+                  <p className="mt-2 text-[10px] italic text-muted-foreground">
+                    *AI assistant, not financial advice
+                  </p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">03:25 PM</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -481,6 +572,7 @@ export function LandingTestimonials() {
 
 export function LandingPricing() {
   const { t } = useLanguage();
+  const appUrl = useAppUrl();
   return (
     <section id="pricing" className="border-t border-border bg-muted/30 px-4 py-20 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
@@ -506,7 +598,7 @@ export function LandingPricing() {
               ))}
             </ul>
             <NextLink
-              href={`${APP_URL}/register`}
+              href={`${appUrl}/register`}
               className="mt-8 block w-full rounded-xl border border-border py-3 text-center font-medium text-foreground transition-colors hover:bg-muted"
             >
               {t("landing.ctaGetStarted")}
@@ -528,7 +620,7 @@ export function LandingPricing() {
               ))}
             </ul>
             <NextLink
-              href={`${APP_URL}/register`}
+              href={`${appUrl}/register`}
               className="mt-8 block w-full rounded-xl bg-score py-3 text-center font-semibold text-white transition-colors hover:bg-score/90"
             >
               {t("landing.ctaFreeTrial")}
@@ -581,6 +673,7 @@ export function LandingFaq() {
 
 export function LandingCta() {
   const { t } = useLanguage();
+  const appUrl = useAppUrl();
   return (
     <section className="border-t border-border bg-muted/30 px-4 py-20 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-card p-8 text-center shadow-lg sm:p-12">
@@ -606,7 +699,7 @@ export function LandingCta() {
           </span>
         </div>
         <NextLink
-          href={`${APP_URL}/register`}
+          href={`${appUrl}/register`}
           className="mt-8 inline-flex items-center gap-2 rounded-xl bg-score px-8 py-3.5 text-base font-semibold text-white transition-colors hover:bg-score/90"
         >
           {t("landing.ctaFreeTrial")}
@@ -620,6 +713,7 @@ export function LandingCta() {
 
 export function LandingFooter() {
   const { t } = useLanguage();
+  const appUrl = useAppUrl();
   return (
     <footer className="border-t border-border bg-muted/30 px-4 py-12 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
@@ -639,7 +733,7 @@ export function LandingFooter() {
               <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
                 <li><a href="#features" className="hover:text-foreground">{t("landing.navFeatures")}</a></li>
                 <li><a href="#pricing" className="hover:text-foreground">{t("landing.navPricing")}</a></li>
-                <li><NextLink href={`${APP_URL}/login`} className="hover:text-foreground">{t("landing.ctaLogin")}</NextLink></li>
+                <li><NextLink href={`${appUrl}/login`} className="hover:text-foreground">{t("landing.ctaLogin")}</NextLink></li>
               </ul>
             </div>
             <div>

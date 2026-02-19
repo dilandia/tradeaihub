@@ -53,7 +53,6 @@ import { AccountBalancePnl } from "./account-balance-pnl";
 import { CurrentStreakCombined } from "./current-streak-combined";
 import { TutorialChecklist } from "@/components/onboarding/tutorial-checklist";
 import { DashboardAiFooter } from "@/components/dashboard/dashboard-ai-footer";
-import { AiFloatingPill } from "@/components/ai/ai-floating-pill";
 
 /* ─── Cálculos ─── */
 import {
@@ -787,8 +786,6 @@ export function DashboardContent({
             </div>
             {/* ── Dashboard: grid unificado ── */}
             <DashboardGrid items={allGridItems} />
-            {/* ── Bolinha flutuante: some quando Insights IA está visível ── */}
-            <AiFloatingPill visible={!insightsSectionVisible} />
           </>
         )}
       </div>

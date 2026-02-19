@@ -16,6 +16,7 @@ import {
   Sparkles,
   ArrowRight,
   Crown,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -24,15 +25,16 @@ import { useLanguage } from "@/contexts/language-context";
 import { usePlan } from "@/contexts/plan-context";
 import { signOut } from "@/app/actions/auth";
 
-/* Itens principais — pro: recurso premium, ai: destaque glass roxo */
+/* Itens principais — pro: recurso premium, ai: destaque glass roxo, elite: badge Elite */
 const mainNavItems = [
-  { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard, pro: false, ai: false },
-  { href: "/day-view", labelKey: "nav.dayView", icon: Calendar, pro: false, ai: false },
-  { href: "/trades", labelKey: "nav.tradeView", icon: ListOrdered, pro: false, ai: false },
-  { href: "/economic-events", labelKey: "nav.economicEvents", icon: CalendarClock, pro: false, ai: false },
-  { href: "/reports", labelKey: "nav.reports", icon: FileText, pro: true, ai: false },
-  { href: "/strategies", labelKey: "nav.strategies", icon: Target, pro: false, ai: false },
-  { href: "/ai-hub", labelKey: "nav.aiHub", icon: Sparkles, pro: true, ai: true },
+  { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard, pro: false, ai: false, elite: false },
+  { href: "/day-view", labelKey: "nav.dayView", icon: Calendar, pro: false, ai: false, elite: false },
+  { href: "/trades", labelKey: "nav.tradeView", icon: ListOrdered, pro: false, ai: false, elite: false },
+  { href: "/economic-events", labelKey: "nav.economicEvents", icon: CalendarClock, pro: false, ai: false, elite: false },
+  { href: "/reports", labelKey: "nav.reports", icon: FileText, pro: true, ai: false, elite: false },
+  { href: "/strategies", labelKey: "nav.strategies", icon: Target, pro: false, ai: false, elite: false },
+  { href: "/ai-hub", labelKey: "nav.aiHub", icon: Sparkles, pro: true, ai: true, elite: false },
+  { href: "/ai-copilot", labelKey: "nav.aiCopilot", icon: MessageCircle, pro: false, ai: true, elite: true },
 ];
 
 /* Rodapé do menu — Importar, Configurações e Sair */
@@ -102,7 +104,7 @@ export function Sidebar() {
           </Link>
         </div>
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-4 lg:p-4">
-          {mainNavItems.map(({ href, labelKey, icon: Icon, pro, ai }) => {
+          {mainNavItems.map(({ href, labelKey, icon: Icon, pro, ai, elite }) => {
             const basePath = href.split("?")[0];
             const isActive = pathname === basePath || pathname.startsWith(basePath + "/");
             return (
@@ -123,6 +125,11 @@ export function Sidebar() {
                 {pro && (
                   <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-500">
                     Pro
+                  </span>
+                )}
+                {elite && (
+                  <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-500">
+                    Elite
                   </span>
                 )}
               </Link>

@@ -5,6 +5,7 @@ import {
   LandingHero,
   LandingStats,
   LandingDashboardPreview,
+  LandingAiCopilotFeature,
   LandingProcess,
   LandingTrackAnalyze,
   LandingSegments,
@@ -22,6 +23,7 @@ export function LandingPage() {
       <LandingHero />
       <LandingStats />
       <LandingDashboardPreview />
+      <LandingAiCopilotFeature />
       <LandingProcess />
       <LandingTrackAnalyze />
       <LandingSegments />

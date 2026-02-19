@@ -1,0 +1,77 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { getTrades, toCalendarTrades } from "@/lib/trades";
+import {
+  filterByDateRange,
+  buildPerformanceMetrics,
+  computeClientMetrics,
+} from "@/lib/dashboard-calc";
+import { getContextualSuggestions } from "@/lib/ai/copilot-suggestions";
+import type { CalendarTrade } from "@/lib/calendar-utils";
+
+function buildCopilotMetrics(filtered: CalendarTrade[], metrics: ReturnType<typeof buildPerformanceMetrics>) {
+  const winDays = metrics.winDays;
+  const lossDays = metrics.lossDays;
+  const totalDays = winDays + lossDays + metrics.breakevenDays;
+  const dayWinPct = totalDays > 0 ? Math.round((winDays / totalDays) * 100) : 0;
+
+  const losses = filtered.filter((t) => !t.is_win);
+  const lossAmounts = losses.map((t) =>
+    t.profit_dollar != null ? Math.abs(t.profit_dollar) : Math.abs(t.pips)
+  );
+  const avgRiskPerTrade =
+    lossAmounts.length > 0
+      ? lossAmounts.reduce((a, b) => a + b, 0) / lossAmounts.length
+      : metrics.avgLossDollar;
+  const stdLoss =
+    lossAmounts.length > 1
+      ? Math.sqrt(
+          lossAmounts.reduce((s, v) => s + (v - avgRiskPerTrade) ** 2, 0) / lossAmounts.length
+        )
+      : 0;
+  const cv = avgRiskPerTrade > 0 ? stdLoss / avgRiskPerTrade : 0;
+  const riskConsistencyScore = Math.max(0, Math.min(100, Math.round(100 - cv * 50)));
+
+  return {
+    riskConsistencyScore,
+    winRate: metrics.winRate,
+    maxConsecutiveLosses: metrics.maxConsecutiveLosses,
+    dayWinPct,
+    profitFactor: metrics.profitFactor,
+    totalTrades: metrics.totalTrades,
+  };
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const importId = searchParams.get("import") ?? undefined;
+    const accountId = searchParams.get("account") ?? undefined;
+    const period = searchParams.get("period") ?? "all";
+
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const trades = await getTrades(importId, accountId);
+    const calendarTrades = toCalendarTrades(trades);
+    const filtered = filterByDateRange(calendarTrades, period) as CalendarTrade[];
+
+    if (filtered.length === 0) {
+      return NextResponse.json({ suggestions: [] });
+    }
+
+    const metrics = buildPerformanceMetrics(filtered, true);
+    const copilotMetrics = buildCopilotMetrics(filtered, metrics);
+    const suggestions = getContextualSuggestions(copilotMetrics);
+
+    return NextResponse.json({ suggestions });
+  } catch (err) {
+    console.error("[AI Copilot suggestions]", err);
+    return NextResponse.json({ error: "Failed to get suggestions" }, { status: 500 });
+  }
+}
