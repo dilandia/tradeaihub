@@ -343,7 +343,7 @@ export async function updateTradeNotesAndTags(
   });
 
   if (!validation.success) {
-    const errorMessages = validation.error.errors
+    const errorMessages = validation.error.issues
       .map((err) => `${err.path.join(".")}: ${err.message}`)
       .join("; ");
     return { error: errorMessages };

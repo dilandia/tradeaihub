@@ -115,7 +115,7 @@ export function validateTradeFormData(formData: FormData): {
     const result = CreateTradeSchema.safeParse(raw);
 
     if (!result.success) {
-      const errorMessages = result.error.errors
+      const errorMessages = result.error.issues
         .map((err) => `${err.path.join(".")}: ${err.message}`)
         .join("; ");
       return { success: false, error: errorMessages };
