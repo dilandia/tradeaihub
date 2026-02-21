@@ -23,36 +23,27 @@ export async function getUserTags(): Promise<UserTag[]> {
   } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const { data: tags } = await supabase
-    .from("user_tags")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("name", { ascending: true });
-
-  if (!tags) return [];
-
-  // Buscar contagens via RPC (Phase 2: N+1 Prevention)
-  // Antes: 1 query + fetch todas trades + loop CPU
-  // Agora: 2 queries (tags + RPC com agregação na DB)
-  const { data: tagCounts } = await supabase.rpc(
-    "get_user_tag_counts",
+  // Single RPC call: returns tags with counts + analytics
+  // Query 1: ← get_user_tags_with_counts (consolidates previous 2 queries)
+  const { data: tags, error } = await supabase.rpc(
+    "get_user_tags_with_counts",
     { p_user_id: user.id }
   );
 
-  const countMap = new Map<string, number>();
-  if (tagCounts) {
-    for (const row of tagCounts as Array<{ tag_name: string; tag_count: number }>) {
-      countMap.set(row.tag_name, row.tag_count);
-    }
+  if (error) {
+    console.error("[tags] getUserTags error:", error.message);
+    return [];
   }
 
-  return tags.map((t) => ({
+  if (!tags) return [];
+
+  return tags.map((t: any) => ({
     id: t.id,
     name: t.name,
     color: t.color ?? "#7C3AED",
     description: t.description ?? null,
     created_at: t.created_at,
-    trade_count: countMap.get(t.name) ?? 0,
+    trade_count: t.trade_count ?? 0,
   }));
 }
 

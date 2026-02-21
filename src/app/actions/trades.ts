@@ -370,3 +370,71 @@ export async function updateTradeNotesAndTags(
   revalidateTag("trades");
   return {};
 }
+
+/* ─────────────────────────────────────────────
+ * W2-P2: Get trades with enriched tag metadata
+ * Eliminates N+1 when displaying trades with tag details
+ * ───────────────────────────────────────────── */
+
+export type TradeWithTagDetails = {
+  id: string;
+  trade_date: string;
+  pair: string;
+  entry_price: number;
+  exit_price: number;
+  pips: number;
+  is_win: boolean;
+  risk_reward: number | null;
+  tags: string[];
+  notes: string | null;
+  import_id: string | null;
+  trading_account_id: string | null;
+  entry_time: string | null;
+  exit_time: string | null;
+  duration_minutes: number | null;
+  profit_dollar: number | null;
+  created_at: string;
+  updated_at: string;
+  tag_details: Array<{
+    name: string;
+    color: string;
+    description: string | null;
+  }>;
+};
+
+/**
+ * Get trades with enriched tag metadata (color, description) in single query.
+ * Eliminates N+1 when displaying trades with tag details.
+ *
+ * Before: 50 trades = 1 query + loop to fetch tag metadata (50+ queries)
+ * After:  50 trades = 1 RPC call returns everything
+ */
+export async function getTradesWithTags(
+  importId?: string,
+  accountId?: string
+): Promise<TradeWithTagDetails[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  // Single RPC: returns trades with tag_details enrichment
+  const { data: trades, error } = await supabase.rpc(
+    "get_trades_with_tags",
+    {
+      p_user_id: user.id,
+      p_import_id: importId || null,
+      p_account_id: accountId || null,
+    }
+  );
+
+  if (error) {
+    console.error("[trades] getTradesWithTags error:", error.message);
+    return [];
+  }
+
+  if (!trades) return [];
+
+  return trades as TradeWithTagDetails[];
+}

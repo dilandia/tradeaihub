@@ -7,6 +7,12 @@ import { useLanguage } from "@/contexts/language-context";
 import { Tag, TrendingUp, TrendingDown } from "lucide-react";
 import { WidgetTooltip } from "./widget-tooltip";
 
+export interface TradeTagDetail {
+  name: string;
+  color: string;
+  description: string | null;
+}
+
 export interface TradeRow {
   id: string;
   date: string;
@@ -16,6 +22,7 @@ export interface TradeRow {
   rr: number;
   win: boolean;
   tags?: string[];
+  tag_details?: TradeTagDetail[];
 }
 
 interface RecentTradesTableProps {
@@ -105,10 +112,26 @@ export function RecentTradesTable({
                       >
                         <td className="py-2.5 pr-4 text-muted-foreground">{t.date}</td>
                         <td className="py-2.5 pr-4">
-                          <span className="font-medium text-foreground">{t.pair}</span>
-                          {t.tags && t.tags.length > 0 && (
-                            <Tag className="ml-1.5 inline h-3 w-3 text-muted-foreground" />
-                          )}
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-foreground">{t.pair}</span>
+                            {/* W2-P2: Show tag details with colors if available */}
+                            {t.tag_details && t.tag_details.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {t.tag_details.map((tag) => (
+                                  <span
+                                    key={tag.name}
+                                    className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium text-white transition-opacity hover:opacity-80"
+                                    style={{ backgroundColor: tag.color }}
+                                    title={tag.description || tag.name}
+                                  >
+                                    {tag.name}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : t.tags && t.tags.length > 0 ? (
+                              <Tag className="ml-1.5 inline h-3 w-3 text-muted-foreground" />
+                            ) : null}
+                          </div>
                         </td>
                         <td className={cn("py-2.5 text-right font-medium", t.win ? "text-profit" : "text-loss")}>
                           {privacy ? "•••" : fmtValue(t, useDollar)}
