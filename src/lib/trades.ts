@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 export type DbTrade = {
@@ -163,40 +164,46 @@ export async function getTradeWithMetaApiInfo(
 
 /** Busca todos os trades do usuário (opcionalmente filtrado por import_id e/ou trading_account_id).
  *  By default, soft-deleted trades (deleted_at IS NOT NULL) are excluded by RLS.
- *  Pass include_deleted=true to also fetch deleted trades (requires admin/service role). */
-export async function getTrades(
-  importId?: string | null,
-  tradingAccountId?: string | null,
-  include_deleted?: boolean
-): Promise<DbTrade[]> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+ *  Pass include_deleted=true to also fetch deleted trades (requires admin/service role).
+ *
+ *  Wave 2: Cachea em unstable_cache com TTL 60s. Invalida com revalidateTag("trades") em mutations. */
+export const getTrades = unstable_cache(
+  async (
+    importId?: string | null,
+    tradingAccountId?: string | null,
+    include_deleted?: boolean
+  ): Promise<DbTrade[]> => {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
 
-  let query = supabase
-    .from("trades")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("trade_date", { ascending: false });
+    let query = supabase
+      .from("trades")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("trade_date", { ascending: false });
 
-  if (importId) {
-    query = query.eq("import_id", importId);
-  }
+    if (importId) {
+      query = query.eq("import_id", importId);
+    }
 
-  if (tradingAccountId) {
-    query = query.eq("trading_account_id", tradingAccountId);
-  }
+    if (tradingAccountId) {
+      query = query.eq("trading_account_id", tradingAccountId);
+    }
 
-  // RLS already filters deleted_at IS NULL for normal users.
-  // For admin views that bypass RLS, apply explicit filter unless include_deleted is true.
-  if (!include_deleted) {
-    query = query.is("deleted_at", null);
-  }
+    // RLS already filters deleted_at IS NULL for normal users.
+    // For admin views that bypass RLS, apply explicit filter unless include_deleted is true.
+    if (!include_deleted) {
+      query = query.is("deleted_at", null);
+    }
 
-  const { data, error } = await query;
-  if (error) return [];
-  return (data ?? []) as DbTrade[];
-}
+    const { data, error } = await query;
+    if (error) return [];
+    return (data ?? []) as DbTrade[];
+  },
+  ["getTrades"],
+  { revalidate: 60, tags: ["trades"] }
+);
 
 /** Busca todos os import summaries do usuário (mais recente primeiro) - cached per request.
  *  Soft-deleted summaries are excluded by RLS + explicit filter. */

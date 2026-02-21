@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   description: "Análise de performance por dias até expiração (opções).",
 };
 
+export const revalidate = 60; // ISR: Cache for 60 seconds (Wave 2)
+
 export default async function OptionsDayTillExpirationPage({
   searchParams,
 }: {

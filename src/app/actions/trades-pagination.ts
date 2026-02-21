@@ -67,6 +67,10 @@ export async function getTradesPaginated(
   if (accountId) {
     countQuery = countQuery.eq("trading_account_id", accountId);
   }
+  // Wave 2: Move tag filter to query (was client-side, causing incorrect pagination)
+  if (filterTag) {
+    countQuery = countQuery.contains("tags", [filterTag]);
+  }
   // RLS already excludes soft-deleted rows; add explicit filter as defense-in-depth
   if (!include_deleted) {
     countQuery = countQuery.is("deleted_at", null);
@@ -96,6 +100,10 @@ export async function getTradesPaginated(
   if (accountId) {
     dataQuery = dataQuery.eq("trading_account_id", accountId);
   }
+  // Wave 2: Move tag filter to query (uses Supabase array contains operator)
+  if (filterTag) {
+    dataQuery = dataQuery.contains("tags", [filterTag]);
+  }
   if (!include_deleted) {
     dataQuery = dataQuery.is("deleted_at", null);
   }
@@ -106,15 +114,7 @@ export async function getTradesPaginated(
     throw new Error("Failed to fetch trades");
   }
 
-  // Filter by tag if provided (note: this is client-side filter after pagination)
-  let filteredTrades = (trades as Trade[]) || [];
-  if (filterTag) {
-    filteredTrades = filteredTrades.filter((t) =>
-      t.tags?.includes(filterTag)
-    );
-  }
-
-  return buildPaginatedResult(filteredTrades, totalCount, safePage, safePageSize);
+  return buildPaginatedResult(trades as Trade[], totalCount, safePage, safePageSize);
 }
 
 /**

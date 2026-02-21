@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   description: "Análise de performance por tag.",
 };
 
+export const revalidate = 60; // ISR: Cache for 60 seconds (Wave 2)
+
 export default async function TagsPage({
   searchParams,
 }: {

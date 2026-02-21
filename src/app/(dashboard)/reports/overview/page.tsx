@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   description: "Visão geral dos relatórios de trading.",
 };
 
+export const revalidate = 60; // ISR: Cache for 60 seconds (Wave 2)
+
 export default async function OverviewPage({
   searchParams,
 }: {

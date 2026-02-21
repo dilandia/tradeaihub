@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { TradesPageContent } from "./trades-page-content";
-import { getTrades, getTradeWithMetaApiInfo, computeMetrics } from "@/lib/trades";
+import { getTradeWithMetaApiInfo, getTradeMetricsRpc } from "@/lib/trades";
 import { getTradesPaginated } from "@/app/actions/trades-pagination";
 
 export const metadata: Metadata = {
@@ -29,9 +29,8 @@ export default async function TradesPage({
   const paginatedResult = await getTradesPaginated(page, pageSize, importId || undefined, accountId || undefined);
   const trades = paginatedResult.data as any;
 
-  // Get all trades for metrics calculation (cached, minimal perf impact)
-  const allTrades = await getTrades(importId || undefined, accountId || undefined);
-  const metrics = computeMetrics(allTrades);
+  // Wave 2: Get metrics via RPC (eliminates double-fetch of getTrades)
+  const metrics = await getTradeMetricsRpc(importId || undefined, accountId || undefined);
 
   const selectedTrade = tradeId ? await getTradeWithMetaApiInfo(tradeId) : null;
 

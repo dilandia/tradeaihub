@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   description: "Comparação de desempenho entre trades vencedores e perdedores.",
 };
 
+export const revalidate = 60; // ISR: Cache for 60 seconds (Wave 2)
+
 export default async function WinsVsLossesPage({
   searchParams,
 }: {

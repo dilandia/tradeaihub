@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   description: "Relatório de performance com gráficos e métricas detalhadas.",
 };
 
+export const revalidate = 60; // ISR: Cache for 60 seconds (Wave 2)
+
 export default async function PerformancePage({
   searchParams,
 }: {

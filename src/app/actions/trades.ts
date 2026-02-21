@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parseNumber, parseExcel, parseCsv, parseHtml } from "@/lib/parsers";
 import type { TradeInsert } from "@/lib/parsers";
@@ -54,6 +54,7 @@ export async function createTrade(formData: FormData): Promise<{ error?: string 
   }
   revalidatePath("/", "layout");
   revalidatePath("/import");
+  revalidateTag("trades");
   return {};
 }
 
@@ -187,6 +188,7 @@ export async function importTradesFromFile(formData: FormData): Promise<{
 
   revalidatePath("/", "layout");
   revalidatePath("/import");
+  revalidateTag("trades");
   return { imported: trades.length };
 }
 
@@ -214,6 +216,7 @@ export async function softDeleteTrade(tradeId: string): Promise<{ error?: string
 
   revalidatePath("/", "layout");
   revalidatePath("/trades");
+  revalidateTag("trades");
   return {};
 }
 
@@ -265,6 +268,7 @@ export async function restoreTrade(tradeId: string): Promise<{ error?: string }>
 
   revalidatePath("/", "layout");
   revalidatePath("/trades");
+  revalidateTag("trades");
   return {};
 }
 
@@ -315,6 +319,7 @@ export async function deleteImport(importId: string): Promise<{ error?: string }
 
   revalidatePath("/", "layout");
   revalidatePath("/import");
+  revalidateTag("trades");
   return {};
 }
 
@@ -347,5 +352,6 @@ export async function updateTradeNotesAndTags(
   }
   revalidatePath("/trades");
   revalidatePath("/", "layout");
+  revalidateTag("trades");
   return {};
 }

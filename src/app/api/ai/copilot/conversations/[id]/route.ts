@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConversationMessages, updateConversationTitle } from "@/lib/ai/copilot-conversations";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function GET(
   req: NextRequest,
@@ -18,6 +19,18 @@ export async function GET(
     } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Wave 2: Add rate limiting for CRUD operations
+    const { allowed, resetIn } = checkRateLimit(user.id);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(resetIn) },
+        }
+      );
     }
 
     const messages = await getConversationMessages(id, user.id);
@@ -50,6 +63,18 @@ export async function PATCH(
     } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Wave 2: Add rate limiting for CRUD operations
+    const { allowed, resetIn } = checkRateLimit(user.id);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(resetIn) },
+        }
+      );
     }
 
     const ok = await updateConversationTitle(id, title, user.id);
