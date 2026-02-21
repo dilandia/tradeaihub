@@ -238,10 +238,15 @@ export async function getImportSummary(id: string): Promise<DbImportSummary | nu
 /**
  * Busca métricas calculadas na database via RPC (Phase 3: Query Consolidation).
  * Mais eficiente que carregar todos os trades e calcular em JavaScript.
+ *
+ * W2-03: Enhanced with optional date-range parameters (backward compatible).
+ * New date params default to null (no filter), matching existing behavior.
  */
 export async function getTradeMetricsRpc(
   importId?: string | null,
-  tradingAccountId?: string | null
+  tradingAccountId?: string | null,
+  startDate?: string | null,
+  endDate?: string | null
 ): Promise<Metrics> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -261,6 +266,8 @@ export async function getTradeMetricsRpc(
     p_user_id: user.id,
     p_import_id: importId ?? null,
     p_account_id: tradingAccountId ?? null,
+    p_start_date: startDate ?? null,
+    p_end_date: endDate ?? null,
   });
 
   if (error || !data || data.length === 0) {
@@ -275,10 +282,10 @@ export async function getTradeMetricsRpc(
     };
   }
 
-  const m = data[0] as any;
-  const totalTrades = m.total_trades ?? 0;
-  const wins = m.winning_trades ?? 0;
-  const losses = m.losing_trades ?? 0;
+  const m = data[0] as Record<string, unknown>;
+  const totalTrades = Number(m.total_trades ?? 0);
+  const wins = Number(m.winning_trades ?? 0);
+  const losses = Number(m.losing_trades ?? 0);
   const netPips = Number(m.net_pips ?? 0);
   const netDollar = Number(m.net_dollar ?? 0);
   const grossProfitPips = Number(m.gross_profit_pips ?? 0);
@@ -297,6 +304,9 @@ export async function getTradeMetricsRpc(
 
   const r = (v: number, d = 1) => Math.round(v * 10 ** d) / 10 ** d;
 
+  // W2-03: Extract avg_risk_reward from enhanced RPC (previously hardcoded null)
+  const avgRiskRewardRaw = m.avg_risk_reward != null ? Number(m.avg_risk_reward) : null;
+
   return {
     totalTrades,
     wins,
@@ -310,9 +320,9 @@ export async function getTradeMetricsRpc(
     avgLossDollar: r(avgLossDollar, 2),
     profitFactor: r(profitFactor, 2),
     profitFactorDollar: r(profitFactorDollar, 2),
-    avgRiskReward: null,
+    avgRiskReward: avgRiskRewardRaw != null ? r(avgRiskRewardRaw) : null,
     zellaScore,
-    hasDollarData: m.has_dollar_data ?? false,
+    hasDollarData: Boolean(m.has_dollar_data ?? false),
   };
 }
 
@@ -559,3 +569,44 @@ export function toCalendarTrades(trades: DbTrade[]): CalendarTrade[] {
     tags: t.tags?.length ? t.tags : undefined,
   }));
 }
+
+/* ─── W2-02: Date-range filtered trades via RPC ─── */
+
+/**
+ * Fetch trades filtered by date range at the database level.
+ * Replaces getTrades() + filterByDateRange() pattern for AI routes.
+ *
+ * @param startDate - ISO 'YYYY-MM-DD' start date (inclusive)
+ * @param endDate   - ISO 'YYYY-MM-DD' end date (inclusive)
+ * @param importId  - Optional import filter
+ * @param accountId - Optional trading account filter
+ * @returns Filtered trades from the database
+ */
+export const getTradesByDateRange = cache(
+  async (
+    startDate: string,
+    endDate: string,
+    importId?: string | null,
+    accountId?: string | null
+  ): Promise<DbTrade[]> => {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase.rpc("get_trades_by_date_range", {
+      p_user_id: user.id,
+      p_start_date: startDate,
+      p_end_date: endDate,
+      p_import_id: importId ?? null,
+      p_account_id: accountId ?? null,
+    });
+
+    if (error) {
+      console.error("[trades] getTradesByDateRange:", error.message);
+      return [];
+    }
+    return (data ?? []) as DbTrade[];
+  }
+);

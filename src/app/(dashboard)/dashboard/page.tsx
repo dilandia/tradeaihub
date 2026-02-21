@@ -11,6 +11,12 @@ import {
   getDemoReportMetrics,
   DEMO_INITIAL_BALANCE,
 } from "@/lib/demo-data";
+import {
+  getCachedDashboardMetrics,
+  getCachedEquityCurve,
+  getCachedDrawdownAnalysis,
+} from "@/app/actions/dashboard";
+import { createClient } from "@/lib/supabase/server";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
 
 export default async function DashboardPage({
@@ -22,11 +28,51 @@ export default async function DashboardPage({
   const selectedImportId = params.import ?? null;
   const selectedAccountId = params.account ?? null;
 
-  const [summaries, trades, tradingAccounts] = await Promise.all([
-    getImportSummaries(),
-    getTrades(selectedImportId, selectedAccountId),
-    getUserTradingAccounts(),
-  ]);
+  // Get user ID for cache key isolation (RPCs read user from session internally)
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const userId = user?.id ?? "";
+
+  const [summaries, trades, tradingAccounts, rpcMetrics, rpcEquityCurve, rpcDrawdown] =
+    await Promise.all([
+      getImportSummaries(),
+      getTrades(selectedImportId, selectedAccountId),
+      getUserTradingAccounts(),
+      // W2-03: Parallel RPC calls for server-side aggregation
+      userId
+        ? getCachedDashboardMetrics(
+            userId,
+            selectedImportId ?? undefined,
+            selectedAccountId ?? undefined
+          ).catch((err) => {
+            console.error("[dashboard] getCachedDashboardMetrics failed:", err);
+            return null;
+          })
+        : Promise.resolve(null),
+      userId
+        ? getCachedEquityCurve(
+            userId,
+            "daily",
+            selectedImportId ?? undefined,
+            selectedAccountId ?? undefined
+          ).catch((err) => {
+            console.error("[dashboard] getCachedEquityCurve failed:", err);
+            return null;
+          })
+        : Promise.resolve(null),
+      userId
+        ? getCachedDrawdownAnalysis(
+            userId,
+            selectedImportId ?? undefined,
+            selectedAccountId ?? undefined
+          ).catch((err) => {
+            console.error("[dashboard] getCachedDrawdownAnalysis failed:", err);
+            return null;
+          })
+        : Promise.resolve(null),
+    ]);
 
   const hasAnySource = tradingAccounts.length > 0 || summaries.length > 0;
   const useDemoData = trades.length === 0 && !hasAnySource;
@@ -106,6 +152,9 @@ export default async function DashboardPage({
       initialBalance={initialBalance}
       currentAccountBalance={currentAccountBalance}
       isDemoMode={useDemoData}
+      serverMetrics={useDemoData ? null : rpcMetrics}
+      serverEquityCurve={useDemoData ? null : rpcEquityCurve}
+      serverDrawdown={useDemoData ? null : rpcDrawdown}
     />
   );
 }

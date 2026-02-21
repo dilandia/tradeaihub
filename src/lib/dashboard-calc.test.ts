@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   computeClientMetrics,
   filterByDateRange,
-  buildCumulativePnl,
 } from './dashboard-calc';
 import type { CalendarTrade } from '@/lib/calendar-utils';
 

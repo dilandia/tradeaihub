@@ -91,7 +91,7 @@ export async function getTradesPaginated(
     .from("trades")
     .select("*", { count: "exact" })
     .eq("user_id", user.id)
-    .order("date", { ascending: false })
+    .order("trade_date", { ascending: false })
     .range(offset, offset + safePageSize - 1);
 
   if (importId) {
@@ -111,7 +111,13 @@ export async function getTradesPaginated(
   const { data: trades, error: dataError } = await dataQuery;
 
   if (dataError) {
-    throw new Error("Failed to fetch trades");
+    console.error("[trades-pagination] dataError:", {
+      message: dataError.message,
+      code: dataError.code,
+      details: dataError.details,
+      hint: dataError.hint,
+    });
+    throw new Error(`Failed to fetch trades: ${dataError.message}`);
   }
 
   return buildPaginatedResult(trades as Trade[], totalCount, safePage, safePageSize);

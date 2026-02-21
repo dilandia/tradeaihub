@@ -80,6 +80,11 @@ import type { ViewMode } from "./view-mode-selector";
 import type { PnlPoint } from "./cumulative-pnl-chart";
 import type { DayCell, CalendarTrade } from "@/lib/calendar-utils";
 import type { ReportMetrics } from "./report-metrics-panel";
+import type {
+  DashboardMetrics,
+  EquityCurvePoint,
+  DrawdownAnalysis,
+} from "@/app/actions/dashboard";
 
 type Props = {
   calendarTrades: CalendarTrade[];
@@ -92,6 +97,15 @@ type Props = {
   currentAccountBalance?: number | null;
   /** Quando true, exibe dados demonstrativos e banner para novos usuários */
   isDemoMode?: boolean;
+  /** W2-03: Pre-aggregated metrics from server RPC (used when no client filters active) */
+  serverMetrics?: DashboardMetrics | null;
+  /** W2-03: Pre-aggregated equity curve from server RPC */
+  serverEquityCurve?: EquityCurvePoint[] | null;
+  /** W2-03: Pre-aggregated drawdown analysis from server RPC.
+   *  Currently consumed: maxDrawdownValue (max-drawdown widget), currentStreak (current-streak widget).
+   *  TODO Wave 3: expose remaining fields (currentDrawdownValue, currentDrawdownPct,
+   *  maxConsecutiveWins, maxConsecutiveLosses, recoveryDays) in dedicated metric cards. */
+  serverDrawdown?: DrawdownAnalysis | null;
 };
 
 /* ─── Formatters ─── */
@@ -158,6 +172,9 @@ export function DashboardContent({
   initialBalance = null,
   currentAccountBalance = null,
   isDemoMode = false,
+  serverMetrics = null,
+  serverEquityCurve = null,
+  serverDrawdown = null,
 }: Props) {
   const { t } = useLanguage();
   const [viewMode, setViewMode] = useState<ViewMode>("dollar");
@@ -212,11 +229,19 @@ export function DashboardContent({
     return out;
   }, [calendarTrades, dateRange, tradeFilters]);
 
-  /* ─── Métricas recomputadas dos trades filtrados ─── */
-  const metrics = useMemo(
+  /* ─── W2-03: Use server-side RPC data when no client filters are active ─── */
+  const noFiltersActive =
+    dateRange === "all" &&
+    tradeFilters.pairs.length === 0 &&
+    tradeFilters.result === "all";
+  const useServerData = noFiltersActive && serverMetrics != null;
+
+  /* ─── Métricas: prefer server RPC when available, fallback to client computation ─── */
+  const clientMetrics = useMemo(
     () => computeClientMetrics(filteredTrades),
     [filteredTrades]
   );
+  const metrics = useServerData ? serverMetrics : clientMetrics;
 
   /* ─── RecentTrades derivados dos filtrados ─── */
   const recentTrades = useMemo(() => {
@@ -257,10 +282,17 @@ export function DashboardContent({
     () => buildPerformanceMetrics(filteredTrades, useDollar),
     [filteredTrades, useDollar]
   );
-  const currentStreaks = useMemo(
+  const clientCurrentStreaks = useMemo(
     () => computeCurrentStreaks(filteredTrades, useDollar),
     [filteredTrades, useDollar]
   );
+  /* W2-03: Prefer serverDrawdown streak data when no client filters active */
+  const currentStreaks = useServerData && serverDrawdown
+    ? {
+        tradeStreak: serverDrawdown.currentStreak,
+        dayStreak: clientCurrentStreaks.dayStreak, // server RPC has no day streak; keep client
+      }
+    : clientCurrentStreaks;
   const radarMetrics = useMemo(
     () => computeRadarMetrics(filteredTrades, useDollar),
     [filteredTrades, useDollar]
@@ -301,8 +333,25 @@ export function DashboardContent({
     [filteredTrades, useDollar]
   );
 
-  /* ─── Cumulative P&L (client-side) ─── */
-  const cumulativePnl = useMemo(() => {
+  /* ─── Cumulative P&L: prefer server equity curve when no filters active ─── */
+  const serverPnlPoints = useMemo((): PnlPoint[] | null => {
+    // Only use server equity curve for dollar/percentage modes (server returns dollar by default)
+    if (!useServerData || !serverEquityCurve || serverEquityCurve.length === 0) return null;
+    if (!useDollar && !usePercentage) return null; // Server curve is dollar-based; pips mode needs client calc
+    const points = serverEquityCurve.map((pt) => ({
+      date: pt.date.slice(5), // "YYYY-MM-DD" -> "MM-DD"
+      cumulative: pt.equity,
+    }));
+    if (usePercentage && initialBalance != null && initialBalance > 0) {
+      return points.map((p) => ({
+        ...p,
+        cumulative: (p.cumulative / initialBalance) * 100,
+      }));
+    }
+    return points;
+  }, [useServerData, serverEquityCurve, useDollar, usePercentage, initialBalance]);
+
+  const clientCumulativePnl = useMemo(() => {
     const byDate = new Map<string, number>();
     const useDollarForCalc = useDollar || usePercentage;
     for (const t of filteredTrades) {
@@ -331,6 +380,8 @@ export function DashboardContent({
     }
     return points;
   }, [filteredTrades, useDollar, usePercentage, initialBalance]);
+
+  const cumulativePnl = serverPnlPoints ?? clientCumulativePnl;
 
   const handleMonthChange = useCallback((y: number, m: number) => {
     setCalYear(y);
@@ -474,20 +525,26 @@ export function DashboardContent({
               tooltip={t("widgets.currentStreakDesc")}
             />
           );
-        case "max-drawdown":
+        case "max-drawdown": {
+          /* W2-03: Use server drawdown when available (pre-aggregated RPC) */
+          const maxDDValue = useServerData && serverDrawdown
+            ? serverDrawdown.maxDrawdownValue
+            : Math.abs(performanceMetrics.maxDailyDrawdown);
           return (
             <MetricCard
               title={t("widgets.maxDrawdown")}
               value={
                 privacy
                   ? H
-                  : fmtPnl(0, Math.abs(performanceMetrics.maxDailyDrawdown), null, viewMode)
+                  : fmtPnl(0, maxDDValue, null, viewMode)
               }
               tooltip={t("widgets.maxDrawdownDesc")}
               variant="loss"
             />
           );
+        }
         case "avg-drawdown":
+          // TODO Wave 3: serverDrawdown RPC does not include avg drawdown; stays client-computed
           return (
             <MetricCard
               title={t("widgets.avgDrawdown")}

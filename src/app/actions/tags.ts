@@ -132,22 +132,17 @@ export async function updateTag(
     return { success: false, error: "Erro ao atualizar tag. Tente novamente." };
   }
 
-  // Renomear tag nos trades se o nome mudou (only active trades)
+  // Renomear tag nos trades se o nome mudou (W2-01: bulk RPC, eliminates N+1)
   if (oldTag.name !== name.trim()) {
-    const { data: trades } = await supabase
-      .from("trades")
-      .select("id, tags")
-      .eq("user_id", user.id)
-      .is("deleted_at", null)
-      .contains("tags", [oldTag.name]);
+    const { error: rpcError } = await supabase.rpc("bulk_update_trade_tags", {
+      p_user_id: user.id,
+      p_old_tag: oldTag.name,
+      p_new_tag: name.trim(),
+    });
 
-    if (trades) {
-      for (const t of trades) {
-        const updated = (t.tags as string[]).map((tag: string) =>
-          tag === oldTag.name ? name.trim() : tag
-        );
-        await supabase.from("trades").update({ tags: updated }).eq("id", t.id);
-      }
+    if (rpcError) {
+      console.error("[tags] updateTag bulk_update_trade_tags:", rpcError.message);
+      // Tag metadata already updated; log but don't fail the operation
     }
   }
 
@@ -174,21 +169,16 @@ export async function deleteTag(
 
   if (!tag) return { success: false, error: "Tag não encontrada." };
 
-  // Remover tag dos trades (only active trades)
-  const { data: trades } = await supabase
-    .from("trades")
-    .select("id, tags")
-    .eq("user_id", user.id)
-    .is("deleted_at", null)
-    .contains("tags", [tag.name]);
+  // Remover tag dos trades (W2-01: bulk RPC, eliminates N+1)
+  const { error: rpcError } = await supabase.rpc("bulk_update_trade_tags", {
+    p_user_id: user.id,
+    p_old_tag: tag.name,
+    // p_new_tag omitted (defaults to NULL = delete mode)
+  });
 
-  if (trades) {
-    for (const t of trades) {
-      const updated = (t.tags as string[]).filter(
-        (tg: string) => tg !== tag.name
-      );
-      await supabase.from("trades").update({ tags: updated }).eq("id", t.id);
-    }
+  if (rpcError) {
+    console.error("[tags] deleteTag bulk_update_trade_tags:", rpcError.message);
+    // Continue with tag deletion even if trade update fails
   }
 
   // Deletar a tag
