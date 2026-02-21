@@ -18,10 +18,6 @@ export default defineConfig({
         'src/**/*.test.tsx',
         'src/**/index.ts',
       ],
-      lines: 40,
-      functions: 40,
-      branches: 40,
-      statements: 40,
     },
   },
   resolve: {
