@@ -1,5 +1,4 @@
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 export type DbTrade = {
@@ -166,8 +165,9 @@ export async function getTradeWithMetaApiInfo(
  *  By default, soft-deleted trades (deleted_at IS NOT NULL) are excluded by RLS.
  *  Pass include_deleted=true to also fetch deleted trades (requires admin/service role).
  *
- *  Wave 2: Cachea em unstable_cache com TTL 60s. Invalida com revalidateTag("trades") em mutations. */
-export const getTrades = unstable_cache(
+ *  Note: Uses React.cache() for per-request caching (safe with cookies).
+ *  unstable_cache() cannot be used here because getTrades calls createClient() which accesses cookies (dynamic data). */
+export const getTrades = cache(
   async (
     importId?: string | null,
     tradingAccountId?: string | null,
@@ -200,9 +200,7 @@ export const getTrades = unstable_cache(
     const { data, error } = await query;
     if (error) return [];
     return (data ?? []) as DbTrade[];
-  },
-  ["getTrades"],
-  { revalidate: 60, tags: ["trades"] }
+  }
 );
 
 /** Busca todos os import summaries do usuário (mais recente primeiro) - cached per request.
