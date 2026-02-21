@@ -24,4 +24,3 @@ Write-Host ""
 Write-Host "Deploy concluido!" -ForegroundColor Green
 Write-Host "  Landing: https://tradeaihub.com" -ForegroundColor Gray
 Write-Host "  App:   https://app.tradeaihub.com" -ForegroundColor Gray
-Write-Host "  Debug: https://tradeaihub.com/api/debug-host" -ForegroundColor Gray

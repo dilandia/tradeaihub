@@ -4,6 +4,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export type Plan = "free" | "pro" | "elite";
 
@@ -173,39 +174,38 @@ export async function getPlanInfo(userId: string | null): Promise<PlanInfo | nul
   };
 }
 
-/** Consome créditos de IA. Retorna true se consumiu, false se sem créditos. */
+/** Consome créditos de IA. Retorna true se consumiu, false se sem créditos.
+ *  Usa service_role (admin) para bypass RLS — users não podem UPDATE ai_credits diretamente. */
+/** TDR-05: Atomic AI credit consumption using PostgreSQL RPC.
+ *  Eliminates race condition by using SELECT FOR UPDATE + UPDATE within a transaction.
+ *  Returns true only if credits were successfully deducted (sufficient balance check + update atomic). */
 export async function consumeAiCredits(
   userId: string,
   amount: number
 ): Promise<boolean> {
-  const supabase = await createClient();
-  const { data: row } = await supabase
-    .from("ai_credits")
-    .select("credits_remaining, credits_used_this_period")
-    .eq("user_id", userId)
-    .single();
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc("consume_ai_credits_atomic", {
+    p_user_id: userId,
+    p_amount: amount,
+  });
 
-  const remaining = row?.credits_remaining ?? 0;
-  if (remaining < amount) return false;
+  if (error) {
+    console.error(`Failed to consume AI credits for user ${userId}:`, error);
+    return false;
+  }
 
-  const { error } = await supabase
-    .from("ai_credits")
-    .update({
-      credits_remaining: remaining - amount,
-      credits_used_this_period: (row?.credits_used_this_period ?? 0) + amount,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("user_id", userId);
-
-  return !error;
+  // RPC returns { success: boolean, credits_remaining: integer }
+  const result = data as { success: boolean; credits_remaining: number } | null;
+  return result?.success ?? false;
 }
 
-/** Garante que o usuário tem registro em ai_credits e reseta período se necessário */
+/** Garante que o usuário tem registro em ai_credits e reseta período se necessário.
+ *  Usa service_role (admin) para bypass RLS — users não podem INSERT/UPDATE ai_credits diretamente. */
 export async function ensureAiCreditsForPeriod(
   userId: string,
   plan: Plan
 ): Promise<{ creditsRemaining: number }> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const creditsPerMonth = PLAN_LIMITS[plan].aiCreditsPerMonth;
 
   const { data: existing } = await supabase

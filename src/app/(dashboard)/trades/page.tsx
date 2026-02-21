@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { TradesPageContent } from "./trades-page-content";
 import { getTrades, getTradeWithMetaApiInfo, computeMetrics } from "@/lib/trades";
+import { getTradesPaginated } from "@/app/actions/trades-pagination";
 
 export const metadata: Metadata = {
   title: "Trades – TakeZ",
@@ -9,15 +10,29 @@ export const metadata: Metadata = {
 export default async function TradesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tradeId?: string; import?: string; account?: string }>;
+  searchParams: Promise<{
+    tradeId?: string;
+    import?: string;
+    account?: string;
+    page?: string;
+    pageSize?: string;
+  }>;
 }) {
   const params = await searchParams;
   const tradeId = params.tradeId ?? null;
   const importId = params.import ?? null;
   const accountId = params.account ?? null;
+  const page = params.page ?? "1";
+  const pageSize = params.pageSize ?? "20";
 
-  const trades = await getTrades(importId || undefined, accountId || undefined);
-  const metrics = computeMetrics(trades);
+  // TDR-11: Use pagination for large datasets
+  const paginatedResult = await getTradesPaginated(page, pageSize, importId || undefined, accountId || undefined);
+  const trades = paginatedResult.data as any;
+
+  // Get all trades for metrics calculation (cached, minimal perf impact)
+  const allTrades = await getTrades(importId || undefined, accountId || undefined);
+  const metrics = computeMetrics(allTrades);
+
   const selectedTrade = tradeId ? await getTradeWithMetaApiInfo(tradeId) : null;
 
   return (
@@ -27,6 +42,7 @@ export default async function TradesPage({
       selectedTrade={selectedTrade}
       importId={importId}
       accountId={accountId}
+      pagination={paginatedResult.pagination}
     />
   );
 }

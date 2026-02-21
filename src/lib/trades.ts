@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
 export type DbTrade = {
@@ -20,6 +21,7 @@ export type DbTrade = {
   duration_minutes: number | null;
   profit_dollar: number | null;
   trading_account_id: string | null;
+  deleted_at: string | null;
 };
 
 export type TradeWithMetaApi = DbTrade & {
@@ -69,6 +71,7 @@ export type DbImportSummary = {
   max_consecutive_loss: number | null;
   max_consecutive_loss_count: number | null;
   imported_trades_count: number | null;
+  deleted_at: string | null;
 };
 
 export type Metrics = {
@@ -91,8 +94,8 @@ export type Metrics = {
 
 /* ─────── Queries ─────── */
 
-/** Busca o primeiro nome do usuário logado (para boas-vindas) */
-export async function getUserFirstName(): Promise<string | null> {
+/** Busca o primeiro nome do usuário logado (para boas-vindas) - cached per request */
+export const getUserFirstName = cache(async (): Promise<string | null> => {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
@@ -112,9 +115,9 @@ export async function getUserFirstName(): Promise<string | null> {
   if (!fullName) return null;
   // Retorna só o primeiro nome
   return fullName.split(" ")[0];
-}
+});
 
-/** Busca um trade específico por ID */
+/** Busca um trade específico por ID (excludes soft-deleted by default via RLS) */
 export async function getTradeById(id: string): Promise<DbTrade | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -125,6 +128,7 @@ export async function getTradeById(id: string): Promise<DbTrade | null> {
     .select("*")
     .eq("id", id)
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .single();
 
   if (error || !data) return null;
@@ -157,10 +161,13 @@ export async function getTradeWithMetaApiInfo(
   } as TradeWithMetaApi;
 }
 
-/** Busca todos os trades do usuário (opcionalmente filtrado por import_id e/ou trading_account_id) */
+/** Busca todos os trades do usuário (opcionalmente filtrado por import_id e/ou trading_account_id).
+ *  By default, soft-deleted trades (deleted_at IS NOT NULL) are excluded by RLS.
+ *  Pass include_deleted=true to also fetch deleted trades (requires admin/service role). */
 export async function getTrades(
   importId?: string | null,
-  tradingAccountId?: string | null
+  tradingAccountId?: string | null,
+  include_deleted?: boolean
 ): Promise<DbTrade[]> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -180,13 +187,20 @@ export async function getTrades(
     query = query.eq("trading_account_id", tradingAccountId);
   }
 
+  // RLS already filters deleted_at IS NULL for normal users.
+  // For admin views that bypass RLS, apply explicit filter unless include_deleted is true.
+  if (!include_deleted) {
+    query = query.is("deleted_at", null);
+  }
+
   const { data, error } = await query;
   if (error) return [];
   return (data ?? []) as DbTrade[];
 }
 
-/** Busca todos os import summaries do usuário (mais recente primeiro) */
-export async function getImportSummaries(): Promise<DbImportSummary[]> {
+/** Busca todos os import summaries do usuário (mais recente primeiro) - cached per request.
+ *  Soft-deleted summaries are excluded by RLS + explicit filter. */
+export const getImportSummaries = cache(async (): Promise<DbImportSummary[]> => {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
@@ -195,19 +209,21 @@ export async function getImportSummaries(): Promise<DbImportSummary[]> {
     .from("import_summaries")
     .select("*")
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   if (error) return [];
   return (data ?? []) as DbImportSummary[];
-}
+});
 
-/** Busca um import summary específico */
+/** Busca um import summary específico (excludes soft-deleted) */
 export async function getImportSummary(id: string): Promise<DbImportSummary | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("import_summaries")
     .select("*")
     .eq("id", id)
+    .is("deleted_at", null)
     .single();
 
   if (error) return null;
@@ -215,7 +231,89 @@ export async function getImportSummary(id: string): Promise<DbImportSummary | nu
 }
 
 /**
+ * Busca métricas calculadas na database via RPC (Phase 3: Query Consolidation).
+ * Mais eficiente que carregar todos os trades e calcular em JavaScript.
+ */
+export async function getTradeMetricsRpc(
+  importId?: string | null,
+  tradingAccountId?: string | null
+): Promise<Metrics> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      totalTrades: 0, wins: 0, losses: 0, winRate: 0,
+      netPips: 0, netDollar: 0,
+      avgWinPips: 0, avgLossPips: 0,
+      avgWinDollar: 0, avgLossDollar: 0,
+      profitFactor: 0, profitFactorDollar: 0,
+      avgRiskReward: null, zellaScore: 0,
+      hasDollarData: false,
+    };
+  }
+
+  const { data, error } = await supabase.rpc("get_trade_metrics", {
+    p_user_id: user.id,
+    p_import_id: importId ?? null,
+    p_account_id: tradingAccountId ?? null,
+  });
+
+  if (error || !data || data.length === 0) {
+    return {
+      totalTrades: 0, wins: 0, losses: 0, winRate: 0,
+      netPips: 0, netDollar: 0,
+      avgWinPips: 0, avgLossPips: 0,
+      avgWinDollar: 0, avgLossDollar: 0,
+      profitFactor: 0, profitFactorDollar: 0,
+      avgRiskReward: null, zellaScore: 0,
+      hasDollarData: false,
+    };
+  }
+
+  const m = data[0] as any;
+  const totalTrades = m.total_trades ?? 0;
+  const wins = m.winning_trades ?? 0;
+  const losses = m.losing_trades ?? 0;
+  const netPips = Number(m.net_pips ?? 0);
+  const netDollar = Number(m.net_dollar ?? 0);
+  const grossProfitPips = Number(m.gross_profit_pips ?? 0);
+  const grossLossPips = Number(m.gross_loss_pips ?? 0);
+  const grossProfitDollar = Number(m.gross_profit_dollar ?? 0);
+  const grossLossDollar = Number(m.gross_loss_dollar ?? 0);
+
+  const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+  const avgWinPips = wins > 0 ? grossProfitPips / wins : 0;
+  const avgLossPips = losses > 0 ? grossLossPips / losses : 0;
+  const profitFactor = grossLossPips > 0 ? grossProfitPips / grossLossPips : grossProfitPips > 0 ? 99 : 0;
+  const avgWinDollar = wins > 0 ? grossProfitDollar / wins : 0;
+  const avgLossDollar = losses > 0 ? grossLossDollar / losses : 0;
+  const profitFactorDollar = grossLossDollar > 0 ? grossProfitDollar / grossLossDollar : grossProfitDollar > 0 ? 99 : 0;
+  const zellaScore = Math.round(Math.min(100, Math.max(0, (winRate / 100) * 40 + Math.min(profitFactor, 3) * 20)));
+
+  const r = (v: number, d = 1) => Math.round(v * 10 ** d) / 10 ** d;
+
+  return {
+    totalTrades,
+    wins,
+    losses,
+    winRate: r(winRate),
+    netPips: r(netPips),
+    netDollar: r(netDollar, 2),
+    avgWinPips: r(avgWinPips),
+    avgLossPips: r(avgLossPips),
+    avgWinDollar: r(avgWinDollar, 2),
+    avgLossDollar: r(avgLossDollar, 2),
+    profitFactor: r(profitFactor, 2),
+    profitFactorDollar: r(profitFactorDollar, 2),
+    avgRiskReward: null,
+    zellaScore,
+    hasDollarData: m.has_dollar_data ?? false,
+  };
+}
+
+/**
  * Calcula métricas a partir de uma lista de trades.
+ * Mantido para compatibilidade, mas prefira getTradeMetricsRpc() para novos códigos.
  */
 export function computeMetrics(trades: DbTrade[]): Metrics {
   if (trades.length === 0) {

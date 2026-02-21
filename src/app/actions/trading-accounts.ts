@@ -159,7 +159,7 @@ export async function updateTradingAccount(
   }
 }
 
-/* ────────────────── DELETE ────────────────── */
+/* ────────────────── DELETE (soft-delete TDR-12) ────────────────── */
 
 export async function deleteTradingAccount(
   accountId: string
@@ -171,17 +171,20 @@ export async function deleteTradingAccount(
   if (!user) return { success: false, error: "Não autenticado." };
 
   try {
-    // 1) Deletar trades vinculados
+    const now = new Date().toISOString();
+
+    // 1) Soft-delete trades vinculados
     await supabase
       .from("trades")
-      .delete()
+      .update({ deleted_at: now })
       .eq("trading_account_id", accountId)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .is("deleted_at", null);
 
-    // 2) Deletar conta
+    // 2) Soft-delete conta
     const { error } = await supabase
       .from("trading_accounts")
-      .delete()
+      .update({ deleted_at: now, updated_at: now })
       .eq("id", accountId)
       .eq("user_id", user.id);
 
@@ -197,7 +200,7 @@ export async function deleteTradingAccount(
   }
 }
 
-/* ────────────────── CLEAR TRADES ────────────────── */
+/* ────────────────── CLEAR TRADES (soft-delete TDR-12) ────────────────── */
 
 export async function clearTradingAccountTrades(
   accountId: string
@@ -209,11 +212,14 @@ export async function clearTradingAccountTrades(
   if (!user) return { success: false, error: "Não autenticado." };
 
   try {
+    const now = new Date().toISOString();
+
     const { error } = await supabase
       .from("trades")
-      .delete()
+      .update({ deleted_at: now })
       .eq("trading_account_id", accountId)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .is("deleted_at", null);
 
     if (error) {
       console.error("[clearTradingAccountTrades]", error.message);
@@ -227,7 +233,7 @@ export async function clearTradingAccountTrades(
         balance: 0,
         equity: 0,
         last_sync_at: null,
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       })
       .eq("id", accountId)
       .eq("user_id", user.id);

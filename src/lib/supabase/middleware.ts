@@ -31,8 +31,6 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  /* Debug: /api/debug-host sempre passa (diagnóstico de Host) */
-  if (path === "/api/debug-host") return response;
   /* Host: prioriza headers; remove porta para comparar (localhost:3000 → localhost) */
   const rawHost =
     request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||

@@ -31,19 +31,18 @@ export async function getUserTags(): Promise<UserTag[]> {
 
   if (!tags) return [];
 
-  // Contar trades para cada tag
-  const { data: trades } = await supabase
-    .from("trades")
-    .select("tags")
-    .eq("user_id", user.id);
+  // Buscar contagens via RPC (Phase 2: N+1 Prevention)
+  // Antes: 1 query + fetch todas trades + loop CPU
+  // Agora: 2 queries (tags + RPC com agregação na DB)
+  const { data: tagCounts } = await supabase.rpc(
+    "get_user_tag_counts",
+    { p_user_id: user.id }
+  );
 
-  const tagCounts = new Map<string, number>();
-  if (trades) {
-    for (const t of trades) {
-      const arr: string[] = t.tags ?? [];
-      for (const tag of arr) {
-        tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
-      }
+  const countMap = new Map<string, number>();
+  if (tagCounts) {
+    for (const row of tagCounts as Array<{ tag_name: string; tag_count: number }>) {
+      countMap.set(row.tag_name, row.tag_count);
     }
   }
 
@@ -53,7 +52,7 @@ export async function getUserTags(): Promise<UserTag[]> {
     color: t.color ?? "#7C3AED",
     description: t.description ?? null,
     created_at: t.created_at,
-    trade_count: tagCounts.get(t.name) ?? 0,
+    trade_count: countMap.get(t.name) ?? 0,
   }));
 }
 
@@ -133,12 +132,13 @@ export async function updateTag(
     return { success: false, error: "Erro ao atualizar tag. Tente novamente." };
   }
 
-  // Renomear tag nos trades se o nome mudou
+  // Renomear tag nos trades se o nome mudou (only active trades)
   if (oldTag.name !== name.trim()) {
     const { data: trades } = await supabase
       .from("trades")
       .select("id, tags")
       .eq("user_id", user.id)
+      .is("deleted_at", null)
       .contains("tags", [oldTag.name]);
 
     if (trades) {
@@ -174,11 +174,12 @@ export async function deleteTag(
 
   if (!tag) return { success: false, error: "Tag não encontrada." };
 
-  // Remover tag dos trades
+  // Remover tag dos trades (only active trades)
   const { data: trades } = await supabase
     .from("trades")
     .select("id, tags")
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .contains("tags", [tag.name]);
 
   if (trades) {

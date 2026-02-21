@@ -7,6 +7,7 @@ import {
   computeClientMetrics,
 } from "@/lib/dashboard-calc";
 import { getContextualSuggestions } from "@/lib/ai/copilot-suggestions";
+import { checkRateLimit } from "@/lib/rate-limit";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 
 function buildCopilotMetrics(filtered: CalendarTrade[], metrics: ReturnType<typeof buildPerformanceMetrics>) {
@@ -57,6 +58,26 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // TDR-06: Rate limiting
+    const { allowed: rateLimitAllowed, remaining, resetIn } = checkRateLimit(user.id);
+    if (!rateLimitAllowed) {
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded",
+          message: `Too many requests. Please try again in ${Math.ceil(resetIn / 1000)} seconds.`,
+          remaining: 0,
+          resetIn: Math.ceil(resetIn / 1000),
+        },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": Math.ceil(resetIn / 1000).toString(),
+          },
+        }
+      );
+    }
+
     const trades = await getTrades(importId, accountId);
     const calendarTrades = toCalendarTrades(trades);
     const filtered = filterByDateRange(calendarTrades, period) as CalendarTrade[];
@@ -69,7 +90,15 @@ export async function GET(req: NextRequest) {
     const copilotMetrics = buildCopilotMetrics(filtered, metrics);
     const suggestions = getContextualSuggestions(copilotMetrics);
 
-    return NextResponse.json({ suggestions });
+    return NextResponse.json(
+      { suggestions },
+      {
+        headers: {
+          "X-RateLimit-Remaining": remaining.toString(),
+          "X-RateLimit-Reset": Math.ceil(resetIn / 1000).toString(),
+        },
+      }
+    );
   } catch (err) {
     console.error("[AI Copilot suggestions]", err);
     return NextResponse.json({ error: "Failed to get suggestions" }, { status: 500 });

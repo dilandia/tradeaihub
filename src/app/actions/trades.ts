@@ -79,11 +79,13 @@ export async function importTradesFromFile(formData: FormData): Promise<{
       supabase
         .from("import_summaries")
         .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id),
+        .eq("user_id", user.id)
+        .is("deleted_at", null),
       supabase
         .from("import_summaries")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id)
+        .is("deleted_at", null)
         .gte("created_at", startOfMonth.toISOString()),
     ]);
 
@@ -189,7 +191,85 @@ export async function importTradesFromFile(formData: FormData): Promise<{
 }
 
 /* ─────────────────────────────────────────────
- * Deletar importação e todos os trades associados
+ * TDR-12: Soft-delete a single trade
+ * Sets deleted_at instead of permanent DELETE
+ * ───────────────────────────────────────────── */
+
+export async function softDeleteTrade(tradeId: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado." };
+
+  const { error } = await supabase
+    .from("trades")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", tradeId)
+    .eq("user_id", user.id)
+    .is("deleted_at", null);
+
+  if (error) {
+    console.error("[trades] softDeleteTrade:", error.message);
+    return { error: "Erro ao deletar trade. Tente novamente." };
+  }
+
+  revalidatePath("/", "layout");
+  revalidatePath("/trades");
+  return {};
+}
+
+/* ─────────────────────────────────────────────
+ * TDR-12: Restore a soft-deleted trade
+ * Clears deleted_at to make the trade active again
+ * ───────────────────────────────────────────── */
+
+export async function restoreTrade(tradeId: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado." };
+
+  // Use admin client to bypass RLS (deleted trades are hidden by SELECT policy)
+  const adminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const { createClient: createAdmin } = await import("@supabase/supabase-js");
+  const admin = createAdmin(adminUrl, adminKey);
+
+  // Verify ownership before restoring
+  const { data: trade, error: fetchErr } = await admin
+    .from("trades")
+    .select("id, user_id, deleted_at")
+    .eq("id", tradeId)
+    .single();
+
+  if (fetchErr || !trade) {
+    return { error: "Trade não encontrado." };
+  }
+
+  if (trade.user_id !== user.id) {
+    return { error: "Sem permissão para restaurar este trade." };
+  }
+
+  if (!trade.deleted_at) {
+    return { error: "Este trade não está deletado." };
+  }
+
+  const { error } = await admin
+    .from("trades")
+    .update({ deleted_at: null })
+    .eq("id", tradeId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    console.error("[trades] restoreTrade:", error.message);
+    return { error: "Erro ao restaurar trade. Tente novamente." };
+  }
+
+  revalidatePath("/", "layout");
+  revalidatePath("/trades");
+  return {};
+}
+
+/* ─────────────────────────────────────────────
+ * Soft-delete importação e todos os trades associados (TDR-12)
  * ───────────────────────────────────────────── */
 
 export async function deleteImport(importId: string): Promise<{ error?: string }> {
@@ -197,22 +277,25 @@ export async function deleteImport(importId: string): Promise<{ error?: string }
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado." };
 
-  // 1) Deletar trades vinculados pelo import_id
+  const now = new Date().toISOString();
+
+  // 1) Soft-delete trades vinculados pelo import_id
   const { error: tradesErr } = await supabase
     .from("trades")
-    .delete()
+    .update({ deleted_at: now })
     .eq("import_id", importId)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .is("deleted_at", null);
 
   if (tradesErr) {
     console.error("[trades] deleteImport trades:", tradesErr.message);
     return { error: "Erro ao remover trades. Tente novamente." };
   }
 
-  // 2) Deletar o registro de importação
+  // 2) Soft-delete o registro de importação
   const { error: importErr } = await supabase
     .from("import_summaries")
-    .delete()
+    .update({ deleted_at: now })
     .eq("id", importId)
     .eq("user_id", user.id);
 
@@ -221,14 +304,14 @@ export async function deleteImport(importId: string): Promise<{ error?: string }
     return { error: "Erro ao remover importação. Tente novamente." };
   }
 
-  // 3) Limpar trades órfãos (sem import_id e sem trading_account_id)
-  //    Podem existir de importações antigas antes do sistema de vinculação
+  // 3) Soft-delete trades órfãos (sem import_id e sem trading_account_id)
   await supabase
     .from("trades")
-    .delete()
+    .update({ deleted_at: now })
     .is("import_id", null)
     .is("trading_account_id", null)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .is("deleted_at", null);
 
   revalidatePath("/", "layout");
   revalidatePath("/import");

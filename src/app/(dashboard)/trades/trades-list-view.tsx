@@ -6,12 +6,20 @@ import { useLanguage } from "@/contexts/language-context";
 import { cn } from "@/lib/utils";
 import type { Metrics, DbTrade } from "@/lib/trades";
 import { TrendingUp, TrendingDown, Info } from "lucide-react";
+import { PaginationControls } from "@/components/pagination-controls";
 
 interface TradesListViewProps {
   trades: DbTrade[];
   metrics: Metrics;
   importId: string | null;
   accountId: string | null;
+  pagination?: {
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    totalCount: number;
+    hasMore: boolean;
+  };
 }
 
 function buildTradesUrl(tradeId: string, importId: string | null, accountId: string | null) {
@@ -22,7 +30,7 @@ function buildTradesUrl(tradeId: string, importId: string | null, accountId: str
   return `/trades?${params.toString()}`;
 }
 
-export function TradesListView({ trades, metrics, importId, accountId }: TradesListViewProps) {
+export function TradesListView({ trades, metrics, importId, accountId, pagination }: TradesListViewProps) {
   const { t } = useLanguage();
   const router = useRouter();
 
@@ -192,6 +200,17 @@ export function TradesListView({ trades, metrics, importId, accountId }: TradesL
               </tbody>
             </table>
           </div>
+
+          {/* TDR-11: Pagination controls */}
+          {pagination && (
+            <PaginationControls
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              pageSize={pagination.pageSize}
+              totalCount={pagination.totalCount}
+              hasMore={pagination.hasMore}
+            />
+          )}
         </CardContent>
       </Card>
     </div>

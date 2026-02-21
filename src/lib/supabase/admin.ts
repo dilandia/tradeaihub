@@ -4,11 +4,11 @@
  * NUNCA expor no frontend.
  */
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-let adminClient: ReturnType<typeof createClient> | null = null;
+let adminClient: SupabaseClient | null = null;
 
-export function createAdminClient() {
+export function createAdminClient(): SupabaseClient {
   if (adminClient) return adminClient;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;

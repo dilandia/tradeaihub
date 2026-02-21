@@ -1,3 +1,4 @@
+import { checkRateLimit } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateReportSummary } from "@/lib/ai/agents/report-summary";
@@ -8,17 +9,48 @@ import {
   filterByDateRange,
   buildPerformanceMetrics,
 } from "@/lib/dashboard-calc";
+import { ReportSummaryRequestSchema, validateAiRequest } from "@/lib/validation/ai-schemas";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { reportType, importId, accountId, period = "all", locale = "en" } = body;
+
+    // TDR-07: Validate request input
+    const validation = validateAiRequest(ReportSummaryRequestSchema, body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: "Invalid request", details: validation.error },
+        { status: 400 }
+      );
+    }
+
+    const { reportType, importId, accountId, period, locale } = validation.data;
 
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // TDR-06: Rate limiting
+    const { allowed: rateLimitAllowed, remaining, resetIn } = checkRateLimit(user.id);
+    if (!rateLimitAllowed) {
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded",
+          message: `Too many requests. Please try again in ${Math.ceil(resetIn / 1000)} seconds.`,
+          remaining: 0,
+          resetIn: Math.ceil(resetIn / 1000),
+        },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": Math.ceil(resetIn / 1000).toString(),
+          },
+        }
+      );
     }
 
     const trades = await getTrades(importId, accountId);
@@ -68,7 +100,15 @@ export async function POST(req: NextRequest) {
 
     await setCachedInsight("report-summary", cacheParams, summary);
     await consumeCreditsAfterSuccess(user.id);
-    return NextResponse.json({ summary });
+    return NextResponse.json(
+      { summary },
+      {
+        headers: {
+          "X-RateLimit-Remaining": remaining.toString(),
+          "X-RateLimit-Reset": Math.ceil(resetIn / 1000).toString(),
+        },
+      }
+    );
   } catch (err) {
     console.error("[AI report-summary]", err);
     const msg = err instanceof Error ? err.message : "Unknown error";

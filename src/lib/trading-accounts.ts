@@ -2,6 +2,7 @@
  * Tipos e queries para trading_accounts.
  * Roda server-side apenas.
  */
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
 export type DbTradingAccount = {
@@ -28,13 +29,14 @@ export type DbTradingAccount = {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 };
 
 /** Tipo seguro para enviar ao client (sem password_encrypted) */
 export type TradingAccountSafe = Omit<DbTradingAccount, "password_encrypted">;
 
-/** Busca todas as contas do usuário */
-export async function getUserTradingAccounts(): Promise<TradingAccountSafe[]> {
+/** Busca todas as contas do usuário (excludes soft-deleted via RLS + explicit filter) - cached per request */
+export const getUserTradingAccounts = cache(async (): Promise<TradingAccountSafe[]> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -48,17 +50,18 @@ export async function getUserTradingAccounts(): Promise<TradingAccountSafe[]> {
         "password_type, metaapi_account_id, status, last_sync_at, " +
         "sync_interval_minutes, auto_sync_enabled, profit_calc_method, " +
         "balance, equity, currency, leverage, error_message, is_active, " +
-        "created_at, updated_at"
+        "created_at, updated_at, deleted_at"
     )
     .eq("user_id", user.id)
     .eq("is_active", true)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   if (error) return [];
   return (data ?? []) as unknown as TradingAccountSafe[];
-}
+});
 
-/** Busca uma conta específica (com senha para backend) */
+/** Busca uma conta específica (com senha para backend, excludes soft-deleted) */
 export async function getTradingAccountFull(
   accountId: string
 ): Promise<DbTradingAccount | null> {
@@ -73,6 +76,7 @@ export async function getTradingAccountFull(
     .select("*")
     .eq("id", accountId)
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .single();
 
   if (error) return null;

@@ -11,6 +11,7 @@
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserPlan } from "@/lib/plan";
 import Stripe from "stripe";
 
@@ -91,7 +92,9 @@ export async function POST(req: Request) {
         metadata: { supabase_user_id: user.id },
       });
       customerId = customer.id;
-      await supabase.from("subscriptions").upsert(
+      // Use admin client: RLS blocks user INSERT/UPDATE on subscriptions (TDR-03)
+      const supabaseAdmin = createAdminClient();
+      await supabaseAdmin.from("subscriptions").upsert(
         {
           user_id: user.id,
           plan: "free",

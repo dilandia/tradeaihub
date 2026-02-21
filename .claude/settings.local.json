@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(pm2 restart:*)",
+      "Bash(pm2 logs:*)",
+      "Bash(curl:*)",
+      "Bash(npm run build:*)",
+      "Bash(python3:*)",
+      "Bash(read:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(node --version:*)",
+      "Bash(npm:*)",
+      "Bash(gh:*)",
+      "Bash(npx aios-core@latest init:*)",
+      "Bash(head:*)",
+      "Bash(done)",
+      "Bash(pm2 list:*)",
+      "Bash(pm2 show:*)",
+      "Bash(npx create-next-app@15:*)",
+      "Bash(openssl rand:*)",
+      "Bash(pm2 start:*)",
+      "Bash(pm2 save:*)",
+      "Bash(sudo ufw status:*)",
+      "Bash(sudo iptables:*)",
+      "Bash(ss:*)",
+      "Bash(sudo cp:*)",
+      "Bash(sudo nginx:*)",
+      "Bash(node -e \":*)"
+    ]
+  }
+}

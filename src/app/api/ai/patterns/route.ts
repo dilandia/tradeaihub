@@ -1,3 +1,4 @@
+import { checkRateLimit } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generatePatternInsights } from "@/lib/ai/agents/pattern-detection";
@@ -5,6 +6,7 @@ import { getCachedInsight, setCachedInsight } from "@/lib/ai/cache";
 import { checkAiCredits, consumeCreditsAfterSuccess } from "@/lib/ai/plan-gate";
 import { getTrades, toCalendarTrades } from "@/lib/trades";
 import { filterByDateRange } from "@/lib/dashboard-calc";
+import { PatternsRequestSchema, validateAiRequest } from "@/lib/validation/ai-schemas";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 
 function buildPatternsFromTrades(trades: CalendarTrade[]) {
@@ -45,12 +47,42 @@ function buildPatternsFromTrades(trades: CalendarTrade[]) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { importId, accountId, period = "all", locale = "en" } = body;
+
+    // TDR-07: Validate request input
+    const validation = validateAiRequest(PatternsRequestSchema, body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: "Invalid request", details: validation.error },
+        { status: 400 }
+      );
+    }
+
+    const { importId, accountId, period, locale } = validation.data;
 
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // TDR-06: Rate limiting
+    const { allowed: rateLimitAllowed, remaining, resetIn } = checkRateLimit(user.id);
+    if (!rateLimitAllowed) {
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded",
+          message: `Too many requests. Please try again in ${Math.ceil(resetIn / 1000)} seconds.`,
+          remaining: 0,
+          resetIn: Math.ceil(resetIn / 1000),
+        },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": Math.ceil(resetIn / 1000).toString(),
+          },
+        }
+      );
     }
 
     const trades = await getTrades(importId, accountId);
@@ -85,7 +117,15 @@ export async function POST(req: NextRequest) {
 
     await setCachedInsight("patterns", cacheParams, insights);
     await consumeCreditsAfterSuccess(user.id);
-    return NextResponse.json({ insights });
+    return NextResponse.json(
+      { insights },
+      {
+        headers: {
+          "X-RateLimit-Remaining": remaining.toString(),
+          "X-RateLimit-Reset": Math.ceil(resetIn / 1000).toString(),
+        },
+      }
+    );
   } catch (err) {
     console.error("[AI patterns]", err);
     const msg = err instanceof Error ? err.message : "Unknown error";

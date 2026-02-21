@@ -11,6 +11,13 @@ type Props = {
   selectedTrade: TradeWithMetaApi | null;
   importId: string | null;
   accountId: string | null;
+  pagination?: {
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    totalCount: number;
+    hasMore: boolean;
+  };
 };
 
 export function TradesPageContent({
@@ -19,6 +26,7 @@ export function TradesPageContent({
   selectedTrade,
   importId,
   accountId,
+  pagination,
 }: Props) {
   const { t } = useLanguage();
 
@@ -38,6 +46,7 @@ export function TradesPageContent({
           metrics={metrics}
           importId={importId}
           accountId={accountId}
+          pagination={pagination}
         />
       )}
     </div>

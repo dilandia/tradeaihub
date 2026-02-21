@@ -14,6 +14,9 @@ import {
   addMessage,
   getConversationMessages,
 } from "@/lib/ai/copilot-conversations";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { CopilotRequestSchema, validateAiRequest } from "@/lib/validation/ai-schemas";
+import { getCorsHeaders, handleCorsPrelight } from "@/lib/cors";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 
 const MAX_HISTORY_MESSAGES = 10;
@@ -65,28 +68,64 @@ function buildCopilotMetrics(filtered: CalendarTrade[], metrics: ReturnType<type
   };
 }
 
+export async function OPTIONS(req: NextRequest) {
+  return handleCorsPrelight(req.headers.get("origin"));
+}
+
 export async function POST(req: NextRequest) {
   try {
+    const origin = req.headers.get("origin");
+    const corsHeaders = getCorsHeaders(origin);
     const body = await req.json();
+
+    // TDR-07: Validate request input with Zod
+    const validation = validateAiRequest(CopilotRequestSchema, body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: "Invalid request", details: validation.error },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
     const {
       message,
       conversationId: existingConvId,
       importId,
       accountId,
-      period = "all",
-      locale = "en",
-    } = body;
-
-    if (!message || typeof message !== "string" || message.trim().length === 0) {
-      return NextResponse.json({ error: "Message is required" }, { status: 400 });
-    }
+      period,
+      locale,
+    } = validation.data;
 
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: corsHeaders }
+      );
+    }
+
+    // TDR-06: Rate limiting check
+    const { allowed: rateLimitAllowed, remaining, resetIn } = checkRateLimit(user.id);
+    if (!rateLimitAllowed) {
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded",
+          message: `Too many requests. Please try again in ${Math.ceil(resetIn / 1000)} seconds.`,
+          remaining: 0,
+          resetIn: Math.ceil(resetIn / 1000),
+        },
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": Math.ceil(resetIn / 1000).toString(),
+          },
+        }
+      );
     }
 
     const gate = await checkAiCopilotCredits(user.id);
@@ -152,20 +191,25 @@ export async function POST(req: NextRequest) {
 
     return new Response(stream, {
       headers: {
+        ...corsHeaders,
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
         "X-Conversation-Id": conversationId ?? "",
+        "X-RateLimit-Remaining": remaining.toString(),
+        "X-RateLimit-Reset": Math.ceil(resetIn / 1000).toString(),
       },
     });
   } catch (err) {
     console.error("[AI Copilot]", err);
     const msg = err instanceof Error ? err.message : "Unknown error";
+    const origin = req.headers.get("origin");
+    const corsHeaders = getCorsHeaders(origin);
     return NextResponse.json(
       {
         error: msg.includes("OPENAI") ? "Configure OPENAI_API_KEY in .env.local" : msg,
       },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
