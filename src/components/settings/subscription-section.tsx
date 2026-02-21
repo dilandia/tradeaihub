@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 
 /* ─── Plan Config (USD) ─── */
+/* IMPORTANT: All prices are in USD. Stripe checkout is forced to en-US locale. */
 
 type Feature = {
   nameKey: string;

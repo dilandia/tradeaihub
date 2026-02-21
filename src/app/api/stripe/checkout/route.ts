@@ -101,6 +101,7 @@ export async function POST(req: Request) {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "subscription",
+      locale: "en", // Force checkout in English with USD pricing
       line_items: [
         {
           price: priceId,

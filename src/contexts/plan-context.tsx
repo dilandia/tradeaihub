@@ -8,6 +8,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
+import { createClient } from "@/lib/supabase/client";
 import type { PlanInfo } from "@/lib/plan";
 
 type PlanContextValue = {
@@ -50,8 +51,31 @@ export function PlanProvider({ children }: Props) {
     }
   }, []);
 
+  // Initial fetch on mount
   useEffect(() => {
     refetch();
+  }, [refetch]);
+
+  // Listen for auth state changes and refetch plan when auth changes
+  useEffect(() => {
+    const supabase = createClient();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event) => {
+        // Refetch plan when user signs in, signs out, or session changes
+        // Add small delay to ensure session is fully synchronized between client and server
+        if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+          // Wait 500ms for session to sync, then refetch
+          setTimeout(() => {
+            refetch();
+          }, 500);
+        }
+      }
+    );
+
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, [refetch]);
 
   const canUseMetaApi = useCallback(

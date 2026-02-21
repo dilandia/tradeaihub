@@ -110,6 +110,7 @@ export async function POST(req: Request) {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "payment",
+      locale: "en", // Force checkout in English with USD pricing
       line_items: [{ price: pack.priceId, quantity: 1 }],
       success_url: `${appUrl}/settings/subscription?credits_success=true`,
       cancel_url: `${appUrl}/settings/subscription?credits_canceled=true`,
