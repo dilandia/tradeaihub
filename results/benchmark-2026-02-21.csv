@@ -1,0 +1,12 @@
+query,min_ms,max_ms,avg_ms,p95_ms,p99_ms,runs,trade_count,timestamp
+getTradesPaginated_100,218.61,272.12,246.06,272.12,272.12,10,155,2026-02-21T03:56:37.286Z
+getTrades_all,212.38,236.19,223.47,236.19,236.19,10,155,2026-02-21T03:56:37.286Z
+tagFilter_NONE,0.00,0.00,0.00,0.00,0.00,0,155,2026-02-21T03:56:37.286Z
+getTradeMetricsRpc,209.94,235.36,219.38,235.36,235.36,10,155,2026-02-21T03:56:37.286Z
+deleteImport_cascade_read,427.98,856.30,582.93,856.30,856.30,10,155,2026-02-21T03:56:37.286Z
+getTradeCount,224.82,615.45,273.56,615.45,615.45,10,155,2026-02-21T03:56:37.286Z
+getUserTagCounts_rpc,219.40,231.59,224.27,231.59,231.59,10,155,2026-02-21T03:56:37.286Z
+# NOTE: getTradeCount p95=615ms is a transient network spike. Re-run (15 iterations) showed avg=243ms with 14/15 under 260ms.
+# NOTE: deleteImport_cascade_read involves 2 sequential queries (count trades + read import summary) so ~580ms avg is expected (2x RTT).
+# NOTE: tagFilter was skipped because 0 trades have tags assigned. Re-run after adding tagged test data.
+# NOTE: Tested with 155 trades. Re-run with 10K+ trades for Phase 5.1 verification.

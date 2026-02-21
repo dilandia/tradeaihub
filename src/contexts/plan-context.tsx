@@ -61,7 +61,7 @@ export function PlanProvider({ children }: Props) {
     const supabase = createClient();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event) => {
+      (event) => {
         // Refetch plan when user signs in, signs out, or session changes
         // Add small delay to ensure session is fully synchronized between client and server
         if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
@@ -76,7 +76,7 @@ export function PlanProvider({ children }: Props) {
     return () => {
       subscription?.unsubscribe();
     };
-  }, [refetch]);
+  }, []);
 
   const canUseMetaApi = useCallback(
     () => planInfo?.canUseMetaApi ?? false,
