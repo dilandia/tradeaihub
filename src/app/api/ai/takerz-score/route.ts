@@ -4,12 +4,12 @@ import { createClient } from "@/lib/supabase/server";
 import { generateTakerzScoreExplanation } from "@/lib/ai/agents/takerz-score-explanation";
 import { getCachedInsight, setCachedInsight } from "@/lib/ai/cache";
 import { checkAiCredits, consumeCreditsAfterSuccess } from "@/lib/ai/plan-gate";
-import { getTrades, toCalendarTrades } from "@/lib/trades";
+import { getTrades, getTradesByDateRange, toCalendarTrades } from "@/lib/trades";
 import {
-  filterByDateRange,
   computeRadarMetricsWithRaw,
   computeZellaScore,
 } from "@/lib/dashboard-calc";
+import { periodToDateRange } from "@/lib/date-utils";
 import { TakerzScoreRequestSchema, validateAiRequest } from "@/lib/validation/ai-schemas";
 
 export async function POST(req: NextRequest) {
@@ -53,9 +53,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const trades = await getTrades(importId, accountId);
+    // W3-01: Push date filtering to DB when period is not "all"
+    const dateRange = periodToDateRange(period);
+    const trades = dateRange
+      ? await getTradesByDateRange(dateRange.startDate, dateRange.endDate, importId, accountId)
+      : await getTrades(importId, accountId);
     const calendarTrades = toCalendarTrades(trades);
-    const filtered = filterByDateRange(calendarTrades, period);
+    const filtered = calendarTrades;
 
     if (filtered.length === 0) {
       const msg = locale?.startsWith("pt")

@@ -1,6 +1,6 @@
 import { Metadata } from "next";
-import { getTrades, toCalendarTrades } from "@/lib/trades";
-import { filterByDateRange } from "@/lib/dashboard-calc";
+import { getTrades, getTradesByDateRange, toCalendarTrades } from "@/lib/trades";
+import { periodToDateRange } from "@/lib/date-utils";
 import { OverviewContent } from "./overview-content";
 
 export const metadata: Metadata = {
@@ -20,9 +20,12 @@ export default async function OverviewPage({
   const selectedAccountId = params.account ?? null;
   const period = params.period ?? "all";
 
-  const trades = await getTrades(selectedImportId, selectedAccountId);
+  // W3-02: Server-side date filtering — push period filter to DB
+  const dateRange = periodToDateRange(period);
+  const trades = dateRange
+    ? await getTradesByDateRange(dateRange.startDate, dateRange.endDate, selectedImportId, selectedAccountId)
+    : await getTrades(selectedImportId, selectedAccountId);
   const calendarTrades = toCalendarTrades(trades);
-  const filteredTrades = filterByDateRange(calendarTrades, period);
 
-  return <OverviewContent trades={filteredTrades} />;
+  return <OverviewContent trades={calendarTrades} />;
 }

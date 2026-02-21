@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getTrades, toCalendarTrades } from "@/lib/trades";
-import {
-  filterByDateRange,
-  buildPerformanceMetrics,
-  computeClientMetrics,
-} from "@/lib/dashboard-calc";
+import { getTrades, getTradesByDateRange, toCalendarTrades } from "@/lib/trades";
+import { buildPerformanceMetrics } from "@/lib/dashboard-calc";
+import { periodToDateRange } from "@/lib/date-utils";
 import { getContextualSuggestions } from "@/lib/ai/copilot-suggestions";
 import { checkRateLimit } from "@/lib/rate-limit";
 import type { CalendarTrade } from "@/lib/calendar-utils";
@@ -78,9 +75,13 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const trades = await getTrades(importId, accountId);
+    // W3-01: Push date filtering to DB when period is not "all"
+    const dateRange = periodToDateRange(period);
+    const trades = dateRange
+      ? await getTradesByDateRange(dateRange.startDate, dateRange.endDate, importId, accountId)
+      : await getTrades(importId, accountId);
     const calendarTrades = toCalendarTrades(trades);
-    const filtered = filterByDateRange(calendarTrades, period) as CalendarTrade[];
+    const filtered = calendarTrades as CalendarTrade[];
 
     if (filtered.length === 0) {
       return NextResponse.json({ suggestions: [] });

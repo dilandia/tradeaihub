@@ -3,8 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { generatePerformanceInsights } from "@/lib/ai/agents/performance-insights";
 import { getCachedInsight, setCachedInsight } from "@/lib/ai/cache";
 import { checkAiCredits, consumeCreditsAfterSuccess } from "@/lib/ai/plan-gate";
-import { getTrades, toCalendarTrades } from "@/lib/trades";
-import { filterByDateRange, buildPerformanceMetrics } from "@/lib/dashboard-calc";
+import { getTrades, getTradesByDateRange, toCalendarTrades } from "@/lib/trades";
+import { buildPerformanceMetrics } from "@/lib/dashboard-calc";
+import { periodToDateRange } from "@/lib/date-utils";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { InsightsRequestSchema, validateAiRequest } from "@/lib/validation/ai-schemas";
 import { getCorsHeaders, handleCorsPrelight } from "@/lib/cors";
@@ -61,9 +62,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const trades = await getTrades(importId, accountId);
+    // W3-01: Push date filtering to DB when period is not "all"
+    const dateRange = periodToDateRange(period);
+    const trades = dateRange
+      ? await getTradesByDateRange(dateRange.startDate, dateRange.endDate, importId, accountId)
+      : await getTrades(importId, accountId);
     const calendarTrades = toCalendarTrades(trades);
-    const filtered = filterByDateRange(calendarTrades, period);
+    const filtered = calendarTrades;
 
     if (filtered.length === 0) {
       const msg = locale?.startsWith("pt")
