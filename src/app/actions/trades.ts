@@ -5,6 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { parseNumber, parseExcel, parseCsv, parseHtml } from "@/lib/parsers";
 import type { TradeInsert } from "@/lib/parsers";
 import { getPlanInfo } from "@/lib/plan";
+import {
+  CreateTradeSchema,
+  UpdateTradeSchema,
+  validateTradeFormData,
+} from "@/lib/validation/trade-schemas";
 
 /* ─────────────────────────────────────────────
  * Criar trade manualmente
@@ -15,21 +20,15 @@ export async function createTrade(formData: FormData): Promise<{ error?: string 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado." };
 
-  const trade_date = (formData.get("trade_date") as string)?.trim();
-  const pair = (formData.get("pair") as string)?.trim().toUpperCase();
-  const entry_price = parseNumber(formData.get("entry_price"));
-  const exit_price = parseNumber(formData.get("exit_price"));
-  let pips = parseNumber(formData.get("pips"));
-  const is_win = String(formData.get("is_win")).toLowerCase() === "true";
-  const risk_reward = formData.get("risk_reward")
-    ? parseNumber(formData.get("risk_reward"))
-    : undefined;
-  const tagsRaw = (formData.get("tags") as string) ?? "";
-  const tags = tagsRaw.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
-  const notes = (formData.get("notes") as string)?.trim() || undefined;
+  // TDW3-03: Validate FormData with Zod schema
+  const validation = validateTradeFormData(formData);
+  if (!validation.success) {
+    return { error: validation.error || "Dados inválidos." };
+  }
 
-  if (!trade_date || !pair) return { error: "Data e par são obrigatórios." };
+  const { trade_date, pair, entry_price, exit_price, pips: inputPips, is_win, risk_reward, tags, notes } = validation.data!;
 
+  let pips = inputPips;
   if (pips === 0 && entry_price !== 0 && exit_price !== 0) {
     pips = Math.abs(exit_price - entry_price) * 10000;
     if (pair.includes("JPY")) pips *= 0.01;
@@ -336,14 +335,30 @@ export async function updateTradeNotesAndTags(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado." };
 
+  // TDW3-03: Validate inputs with Zod schema
+  const validation = UpdateTradeSchema.safeParse({
+    tradeId,
+    notes,
+    tags,
+  });
+
+  if (!validation.success) {
+    const errorMessages = validation.error.errors
+      .map((err) => `${err.path.join(".")}: ${err.message}`)
+      .join("; ");
+    return { error: errorMessages };
+  }
+
+  const { tradeId: validTradeId, notes: validNotes, tags: validTags } = validation.data;
+
   const { error } = await supabase
     .from("trades")
     .update({
-      notes: notes?.trim() || null,
-      tags: tags?.length ? tags : [],
+      notes: validNotes?.trim() || null,
+      tags: validTags?.length ? validTags : [],
       updated_at: new Date().toISOString(),
     })
-    .eq("id", tradeId)
+    .eq("id", validTradeId)
     .eq("user_id", user.id);
 
   if (error) {
