@@ -26,10 +26,10 @@ export function DashboardGrid({ items, className }: Props) {
 
   return (
     <div className={cn("space-y-3", className)}>
-      {/* ═══ KPI Top Row — 4 colunas, altura 126px ═══ */}
+      {/* ═══ KPI Top Row — Mobile-first: 1 col (xs), 2 cols (sm), 3 cols (md), 4 cols (lg+) ═══ */}
       {kpiItems.length > 0 && (
         <div
-          className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5 lg:gap-6"
           style={{ gridAutoRows: `${KPI_CARD_HEIGHT_PX}px` }}
         >
           {kpiItems.map(({ id, children }) => (
@@ -40,10 +40,10 @@ export function DashboardGrid({ items, className }: Props) {
         </div>
       )}
 
-      {/* ═══ Main Grid — 3 colunas, linhas fixas 315px, calendário 2×2 ═══ */}
+      {/* ═══ Main Grid — Mobile-first: 1 col (xs/sm), 2 cols (md), 3 cols (lg+) ═══ */}
       {mainItems.length > 0 && (
         <div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 grid-flow-dense items-stretch"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 md:gap-5 lg:gap-6 grid-flow-dense items-stretch"
           style={{ gridAutoRows: `${STANDARD_CARD_HEIGHT_PX}px` }}
         >
           {mainItems.map(({ id, children }) => {
