@@ -49,10 +49,11 @@ export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { selection } = useDataSource();
   const { t } = useLanguage();
-  const { planInfo } = usePlan();
+  const { planInfo, isLoading: isPlanLoading } = usePlan();
 
   const plan = planInfo?.plan ?? "free";
-  const upgradeLabel = plan === "free" ? "nav.upgradeToPro" : plan === "pro" ? "nav.upgradeToElite" : null;
+  // While plan is loading, hide the upgrade CTA to prevent flash of "Upgrade to Pro" for paid users
+  const upgradeLabel = isPlanLoading ? null : (plan === "free" ? "nav.upgradeToPro" : plan === "pro" ? "nav.upgradeToElite" : null);
 
   /** Constrói query string baseada na seleção de data source ativa */
   function buildHref(base: string): string {

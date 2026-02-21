@@ -20,7 +20,7 @@ type Props = {
 export function GlobalHeader({ userName }: Props) {
   const { selection, setSelection, accounts, imports } = useDataSource();
   const { t } = useLanguage();
-  const { planInfo } = usePlan();
+  const { planInfo, isLoading: isPlanLoading } = usePlan();
   const pathname = usePathname();
 
   const plan = planInfo?.plan ?? "free";
@@ -74,16 +74,20 @@ export function GlobalHeader({ userName }: Props) {
 
         {/* Right: Plan badge + Language + Data source selector + logout */}
         <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              "hidden rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide sm:inline-block",
-              plan === "elite" && "bg-amber-500/20 text-amber-600 dark:text-amber-400",
-              plan === "pro" && "bg-violet-500/20 text-violet-600 dark:text-violet-400",
-              plan === "free" && "bg-muted text-muted-foreground"
-            )}
-          >
-            {planLabel}
-          </span>
+          {isPlanLoading ? (
+            <span className="hidden h-6 w-14 animate-pulse rounded-full bg-muted sm:inline-block" />
+          ) : (
+            <span
+              className={cn(
+                "hidden rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide sm:inline-block",
+                plan === "elite" && "bg-amber-500/20 text-amber-600 dark:text-amber-400",
+                plan === "pro" && "bg-violet-500/20 text-violet-600 dark:text-violet-400",
+                plan === "free" && "bg-muted text-muted-foreground"
+              )}
+            >
+              {planLabel}
+            </span>
+          )}
           <LanguageSelector />
           {hasAnySource && (
             <DataSourceSelector
