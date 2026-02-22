@@ -6,6 +6,7 @@ import {
   User,
   Shield,
   CreditCard,
+  Bell,
   Link2,
   Settings2,
   Tags,
@@ -25,6 +26,7 @@ const USER_NAV: NavItem[] = [
   { href: "/settings/profile", labelKey: "settings.profile", icon: User },
   { href: "/settings/security", labelKey: "settings.security", icon: Shield },
   { href: "/settings/subscription", labelKey: "settings.subscription", icon: CreditCard },
+  { href: "/settings/notifications", labelKey: "settings.notifications", icon: Bell },
 ];
 
 const GENERAL_NAV: NavItem[] = [

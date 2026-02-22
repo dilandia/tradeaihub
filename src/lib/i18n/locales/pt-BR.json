@@ -919,7 +919,19 @@
     "language": "Idioma",
     "user": "Usuário",
     "general": "Geral",
-    "comingSoon": "Em breve"
+    "comingSoon": "Em breve",
+    "notifications": "Notificações",
+    "notificationsDesc": "Gerencie suas preferências de notificação por email.",
+    "emailReportsTitle": "Relatórios de Trading por Email",
+    "emailReportsDesc": "Receba resumos periódicos do seu desempenho de trading por email.",
+    "emailReportsEnabled": "Ativar relatórios por email",
+    "emailReportsFrequency": "Frequência do relatório",
+    "emailReportsWeekly": "Semanal",
+    "emailReportsWeeklyDesc": "Toda segunda-feira de manhã",
+    "emailReportsMonthly": "Mensal",
+    "emailReportsMonthlyDesc": "Primeiro dia de cada mês",
+    "notificationsSaved": "Preferências de notificação salvas.",
+    "notificationsSaveError": "Falha ao salvar preferências."
   },
   "import": {
     "title": "Importar Trades",
