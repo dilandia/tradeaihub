@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { sendWelcomeEmail } from "@/lib/email/send";
 
 export async function signIn(formData: FormData): Promise<never> {
   const supabase = await createClient();
@@ -44,6 +45,14 @@ export async function signUp(formData: FormData): Promise<never> {
   if (error) {
     redirect("/register?message=" + encodeURIComponent(error.message));
   }
+
+  // Fire-and-forget welcome email (don't block registration flow)
+  sendWelcomeEmail({
+    to: email,
+    userName: fullName || undefined,
+  }).catch((err) => {
+    console.error("[Auth] Welcome email failed:", err);
+  });
 
   revalidatePath("/", "layout");
   redirect("/login?message=" + encodeURIComponent("Confira seu email para confirmar a conta."));
