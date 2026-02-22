@@ -26,22 +26,22 @@ import { useLanguage } from "@/contexts/language-context";
 import { usePlan } from "@/contexts/plan-context";
 import { signOut } from "@/app/actions/auth";
 
-/* Itens principais — pro: recurso premium, ai: destaque glass roxo, elite: badge Elite */
+/* Itens principais — pro: recurso premium, ai: destaque glass roxo, elite: badge Elite, referral: destaque emerald */
 const mainNavItems = [
-  { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard, pro: false, ai: false, elite: false },
-  { href: "/day-view", labelKey: "nav.dayView", icon: Calendar, pro: false, ai: false, elite: false },
-  { href: "/trades", labelKey: "nav.tradeView", icon: ListOrdered, pro: false, ai: false, elite: false },
-  { href: "/economic-events", labelKey: "nav.economicEvents", icon: CalendarClock, pro: false, ai: false, elite: false },
-  { href: "/reports", labelKey: "nav.reports", icon: FileText, pro: true, ai: false, elite: false },
-  { href: "/strategies", labelKey: "nav.strategies", icon: Target, pro: false, ai: false, elite: false },
-  { href: "/ai-hub", labelKey: "nav.aiHub", icon: Sparkles, pro: true, ai: true, elite: false },
-  { href: "/ai-copilot", labelKey: "nav.aiCopilot", icon: MessageCircle, pro: false, ai: true, elite: true },
+  { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard, pro: false, ai: false, elite: false, referral: false },
+  { href: "/day-view", labelKey: "nav.dayView", icon: Calendar, pro: false, ai: false, elite: false, referral: false },
+  { href: "/trades", labelKey: "nav.tradeView", icon: ListOrdered, pro: false, ai: false, elite: false, referral: false },
+  { href: "/economic-events", labelKey: "nav.economicEvents", icon: CalendarClock, pro: false, ai: false, elite: false, referral: false },
+  { href: "/reports", labelKey: "nav.reports", icon: FileText, pro: true, ai: false, elite: false, referral: false },
+  { href: "/strategies", labelKey: "nav.strategies", icon: Target, pro: false, ai: false, elite: false, referral: false },
+  { href: "/ai-hub", labelKey: "nav.aiHub", icon: Sparkles, pro: true, ai: true, elite: false, referral: false },
+  { href: "/ai-copilot", labelKey: "nav.aiCopilot", icon: MessageCircle, pro: false, ai: true, elite: true, referral: false },
+  { href: "/referrals", labelKey: "nav.referrals", icon: Gift, pro: false, ai: false, elite: false, referral: true },
 ];
 
 /* Rodapé do menu — Importar, Configurações e Sair */
 const footerNavItems = [
   { href: "/import", labelKey: "nav.importTrades", icon: Upload },
-  { href: "/referrals", labelKey: "nav.referrals", icon: Gift },
   { href: "/settings", labelKey: "nav.settings", icon: Settings },
   { action: "signout" as const, labelKey: "common.logout", icon: LogOut },
 ];
@@ -107,7 +107,7 @@ export function Sidebar() {
           </Link>
         </div>
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-4 lg:p-4">
-          {mainNavItems.map(({ href, labelKey, icon: Icon, pro, ai, elite }) => {
+          {mainNavItems.map(({ href, labelKey, icon: Icon, pro, ai, elite, referral }) => {
             const basePath = href.split("?")[0];
             const isActive = pathname === basePath || pathname.startsWith(basePath + "/");
             return (
@@ -119,8 +119,10 @@ export function Sidebar() {
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                   ai && "border border-violet-500/25 bg-gradient-to-r from-violet-500/15 to-cyan-500/10 backdrop-blur-sm shadow-sm shadow-violet-500/10",
                   ai && (isActive ? "text-violet-600 dark:text-violet-400" : "text-violet-700/90 hover:from-violet-500/25 hover:to-cyan-500/15 dark:text-violet-300/90"),
-                  !ai && isActive && "bg-score/10 text-score",
-                  !ai && !isActive && "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  referral && "border border-emerald-500/25 bg-gradient-to-r from-emerald-500/15 to-teal-500/10 backdrop-blur-sm shadow-sm shadow-emerald-500/10",
+                  referral && (isActive ? "text-emerald-600 dark:text-emerald-400" : "text-emerald-700/90 hover:from-emerald-500/25 hover:to-teal-500/15 dark:text-emerald-300/90"),
+                  !ai && !referral && isActive && "bg-score/10 text-score",
+                  !ai && !referral && !isActive && "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
                 <Icon className="h-5 w-5 shrink-0" aria-hidden />
@@ -133,6 +135,11 @@ export function Sidebar() {
                 {elite && (
                   <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-500">
                     Elite
+                  </span>
+                )}
+                {referral && (
+                  <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-500">
+                    +50
                   </span>
                 )}
               </Link>
