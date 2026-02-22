@@ -9,9 +9,9 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { LanguageSelector } from "@/components/language-selector";
 import { useLanguage } from "@/contexts/language-context";
 
-type Props = { message?: string };
+type Props = { message?: string; referralCode?: string };
 
-export function RegisterForm({ message }: Props) {
+export function RegisterForm({ message, referralCode }: Props) {
   const { t } = useLanguage();
   const formRef = useRef<HTMLFormElement>(null);
   const [nameState, setNameState] = useState<FieldState>("idle");
@@ -102,6 +102,11 @@ export function RegisterForm({ message }: Props) {
       return;
     }
 
+    // Include referral code in form data if present
+    if (referralCode) {
+      formData.set("referral_code", referralCode);
+    }
+
     try {
       await signUp(formData);
     } catch (error) {
@@ -123,6 +128,11 @@ export function RegisterForm({ message }: Props) {
           </p>
         </CardHeader>
         <CardContent>
+          {referralCode && (
+            <div className="mb-4 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-center text-sm text-green-700 dark:text-green-400">
+              {t("referrals.referralApplied") || "Referral code applied! You'll get 10 bonus AI credits."}
+            </div>
+          )}
           {message && (
             <ErrorAlert
               severity="warning"

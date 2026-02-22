@@ -5,6 +5,7 @@ import { getUserTradingAccounts } from "@/lib/trading-accounts";
 import { COOKIE_LOCALE, DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
 import { formatDate } from "@/lib/i18n/date-utils";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { processReferralOnFirstLogin } from "@/lib/referral-processor";
 
 export default async function DashboardLayout({
   children,
@@ -20,6 +21,11 @@ export default async function DashboardLayout({
     getUserTradingAccounts(),
     getUserFirstName(),
   ]);
+
+  // Fire-and-forget: process referral code from user metadata on first login
+  processReferralOnFirstLogin().catch(() => {
+    /* silent — referral is non-critical */
+  });
 
   const accounts = tradingAccounts.map((a) => ({
     id: a.id,

@@ -90,8 +90,8 @@ export function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
             className={cn(
-              "fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2",
-              "rounded-xl border border-border bg-card p-6 shadow-xl"
+              "fixed inset-x-4 top-1/2 z-50 mx-auto w-auto max-w-md -translate-y-1/2 sm:inset-x-auto sm:left-1/2 sm:w-full sm:-translate-x-1/2",
+              "rounded-xl border border-border bg-card p-4 shadow-xl sm:p-6"
             )}
           >
             {/* Header */}

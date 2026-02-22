@@ -77,7 +77,7 @@ export function AiFloatingAssistant({ visible = true }: Props) {
           variant={planGateModal.variant}
         />
       )}
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
+      <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2 sm:bottom-6 sm:right-6">
         <AnimatePresence>
           {view !== "closed" && (
             <motion.div
@@ -90,7 +90,7 @@ export function AiFloatingAssistant({ visible = true }: Props) {
                 "flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl",
                 view === "copilot"
                   ? "h-[min(600px,calc(100vh-6rem))] w-[min(420px,calc(100vw-2rem))]"
-                  : "w-80"
+                  : "w-[min(320px,calc(100vw-2rem))]"
               )}
               role="dialog"
               aria-labelledby="ai-assistant-title"
@@ -174,7 +174,7 @@ export function AiFloatingAssistant({ visible = true }: Props) {
           type="button"
           onClick={() => setView(view === "closed" ? "menu" : "closed")}
           className={cn(
-            "flex items-center gap-2 rounded-full border border-violet-500/30 px-4 py-2.5 text-sm font-medium",
+            "flex items-center gap-2 rounded-full border border-violet-500/30 p-3 text-sm font-medium sm:px-4 sm:py-2.5",
             "bg-gradient-to-r from-violet-500/20 to-cyan-500/10 text-violet-600 shadow-lg shadow-violet-500/20",
             "backdrop-blur-sm transition-all hover:scale-105 hover:border-violet-500/50 hover:shadow-violet-500/30 dark:text-violet-400"
           )}
@@ -182,7 +182,7 @@ export function AiFloatingAssistant({ visible = true }: Props) {
           aria-expanded={view !== "closed"}
         >
           <Sparkles className="h-4 w-4" />
-          <span>{t("aiAssistant.barLabel")}</span>
+          <span className="hidden sm:inline">{t("aiAssistant.barLabel")}</span>
         </motion.button>
       </div>
     </>

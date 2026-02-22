@@ -17,7 +17,7 @@ export function FeedbackButton() {
         onClick={() => setOpen(true)}
         aria-label={t("feedback.title")}
         className={cn(
-          "fixed bottom-6 left-6 z-40",
+          "fixed bottom-4 left-4 z-40 sm:bottom-6 sm:left-6",
           "flex h-11 w-11 items-center justify-center rounded-full",
           "bg-score text-white shadow-lg",
           "transition-all hover:scale-105 hover:bg-score/90",

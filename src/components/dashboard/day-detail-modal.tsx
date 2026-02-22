@@ -86,13 +86,13 @@ export function DayDetailModal({ open, onClose, date, dayData, trades, privacy =
       {/* Modal */}
       <div className="fixed inset-4 z-50 m-auto flex max-h-[90vh] max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-4 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div className="flex items-center gap-3">
-            <h2 className="text-base font-semibold text-foreground">{formattedDate}</h2>
-            <span className="text-sm font-medium text-muted-foreground">·</span>
+        <div className="flex items-center justify-between border-b border-border px-4 py-4 sm:px-5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h2 className="text-sm font-semibold text-foreground sm:text-base">{formattedDate}</h2>
+            <span className="hidden text-sm font-medium text-muted-foreground sm:inline">·</span>
             <span
               className={cn(
-                "text-sm font-bold",
+                "text-xs font-bold sm:text-sm",
                 isProfit ? "text-profit" : "text-loss"
               )}
             >
@@ -110,7 +110,7 @@ export function DayDetailModal({ open, onClose, date, dayData, trades, privacy =
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-3 gap-4 border-b border-border px-5 py-4 sm:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 border-b border-border px-4 py-4 sm:grid-cols-3 sm:px-5 md:grid-cols-6 md:gap-4">
           <StatBox label="Total Trades" value={String(totalTrades)} />
           <StatBox
             label="Gross P&L"
@@ -149,13 +149,13 @@ export function DayDetailModal({ open, onClose, date, dayData, trades, privacy =
         )}
 
         {/* Trades Table */}
-        <div className="flex-1 overflow-auto px-5 py-3">
+        <div className="flex-1 overflow-auto px-3 py-3 sm:px-5">
           {trades.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
               Nenhum trade neste dia.
             </p>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[500px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
                   <th className="pb-2 pr-3 font-medium">Hora</th>
@@ -224,7 +224,7 @@ export function DayDetailModal({ open, onClose, date, dayData, trades, privacy =
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 sm:px-5">
           <Link
             href={dayViewHref}
             onClick={onClose}

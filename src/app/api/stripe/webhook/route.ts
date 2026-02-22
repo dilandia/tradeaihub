@@ -146,6 +146,39 @@ export async function POST(req: Request) {
             { onConflict: "user_id" }
           );
         }
+
+        // Convert referral: if this user was referred and is subscribing for the first time
+        try {
+          const { data: pendingRef } = await supabase
+            .from("referrals")
+            .select("id, referrer_id, status")
+            .eq("referred_id", userId)
+            .eq("status", "pending")
+            .single();
+
+          if (pendingRef) {
+            const refNow = new Date().toISOString();
+            await supabase
+              .from("referrals")
+              .update({
+                status: "rewarded",
+                reward_type: "credits",
+                reward_amount: 50,
+                converted_at: refNow,
+                rewarded_at: refNow,
+              })
+              .eq("id", pendingRef.id);
+
+            // Grant 50 credits to the referrer
+            await supabase.rpc("add_referral_credits", {
+              p_user_id: pendingRef.referrer_id,
+              p_amount: 50,
+            });
+          }
+        } catch (refErr) {
+          console.error("[stripe/webhook] referral conversion failed:", refErr);
+          // Non-blocking — subscription still works
+        }
         break;
       }
 

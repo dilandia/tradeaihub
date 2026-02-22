@@ -31,15 +31,21 @@ export async function signUp(formData: FormData): Promise<never> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const fullName = (formData.get("full_name") as string) || "";
+  const referralCode = (formData.get("referral_code") as string) || "";
 
   if (!email || !password) {
     redirect("/register?message=" + encodeURIComponent("Email e senha são obrigatórios."));
   }
 
+  const metadata: Record<string, string> = { full_name: fullName };
+  if (referralCode) {
+    metadata.referral_code = referralCode;
+  }
+
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName } },
+    options: { data: metadata },
   });
 
   if (error) {

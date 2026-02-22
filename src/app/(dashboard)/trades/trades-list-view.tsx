@@ -129,13 +129,13 @@ export function TradesListView({ trades, metrics, importId, accountId, paginatio
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="px-4 py-3 font-medium">{t("trades.openDate")}</th>
-                  <th className="px-4 py-3 font-medium">{t("trades.symbol")}</th>
-                  <th className="px-4 py-3 font-medium">{t("trades.status")}</th>
-                  <th className="px-4 py-3 font-medium">{t("trades.closeDate")}</th>
-                  <th className="px-4 py-3 font-medium text-right">{t("trades.entryPrice")}</th>
-                  <th className="px-4 py-3 font-medium text-right">{t("trades.exitPrice")}</th>
-                  <th className="px-4 py-3 font-medium text-right">{t("trades.netPnl")}</th>
+                  <th className="px-3 py-3 font-medium sm:px-4">{t("trades.openDate")}</th>
+                  <th className="px-3 py-3 font-medium sm:px-4">{t("trades.symbol")}</th>
+                  <th className="px-3 py-3 font-medium sm:px-4">{t("trades.status")}</th>
+                  <th className="hidden px-4 py-3 font-medium md:table-cell">{t("trades.closeDate")}</th>
+                  <th className="hidden px-4 py-3 font-medium text-right lg:table-cell">{t("trades.entryPrice")}</th>
+                  <th className="hidden px-4 py-3 font-medium text-right lg:table-cell">{t("trades.exitPrice")}</th>
+                  <th className="px-3 py-3 font-medium text-right sm:px-4">{t("trades.netPnl")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -169,9 +169,9 @@ export function TradesListView({ trades, metrics, importId, accountId, paginatio
                         }}
                         className="cursor-pointer border-b border-border/50 transition-colors hover:bg-muted active:bg-muted/80"
                       >
-                        <td className="px-4 py-3 text-muted-foreground">{dateFmt}</td>
-                        <td className="px-4 py-3 font-medium text-foreground">{row.pair}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3 text-muted-foreground sm:px-4">{dateFmt}</td>
+                        <td className="px-3 py-3 font-medium text-foreground sm:px-4">{row.pair}</td>
+                        <td className="px-3 py-3 sm:px-4">
                           <span
                             className={cn(
                               "inline-flex rounded px-2 py-0.5 text-xs font-medium",
@@ -181,14 +181,14 @@ export function TradesListView({ trades, metrics, importId, accountId, paginatio
                             {row.is_win ? "WIN" : "LOSS"}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground">{dateFmt}</td>
-                        <td className="px-4 py-3 text-right text-muted-foreground">
+                        <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">{dateFmt}</td>
+                        <td className="hidden px-4 py-3 text-right text-muted-foreground lg:table-cell">
                           ${Number(row.entry_price).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 5 })}
                         </td>
-                        <td className="px-4 py-3 text-right text-muted-foreground">
+                        <td className="hidden px-4 py-3 text-right text-muted-foreground lg:table-cell">
                           ${Number(row.exit_price).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 5 })}
                         </td>
-                        <td className={cn("px-4 py-3 text-right font-medium", row.is_win ? "text-profit" : "text-loss")}>
+                        <td className={cn("px-3 py-3 text-right font-medium sm:px-4", row.is_win ? "text-profit" : "text-loss")}>
                           {row.profit_dollar != null
                             ? `${pnl >= 0 ? "+" : ""}$${pnl.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                             : `${pnl >= 0 ? "+" : ""}${pnl.toFixed(1)} pips`}

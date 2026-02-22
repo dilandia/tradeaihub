@@ -92,8 +92,8 @@ export function ReportsNav() {
 
   return (
     <div className="border-b border-border bg-card/50">
-      <div className="flex flex-wrap items-center justify-between gap-1 px-4 py-2">
-        <div className="flex flex-wrap items-center gap-1">
+      <div className="flex items-center justify-between gap-2 px-4 py-2">
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
         {MAIN_TABS.map(({ href, labelKey, icon: Icon, badgeKey }) => {
           const isActive = pathname === href || pathname.startsWith(href + "/");
           return (
@@ -101,7 +101,7 @@ export function ReportsNav() {
               key={href}
               href={buildHref(href)}
               className={cn(
-                "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 isActive
                   ? "bg-score/10 text-score"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -162,7 +162,9 @@ export function ReportsNav() {
         </div>
         </div>
 
-        <DateRangeButton value={period} onChange={handlePeriodChange} />
+        <div className="shrink-0">
+          <DateRangeButton value={period} onChange={handlePeriodChange} />
+        </div>
       </div>
     </div>
   );

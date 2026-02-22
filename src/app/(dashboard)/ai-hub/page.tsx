@@ -48,7 +48,7 @@ export default function AiHubPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/15 via-background to-cyan-500/10 p-8 lg:p-12"
+        className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/15 via-background to-cyan-500/10 p-5 sm:p-8 lg:p-12"
       >
         <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-violet-500/25 blur-3xl" />
         <div className="absolute -bottom-24 -left-24 h-56 w-56 rounded-full bg-cyan-500/20 blur-3xl" />
@@ -57,7 +57,7 @@ export default function AiHubPage() {
             <Sparkles className="h-4 w-4" />
             {t("aiHub.badge")}
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground lg:text-4xl">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
             {t("aiHub.heroTitle")}
           </h1>
           <p className="mt-4 max-w-2xl text-base text-muted-foreground lg:text-lg">
@@ -71,7 +71,7 @@ export default function AiHubPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6 flex items-center justify-between rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-3"
+          className="mb-6 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-3"
         >
           <span className="text-sm font-medium text-foreground">
             {t("aiHub.creditsRemaining", { count: planInfo.aiCreditsRemaining, total: planInfo.aiCreditsPerMonth })}

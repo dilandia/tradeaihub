@@ -17,6 +17,7 @@ import {
   ArrowRight,
   Crown,
   MessageCircle,
+  Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -40,6 +41,7 @@ const mainNavItems = [
 /* Rodapé do menu — Importar, Configurações e Sair */
 const footerNavItems = [
   { href: "/import", labelKey: "nav.importTrades", icon: Upload },
+  { href: "/referrals", labelKey: "nav.referrals", icon: Gift },
   { href: "/settings", labelKey: "nav.settings", icon: Settings },
   { action: "signout" as const, labelKey: "common.logout", icon: LogOut },
 ];
