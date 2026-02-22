@@ -69,6 +69,10 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: "https://tradeaihub.com",
+    languages: {
+      en: "https://tradeaihub.com",
+      "pt-BR": "https://tradeaihub.com",
+    },
   },
 };
 
@@ -87,22 +91,32 @@ export default async function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "SoftwareApplication",
-              name: "Trade AI Hub",
-              applicationCategory: "FinanceApplication",
-              operatingSystem: "Web",
-              description:
-                "AI-powered trading journal for forex traders",
-              url: "https://tradeaihub.com",
-              offers: {
-                "@type": "Offer",
-                price: "0",
-                priceCurrency: "USD",
-                description: "Free tier available",
+            __html: JSON.stringify([
+              {
+                "@context": "https://schema.org",
+                "@type": "SoftwareApplication",
+                name: "Trade AI Hub",
+                applicationCategory: "FinanceApplication",
+                operatingSystem: "Web",
+                description:
+                  "AI-powered trading journal for forex traders",
+                url: "https://tradeaihub.com",
+                offers: {
+                  "@type": "Offer",
+                  price: "0",
+                  priceCurrency: "USD",
+                  description: "Free tier available",
+                },
               },
-            }),
+              {
+                "@context": "https://schema.org",
+                "@type": "Organization",
+                name: "Trade AI Hub",
+                url: "https://tradeaihub.com",
+                logo: "https://tradeaihub.com/icon-glyph-512x512.png",
+                sameAs: [],
+              },
+            ]),
           }}
         />
         <Script

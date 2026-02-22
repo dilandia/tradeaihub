@@ -4,6 +4,16 @@ export const metadata: Metadata = {
   title: "Contact",
   description:
     "Get in touch with the Trade AI Hub team. We are here to help with support, partnerships, and feedback.",
+  openGraph: {
+    title: "Contact",
+    description:
+      "Get in touch with the Trade AI Hub team. We are here to help with support, partnerships, and feedback.",
+  },
+  twitter: {
+    title: "Contact",
+    description:
+      "Get in touch with the Trade AI Hub team. We are here to help with support, partnerships, and feedback.",
+  },
   alternates: {
     canonical: "https://tradeaihub.com/contact",
   },

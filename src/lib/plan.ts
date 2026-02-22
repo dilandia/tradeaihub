@@ -31,6 +31,7 @@ export type PlanInfo = {
   canExportPdf: boolean;
   canAccessReports: boolean;
   maxTags: number;
+  maxStrategies: number;
   hasApiAccess: boolean;
 };
 
@@ -47,6 +48,7 @@ const PLAN_LIMITS: Record<
     canExportPdf: boolean;
     canAccessReports: boolean;
     maxTags: number;
+    maxStrategies: number;
     hasApiAccess: boolean;
   }
 > = {
@@ -61,6 +63,7 @@ const PLAN_LIMITS: Record<
     canExportPdf: false,
     canAccessReports: false,
     maxTags: 3,
+    maxStrategies: 3,
     hasApiAccess: false,
   },
   pro: {
@@ -74,6 +77,7 @@ const PLAN_LIMITS: Record<
     canExportPdf: true,
     canAccessReports: true,
     maxTags: 50,
+    maxStrategies: 20,
     hasApiAccess: false,
   },
   elite: {
@@ -87,6 +91,7 @@ const PLAN_LIMITS: Record<
     canExportPdf: true,
     canAccessReports: true,
     maxTags: 999,
+    maxStrategies: 999,
     hasApiAccess: true,
   },
 };
@@ -178,6 +183,7 @@ export async function getPlanInfo(userId: string | null): Promise<PlanInfo | nul
     canExportPdf: limits.canExportPdf,
     canAccessReports: limits.canAccessReports,
     maxTags: limits.maxTags,
+    maxStrategies: limits.maxStrategies,
     hasApiAccess: limits.hasApiAccess,
   };
 }

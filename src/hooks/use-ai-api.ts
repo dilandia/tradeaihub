@@ -243,6 +243,39 @@ export async function fetchCopilotConversation(id: string): Promise<CopilotMessa
   return data.messages ?? [];
 }
 
+export async function fetchAiCompare(params: {
+  period1Start: string;
+  period1End: string;
+  period2Start: string;
+  period2End: string;
+  period1Label?: string;
+  period2Label?: string;
+  importId?: string;
+  accountId?: string;
+  locale?: string;
+}): Promise<string> {
+  const res = await fetch("/api/ai/compare", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      period1Start: params.period1Start,
+      period1End: params.period1End,
+      period2Start: params.period2Start,
+      period2End: params.period2End,
+      period1Label: params.period1Label,
+      period2Label: params.period2Label,
+      importId: params.importId ?? null,
+      accountId: params.accountId ?? null,
+      locale: params.locale ?? "en",
+    }),
+  });
+  const data = await res.json();
+  return handleAiResponse(res, data, () => {
+    const raw = data.analysis ?? "";
+    return typeof raw === "string" ? raw : JSON.stringify(raw);
+  });
+}
+
 export async function fetchAiRisk(params: {
   importId?: string;
   accountId?: string;

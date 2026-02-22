@@ -20,6 +20,70 @@ const FAQ_ITEMS = [
   { q: "landing.faq7Q", a: "landing.faq7A" },
 ] as const
 
+/* ---- FAQPage JSON-LD structured data ---- */
+const FAQ_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: [
+    {
+      "@type": "Question",
+      name: "How does the free trial work?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Start with the Pro plan free for 7 days. No credit card required. Cancel anytime.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Can I import my MT4/MT5 history?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes. Connect via MetaApi for automatic sync, or import CSV manually.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "What are AI agents?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "AI agents analyze your trades to detect patterns, assess risk, and suggest improvements.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Is my data secure?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes. Credentials are encrypted. We never share your data with third parties.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Can I cancel anytime?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes. Cancel from your account settings. No questions asked.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Which brokers do you support?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "We support MT4 and MT5 via MetaApi for automatic sync. You can also import trades manually via CSV from any platform.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "What is the TakeZ Score?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "The TakeZ Score is a proprietary metric that evaluates your overall trading health based on consistency, risk management, and discipline. It updates as you add more trades.",
+      },
+    },
+  ],
+}
+
 /* ---- FAQ Section ---- */
 export function LandingFaq() {
   const { t } = useLanguage()
@@ -53,6 +117,10 @@ export function LandingFaq() {
       id="faq"
       className="px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24"
     >
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSONLD) }}
+      />
       <div className="mx-auto max-w-3xl">
         <LandingSectionHeader
           title={t("landing.faqTitle")}

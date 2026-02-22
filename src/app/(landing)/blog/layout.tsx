@@ -4,6 +4,16 @@ export const metadata: Metadata = {
   title: "Blog",
   description:
     "Trading insights, forex strategies, and AI analytics tips from Trade AI Hub. Stay updated with the latest in trading performance optimization.",
+  openGraph: {
+    title: "Blog",
+    description:
+      "Trading insights, forex strategies, and AI analytics tips from Trade AI Hub. Stay updated with the latest in trading performance optimization.",
+  },
+  twitter: {
+    title: "Blog",
+    description:
+      "Trading insights, forex strategies, and AI analytics tips from Trade AI Hub. Stay updated with the latest in trading performance optimization.",
+  },
   alternates: {
     canonical: "https://tradeaihub.com/blog",
   },

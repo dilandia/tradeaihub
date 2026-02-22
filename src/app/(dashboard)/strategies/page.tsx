@@ -1,10 +1,13 @@
 import { Metadata } from "next";
-import { StrategiesComingSoon } from "@/components/strategies/strategies-coming-soon";
+import { getStrategies } from "@/app/actions/strategies";
+import { StrategiesPageContent } from "@/components/strategies/strategies-page-content";
 
 export const metadata: Metadata = {
   title: "Strategies – TakeZ",
 };
 
-export default function StrategiesPage() {
-  return <StrategiesComingSoon />;
+export default async function StrategiesPage() {
+  const strategies = await getStrategies();
+
+  return <StrategiesPageContent strategies={strategies} />;
 }

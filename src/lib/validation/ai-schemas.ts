@@ -70,6 +70,24 @@ export type ReportSummaryRequest = z.infer<typeof ReportSummaryRequestSchema>;
 export const TakerzScoreRequestSchema = InsightsRequestSchema;
 export type TakerzScoreRequest = z.infer<typeof TakerzScoreRequestSchema>;
 
+// Date string schema (YYYY-MM-DD)
+const DateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD");
+
+// AI Compare request — two date ranges
+export const CompareRequestSchema = z.object({
+  period1Start: DateStringSchema,
+  period1End: DateStringSchema,
+  period2Start: DateStringSchema,
+  period2End: DateStringSchema,
+  period1Label: z.string().max(100).optional(),
+  period2Label: z.string().max(100).optional(),
+  importId: UuidSchema,
+  accountId: UuidSchema,
+  locale: LocaleSchema,
+});
+
+export type CompareRequest = z.infer<typeof CompareRequestSchema>;
+
 // Validate and parse request body safely
 export function validateAiRequest<T>(
   schema: z.ZodSchema<T>,
