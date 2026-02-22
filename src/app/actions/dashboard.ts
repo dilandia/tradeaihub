@@ -1,7 +1,6 @@
 "use server";
 
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 /* ─── Types ─── */
@@ -103,7 +102,7 @@ const r = (v: number, d = 1) => Math.round(v * 10 ** d) / 10 ** d;
 /**
  * Fetch dashboard metrics via the enhanced get_trade_metrics RPC.
  * Extends the base Metrics type with best/worst trade, avg RR, and date range.
- * Uses React cache() for per-request dedup + unstable_cache for cross-request caching.
+ * Uses React cache() for per-request dedup.
  */
 async function _getDashboardMetrics(
   importId?: string | null,
@@ -293,86 +292,59 @@ async function _getDrawdownAnalysis(
 
 export const getDrawdownAnalysis = cache(_getDrawdownAnalysis);
 
-/* ─── Cached wrappers for unstable_cache (W2-03: cross-request caching) ─── */
-
-/**
- * Cached version of getDashboardMetrics with tag-based invalidation.
- * Include userId as first key argument for user isolation.
+/* ─── Cached wrappers (W2-03: cross-request caching) ─── */
+/*
+ * IMPORTANT: unstable_cache() cannot wrap functions that call cookies() (dynamic).
+ * createClient() calls cookies(), so we cannot use unstable_cache here.
+ * Instead, we use React cache() (per-request dedup) which is already applied
+ * to the exported getDashboardMetrics / getEquityCurve / getDrawdownAnalysis.
+ *
+ * These aliases maintain backward compatibility for dashboard/page.tsx imports.
  */
-export const getCachedDashboardMetrics = unstable_cache(
-  async (
-    userId: string,
-    importId?: string,
-    accountId?: string,
-    startDate?: string,
-    endDate?: string
-  ) => {
-    // userId is used as cache key only; the RPC reads user from session
-    void userId;
-    return _getDashboardMetrics(
-      importId ?? null,
-      accountId ?? null,
-      startDate ?? null,
-      endDate ?? null
-    );
-  },
-  ["dashboard-metrics"],
-  {
-    tags: ["trades"],
-    revalidate: 300, // 5 minutes hard TTL fallback
-  }
-);
 
-/**
- * Cached version of getEquityCurve with tag-based invalidation.
- */
-export const getCachedEquityCurve = unstable_cache(
-  async (
-    userId: string,
-    resolution: string = "daily",
-    importId?: string,
-    accountId?: string,
-    startDate?: string,
-    endDate?: string,
-    useDollar: boolean = true
-  ) => {
-    void userId;
-    return _getEquityCurve(
-      resolution as "daily" | "weekly" | "monthly",
-      importId ?? null,
-      accountId ?? null,
-      startDate ?? null,
-      endDate ?? null,
-      useDollar
-    );
-  },
-  ["equity-curve"],
-  {
-    tags: ["trades"],
-    revalidate: 300,
-  }
-);
+export async function getCachedDashboardMetrics(
+  _userId: string,
+  importId?: string,
+  accountId?: string,
+  startDate?: string,
+  endDate?: string
+): Promise<DashboardMetrics> {
+  return getDashboardMetrics(
+    importId ?? null,
+    accountId ?? null,
+    startDate ?? null,
+    endDate ?? null
+  );
+}
 
-/**
- * Cached version of getDrawdownAnalysis with tag-based invalidation.
- */
-export const getCachedDrawdownAnalysis = unstable_cache(
-  async (
-    userId: string,
-    importId?: string,
-    accountId?: string,
-    useDollar: boolean = true
-  ) => {
-    void userId;
-    return _getDrawdownAnalysis(
-      importId ?? null,
-      accountId ?? null,
-      useDollar
-    );
-  },
-  ["drawdown-analysis"],
-  {
-    tags: ["trades"],
-    revalidate: 300,
-  }
-);
+export async function getCachedEquityCurve(
+  _userId: string,
+  resolution: string = "daily",
+  importId?: string,
+  accountId?: string,
+  startDate?: string,
+  endDate?: string,
+  useDollar: boolean = true
+): Promise<EquityCurvePoint[]> {
+  return getEquityCurve(
+    resolution as "daily" | "weekly" | "monthly",
+    importId ?? null,
+    accountId ?? null,
+    startDate ?? null,
+    endDate ?? null,
+    useDollar
+  );
+}
+
+export async function getCachedDrawdownAnalysis(
+  _userId: string,
+  importId?: string,
+  accountId?: string,
+  useDollar: boolean = true
+): Promise<DrawdownAnalysis> {
+  return getDrawdownAnalysis(
+    importId ?? null,
+    accountId ?? null,
+    useDollar
+  );
+}

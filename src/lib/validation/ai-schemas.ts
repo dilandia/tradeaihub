@@ -7,12 +7,18 @@ import { z } from "zod";
 
 // Valid time periods
 const VALID_PERIODS = ["all", "1w", "1m", "3m", "6m", "1y"] as const;
-const VALID_LOCALES = ["en", "pt"] as const;
 
-// Shared schemas
-export const UuidSchema = z.string().uuid().optional();
-export const PeriodSchema = z.enum(VALID_PERIODS).default("all");
-export const LocaleSchema = z.enum(VALID_LOCALES).default("en");
+// Shared schemas — accept null (JSON serialises undefined → null)
+export const UuidSchema = z.string().uuid().nullish();
+export const PeriodSchema = z.enum(VALID_PERIODS).nullish().transform((v) => v ?? "all");
+export const LocaleSchema = z
+  .string()
+  .nullish()
+  .transform((v) => {
+    if (!v) return "en";
+    if (v.startsWith("pt")) return "pt";
+    return "en";
+  });
 export const MessageSchema = z
   .string()
   .min(1, "Message cannot be empty")
