@@ -26,6 +26,7 @@ import {
   type ProfileData,
   type ProfileUpdatePayload,
 } from "@/app/actions/profile";
+import { usePlan } from "@/contexts/plan-context";
 
 /* ─── Constants ─── */
 
@@ -94,6 +95,7 @@ type Props = { profile: ProfileData };
 
 export function ProfileForm({ profile }: Props) {
   const { t, locale } = useLanguage();
+  const { planInfo, isLoading: isPlanLoading } = usePlan();
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -370,7 +372,13 @@ export function ProfileForm({ profile }: Props) {
             </div>
             <div className="flex justify-between rounded-lg bg-muted/30 px-4 py-3">
               <span className="text-muted-foreground">{t("profile.plan")}</span>
-              <span className="font-medium text-score">{t("profile.free")}</span>
+              {isPlanLoading ? (
+                <span className="h-5 w-16 animate-pulse rounded bg-muted" />
+              ) : (
+                <span className="font-medium text-score capitalize">
+                  {t(`plans.${planInfo?.plan ?? "free"}`)}
+                </span>
+              )}
             </div>
           </div>
         </CardContent>
