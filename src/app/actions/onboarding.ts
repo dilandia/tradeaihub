@@ -25,6 +25,7 @@ export async function saveOnboardingResponse(
         experience_level: payload.experienceLevel ?? null,
         instruments: payload.instruments ?? [],
         platform: payload.platform ?? null,
+        completed_at: new Date().toISOString(),
       },
       { onConflict: "user_id" }
     );
@@ -35,4 +36,20 @@ export async function saveOnboardingResponse(
   }
 
   return { success: true };
+}
+
+export async function checkOnboardingCompleted(): Promise<boolean> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return true; // No user = skip onboarding
+
+  const { data } = await supabase
+    .from("onboarding_responses")
+    .select("completed_at")
+    .eq("user_id", user.id)
+    .single();
+
+  return !!data?.completed_at;
 }

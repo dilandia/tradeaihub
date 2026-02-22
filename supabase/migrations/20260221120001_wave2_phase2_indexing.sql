@@ -14,8 +14,7 @@ COMMENT ON INDEX idx_trades_user_id_deleted_at IS
 
 -- Index for user_tags lookup
 CREATE INDEX IF NOT EXISTS idx_user_tags_user_id_name
-  ON user_tags(user_id, name)
-  WHERE deleted_at IS NULL;
+  ON user_tags(user_id, name);
 
 COMMENT ON INDEX idx_user_tags_user_id_name IS
   'Fast lookup: user tags by name. Used by: tag validation, tag details queries.';

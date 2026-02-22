@@ -47,13 +47,12 @@ export const metadata: Metadata = {
     title: "Trade AI Hub — AI-Powered Trading Journal",
     description:
       "Track, analyze, and improve your trading with AI-powered insights. Free tier available.",
-    // TODO: Replace /og-image.png with actual PNG (1200x630). SVG placeholder at public/og-image.svg
     images: [
       {
-        url: "/og-image.png",
+        url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "Trade AI Hub Dashboard",
+        alt: "Trade AI Hub — AI-Powered Trading Journal",
       },
     ],
   },
@@ -62,7 +61,7 @@ export const metadata: Metadata = {
     title: "Trade AI Hub — AI-Powered Trading Journal",
     description:
       "Track, analyze, and improve your trading with AI-powered insights.",
-    images: ["/og-image.png"],
+    images: ["/opengraph-image"],
   },
   robots: {
     index: true,

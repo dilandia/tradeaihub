@@ -383,10 +383,11 @@
     "termsSection12Content": "Se voce tiver duvidas sobre estes Termos de Servico, entre em contato:\n\nEmail: support@tradeaihub.com"
   },
   "onboarding": {
-    "welcome": "Bem-vindo ao TakeZ Plan",
-    "welcomeDesc": "Vamos personalizar sua experiência. Leva apenas um minuto.",
+    "welcome": "Bem-vindo ao Trade AI Hub",
+    "welcomeDesc": "Seu diário de trading com IA está pronto.",
+    "welcomeSubtext": "Responda algumas perguntas rápidas para personalizar sua experiência.",
     "experienceTitle": "Qual seu nível de experiência?",
-    "experienceDesc": "Isso nos ajuda a adaptar a interface e sugestões para você.",
+    "experienceDesc": "Isso nos ajuda a adaptar a interface e sugestões de IA para você.",
     "expBeginner": "Iniciante",
     "expBeginnerDesc": "Menos de 1 ano de experiência em trading.",
     "expIntermediate": "Intermediário",
@@ -411,10 +412,11 @@
     "platformOther": "Outra",
     "getStarted": "Começar",
     "skipForNow": "Pular por agora",
-    "personalizing": "Estamos personalizando sua experiência..."
+    "personalizing": "Configurando seu espaço de trabalho...",
+    "personalizingDesc": "Preparando seu diário de trading com IA."
   },
   "tutorial": {
-    "title": "Bem-vindo ao TakeZ Plan!",
+    "title": "Bem-vindo ao Trade AI Hub!",
     "subtitle": "Complete estes passos para começar",
     "collapse": "Recolher",
     "exploreDashboard": "Explorar Painel",

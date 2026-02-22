@@ -383,10 +383,11 @@
     "termsSection12Content": "If you have any questions about these Terms of Service, please contact us:\n\nEmail: support@tradeaihub.com"
   },
   "onboarding": {
-    "welcome": "Welcome to TakeZ Plan",
-    "welcomeDesc": "Let's personalize your experience. This will only take a minute.",
+    "welcome": "Welcome to Trade AI Hub",
+    "welcomeDesc": "Your AI-powered trading journal is ready.",
+    "welcomeSubtext": "Answer a few quick questions so we can personalize your experience.",
     "experienceTitle": "What's your experience level?",
-    "experienceDesc": "This helps us tailor the interface and suggestions for you.",
+    "experienceDesc": "This helps us tailor the interface and AI suggestions for you.",
     "expBeginner": "Beginner",
     "expBeginnerDesc": "Less than 1 year of trading experience.",
     "expIntermediate": "Intermediate",
@@ -411,10 +412,11 @@
     "platformOther": "Other",
     "getStarted": "Get Started",
     "skipForNow": "Skip for now",
-    "personalizing": "We're personalizing your experience..."
+    "personalizing": "Setting up your workspace...",
+    "personalizingDesc": "Configuring your AI-powered trading journal."
   },
   "tutorial": {
-    "title": "Welcome to TakeZ Plan!",
+    "title": "Welcome to Trade AI Hub!",
     "subtitle": "Complete these steps to get started",
     "collapse": "Collapse",
     "exploreDashboard": "Explore Dashboard",
