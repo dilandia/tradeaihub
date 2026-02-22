@@ -66,39 +66,38 @@ export function PlanProvider({ children }: Props) {
     refetch();
   }, [refetch]);
 
-  // Listen for auth state changes and refetch plan
+  // Listen for auth state changes and refetch plan.
+  // INITIAL_SESSION is critical: after a server-action login + redirect, the
+  // browser Supabase client detects the session from cookies and fires
+  // INITIAL_SESSION (not SIGNED_IN). Without handling it, plan data never
+  // refreshes after login.
   useEffect(() => {
     const supabase = createClient();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event) => {
-        if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+      (event, session) => {
+        if (
+          event === "SIGNED_IN" ||
+          event === "SIGNED_OUT" ||
+          event === "TOKEN_REFRESHED" ||
+          event === "USER_UPDATED" ||
+          event === "INITIAL_SESSION"
+        ) {
           // Clear any pending retry from a previous event
           if (retryTimerRef.current) {
             clearTimeout(retryTimerRef.current);
             retryTimerRef.current = null;
           }
 
-          if (event === "SIGNED_OUT") {
-            // On sign out, clear plan immediately — no fetch needed
+          if (event === "SIGNED_OUT" || (event === "INITIAL_SESSION" && !session)) {
+            // No session — clear plan immediately
             setPlanInfo(null);
             setIsLoading(false);
             return;
           }
 
-          // Fetch immediately (session cookies are already set by Supabase client)
-          refetch().then(() => {
-            // If the fetch returned null (API returned 401 because session
-            // was not yet fully synced to server cookies), retry once after 1s
-            // This handles the edge case where the middleware hasn't had
-            // time to refresh the server-side session cookie yet
-            if (!fetchInFlight.current) {
-              retryTimerRef.current = setTimeout(() => {
-                retryTimerRef.current = null;
-                refetch();
-              }, 1000);
-            }
-          });
+          // Session exists — fetch plan
+          refetch();
         }
       }
     );

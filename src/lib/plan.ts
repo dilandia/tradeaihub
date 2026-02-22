@@ -1,9 +1,16 @@
 /**
  * Sistema de planos — TakeZ Plan
  * Helper para obter informações do plano do usuário (server-side).
+ *
+ * Uses the admin (service_role) client for all read queries because:
+ * 1. The userId is always verified by getUser() in the calling API route/action
+ * 2. RLS-based queries via createClient() can fail when the access token in
+ *    cookies is stale or mid-refresh (e.g. right after server-action login),
+ *    silently returning "free" instead of the real plan.
+ * 3. Admin queries with explicit user_id filter are functionally equivalent
+ *    to RLS "auth.uid() = user_id" but immune to token sync issues.
  */
 
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type Plan = "free" | "pro" | "elite";
@@ -84,10 +91,11 @@ const PLAN_LIMITS: Record<
   },
 };
 
-/** Obtém o plano do usuário a partir do banco (subscriptions) */
+/** Obtém o plano do usuário a partir do banco (subscriptions).
+ *  Uses admin client to avoid token-sync issues after login redirects. */
 export async function getUserPlan(userId: string): Promise<Plan> {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("subscriptions")
       .select("plan, status")
@@ -108,7 +116,7 @@ export async function getUserPlan(userId: string): Promise<Plan> {
 export async function getUserBillingInterval(
   userId: string
 ): Promise<"monthly" | "annual"> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from("subscriptions")
     .select("billing_interval")
@@ -125,7 +133,7 @@ export async function getUserAiCredits(userId: string): Promise<{
   creditsUsedThisPeriod: number;
   periodEnd: string | null;
 }> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from("ai_credits")
     .select("credits_remaining, credits_used_this_period, period_end")
