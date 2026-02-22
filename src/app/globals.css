@@ -98,6 +98,16 @@
   }
 }
 
+/* Landing page broker marquee */
+@keyframes landing-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 /* MQL5/Tradays Economic Calendar Widget – tamanho e cores */
 .economic-calendar-widget-wrapper {
   --ecw-accent: var(--score);

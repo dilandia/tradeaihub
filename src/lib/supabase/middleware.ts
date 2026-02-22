@@ -46,8 +46,12 @@ export async function updateSession(request: NextRequest) {
   /* localhost: em dev serve landing E app no mesmo host */
   const isLocalhost = host === "localhost" || host === "127.0.0.1";
 
+  /* Rotas públicas da landing (não requerem auth) */
+  const landingPublicPaths = ["/", "/about", "/contact", "/blog", "/privacy", "/terms"];
+  const isLandingPublic = landingPublicPaths.includes(path);
+
   if (isProdLandingDomain || isLocalhost) {
-    if (path === "/") return response;
+    if (isLandingPublic) return response;
     /* Login/register: em prod landing redireciona para app */
     if ((path === "/login" || path === "/register") && isProdLandingDomain) {
       return NextResponse.redirect(
@@ -55,7 +59,7 @@ export async function updateSession(request: NextRequest) {
       );
     }
     /* Em prod landing: rotas do app (dashboard, trades, etc) redirecionam para app.tradeaihub.com */
-    if (isProdLandingDomain && path !== "/login" && path !== "/register") {
+    if (isProdLandingDomain) {
       return NextResponse.redirect(new URL(path, "https://app.tradeaihub.com"));
     }
     /* Em localhost: permite todas as rotas (/, /login, /register, /dashboard, etc) - segue para checagens de auth */
