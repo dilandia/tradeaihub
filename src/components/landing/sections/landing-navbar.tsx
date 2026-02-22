@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
-import { Menu, X, ArrowRight, BarChart3 } from "lucide-react"
+import { Menu, X, ArrowRight } from "lucide-react"
 import NextLink from "next/link"
+import Image from "next/image"
 
 import { useLanguage } from "@/contexts/language-context"
 import { useAppUrl } from "@/contexts/app-url-context"
@@ -54,10 +55,14 @@ export function LandingNavbar() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <a href="#" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500">
-            <BarChart3 className="h-5 w-5 text-white" />
-          </div>
+        <a href="#" className="flex items-center gap-2.5">
+          <Image
+            src="/icon-glyph-512x512.png"
+            alt="Trade AI Hub"
+            width={36}
+            height={36}
+            className="rounded-[10px] bg-white p-0.5 shadow-sm"
+          />
           <span className="text-lg font-bold text-white">
             {t("landing.brandName")}
           </span>

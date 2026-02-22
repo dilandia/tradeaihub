@@ -1,6 +1,6 @@
 "use client"
 
-import { BarChart3 } from "lucide-react"
+import Image from "next/image"
 
 import { useLanguage } from "@/contexts/language-context"
 import { useAppUrl } from "@/contexts/app-url-context"
@@ -64,10 +64,14 @@ export function LandingFooter() {
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-5">
           {/* Brand column */}
           <div className="sm:col-span-2 lg:col-span-1">
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500">
-                <BarChart3 className="h-5 w-5 text-white" aria-hidden="true" />
-              </div>
+            <div className="flex items-center gap-2.5">
+              <Image
+                src="/icon-glyph-512x512.png"
+                alt="Trade AI Hub"
+                width={36}
+                height={36}
+                className="rounded-[10px] bg-white p-0.5 shadow-sm"
+              />
               <span className="text-lg font-bold text-white">
                 {t("landing.brandName")}
               </span>

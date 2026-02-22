@@ -1,7 +1,8 @@
 "use client"
 
-import { ArrowLeft, BarChart3 } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import NextLink from "next/link"
+import Image from "next/image"
 
 import { useLanguage } from "@/contexts/language-context"
 import { LanguageSelector } from "@/components/language-selector"
@@ -16,9 +17,13 @@ export function LandingPageNavbar() {
           href="/"
           className="flex items-center gap-2 transition-opacity hover:opacity-80"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500">
-            <BarChart3 className="h-5 w-5 text-white" aria-hidden="true" />
-          </div>
+          <Image
+            src="/icon-glyph-512x512.png"
+            alt="Trade AI Hub"
+            width={36}
+            height={36}
+            className="rounded-[10px] bg-white p-0.5 shadow-sm"
+          />
           <span className="text-lg font-bold text-white">
             {t("landing.brandName")}
           </span>
