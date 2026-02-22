@@ -64,6 +64,7 @@ export async function createTrade(formData: FormData): Promise<{ error?: string 
 export async function importTradesFromFile(formData: FormData): Promise<{
   error?: string;
   imported?: number;
+  importId?: string;
 }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -188,7 +189,7 @@ export async function importTradesFromFile(formData: FormData): Promise<{
   revalidatePath("/", "layout");
   revalidatePath("/import");
   revalidateTag("trades");
-  return { imported: trades.length };
+  return { imported: trades.length, importId };
 }
 
 /* ─────────────────────────────────────────────

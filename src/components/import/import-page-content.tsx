@@ -61,12 +61,11 @@ export function ImportPageContent({ initialImports, planLimits }: Props) {
     toast.success(t("import.importedCount", { count }));
     router.refresh();
 
-    // Atualizar lista de imports local (adiciona o novo no topo)
-    // A revalidação do server já aconteceu, mas atualizamos otimisticamente
+    // Atualizar lista de imports local com o ID real do banco
     const fileInput = document.getElementById("file") as HTMLInputElement | null;
     const fileName = fileInput?.files?.[0]?.name ?? "Arquivo importado";
     const newRecord: ImportRecord = {
-      id: crypto.randomUUID(),
+      id: result.importId ?? crypto.randomUUID(),
       filename: fileName,
       tradeCount: result.imported ?? 0,
       date: formatDate(new Date(), locale),
