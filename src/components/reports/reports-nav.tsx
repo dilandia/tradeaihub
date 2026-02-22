@@ -117,13 +117,14 @@ export function ReportsNav() {
             </Link>
           );
         })}
+        </div>
 
-        <div ref={ref} className="relative">
+        <div ref={ref} className="relative shrink-0">
           <button
             type="button"
             onClick={() => setReportsOpen(!reportsOpen)}
             className={cn(
-              "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              "flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors",
               isInReportsDropdown
                 ? "bg-score/10 text-score"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -137,7 +138,7 @@ export function ReportsNav() {
           </button>
 
           {reportsOpen && (
-            <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-xl border border-border bg-card p-1 shadow-lg animate-in fade-in-0 zoom-in-95">
+            <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-xl border border-border bg-card p-1 shadow-lg animate-in fade-in-0 zoom-in-95">
               {REPORT_ITEMS.map(({ href, labelKey, icon: Icon }) => {
                 const isActive = pathname === href || pathname.startsWith(href + "/");
                 return (
@@ -159,7 +160,6 @@ export function ReportsNav() {
               })}
             </div>
           )}
-        </div>
         </div>
 
         <div className="shrink-0">
