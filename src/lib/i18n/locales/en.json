@@ -1358,5 +1358,29 @@
     "limitReached": "You've reached the strategy limit for your plan ({max}). Upgrade to add more.",
     "rules": "rules",
     "noRules": "No rules defined"
+  },
+  "feedback": {
+    "title": "Send Feedback",
+    "type": "Type",
+    "typeBug": "Bug",
+    "typeFeature": "Feature",
+    "typeImprovement": "Improve",
+    "typeOther": "Other",
+    "rating": "Rating (optional)",
+    "message": "Message",
+    "messagePlaceholder": "Tell us what you think, report a bug, or suggest an improvement...",
+    "messageMin": "Minimum 10 characters",
+    "submit": "Send Feedback",
+    "submitting": "Sending...",
+    "success": "Thank you for your feedback!",
+    "successDesc": "Your feedback helps us improve the platform."
+  },
+  "nps": {
+    "question": "How likely are you to recommend Trade AI Hub to a friend?",
+    "comment": "Comment",
+    "commentPlaceholder": "Tell us more (optional)...",
+    "submit": "Submit",
+    "dismiss": "Maybe later",
+    "thanks": "Thank you for your feedback!"
   }
 }

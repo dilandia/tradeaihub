@@ -9,6 +9,8 @@ import { GlobalHeader } from "@/components/global-header";
 import { Sidebar } from "@/components/sidebar";
 import { OnboardingModal } from "@/components/onboarding/onboarding-modal";
 import { AiFloatingAssistant } from "@/components/ai/ai-floating-assistant";
+import { FeedbackButton } from "@/components/feedback/feedback-button";
+import { NpsSurvey } from "@/components/feedback/nps-survey";
 import type {
   LinkedAccount,
   ImportReport,
@@ -74,6 +76,8 @@ export function DashboardShell({ children, accounts, imports, userName }: Props)
     >
       <OnboardingModal />
       <AiFloatingAssistant />
+      <FeedbackButton />
+      <NpsSurvey />
       <Sidebar />
       <main className="lg:pl-64">
         <GlobalHeader userName={userName} />

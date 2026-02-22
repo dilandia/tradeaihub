@@ -1347,5 +1347,29 @@
     "limitReached": "Você atingiu o limite de estratégias do seu plano ({max}). Faça upgrade para adicionar mais.",
     "rules": "regras",
     "noRules": "Nenhuma regra definida"
+  },
+  "feedback": {
+    "title": "Enviar Feedback",
+    "type": "Tipo",
+    "typeBug": "Bug",
+    "typeFeature": "Recurso",
+    "typeImprovement": "Melhoria",
+    "typeOther": "Outro",
+    "rating": "Avaliacao (opcional)",
+    "message": "Mensagem",
+    "messagePlaceholder": "Conte o que voce acha, reporte um bug ou sugira uma melhoria...",
+    "messageMin": "Minimo de 10 caracteres",
+    "submit": "Enviar Feedback",
+    "submitting": "Enviando...",
+    "success": "Obrigado pelo seu feedback!",
+    "successDesc": "Seu feedback nos ajuda a melhorar a plataforma."
+  },
+  "nps": {
+    "question": "Qual a probabilidade de voce recomendar o Trade AI Hub para um amigo?",
+    "comment": "Comentario",
+    "commentPlaceholder": "Conte mais (opcional)...",
+    "submit": "Enviar",
+    "dismiss": "Talvez depois",
+    "thanks": "Obrigado pelo seu feedback!"
   }
 }
