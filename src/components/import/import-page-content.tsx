@@ -304,7 +304,11 @@ export function ImportPageContent({ initialImports, planLimits }: Props) {
               </form>
 
               {/* Histórico de importação */}
-              <ImportHistory imports={imports} onDelete={() => router.refresh()} />
+              <ImportHistory
+                imports={imports}
+                onImportsChange={setImports}
+                onDelete={() => router.refresh()}
+              />
             </CardContent>
           </Card>
         </div>

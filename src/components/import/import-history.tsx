@@ -14,6 +14,7 @@ export type ImportRecord = {
 
 type Props = {
   imports: ImportRecord[];
+  onImportsChange?: (imports: ImportRecord[]) => void;
   onDelete?: () => void;
 };
 
@@ -85,8 +86,7 @@ function ConfirmDialog({
 }
 
 /* ─────── Main Component ─────── */
-export function ImportHistory({ imports: initialImports, onDelete }: Props) {
-  const [imports, setImports] = useState(initialImports);
+export function ImportHistory({ imports, onImportsChange, onDelete }: Props) {
   const [confirmTarget, setConfirmTarget] = useState<ImportRecord | null>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -103,8 +103,8 @@ export function ImportHistory({ imports: initialImports, onDelete }: Props) {
         setConfirmTarget(null);
         return;
       }
-      // Remove da lista local e atualiza limites do plano
-      setImports((prev) => prev.filter((i) => i.id !== target.id));
+      // Remove da lista via callback para o pai
+      onImportsChange?.(imports.filter((i) => i.id !== target.id));
       setConfirmTarget(null);
       onDelete?.();
     });
