@@ -8,11 +8,14 @@ import { buildCalendarDataFromTrades } from "@/lib/calendar-utils";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePdfExport } from "@/hooks/use-pdf-export";
+import { ExportPdfButton } from "@/components/reports/export-pdf-button";
 
 type Props = { trades: CalendarTrade[] };
 
 export function CalendarReportContent({ trades }: Props) {
   const { locale } = useLanguage();
+  const { exportRef, handleExport, isExporting, canExport } = usePdfExport("Calendar-Report");
   const monthNames = useMemo(() => getMonthNamesShort(locale), [locale]);
   const dayNames = useMemo(() => getWeekdayNames(locale, "short"), [locale]);
 
@@ -39,8 +42,15 @@ export function CalendarReportContent({ trades }: Props) {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Calendar</h1>
+    <div className="space-y-6" ref={exportRef}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl font-semibold">Calendar</h1>
+        <ExportPdfButton
+          onExport={handleExport}
+          isExporting={isExporting}
+          canExport={canExport}
+        />
+      </div>
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-center justify-between mb-4">

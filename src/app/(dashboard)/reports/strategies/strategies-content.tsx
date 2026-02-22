@@ -9,6 +9,8 @@ import { buildAccountBalance } from "@/lib/dashboard-calc";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { cn } from "@/lib/utils";
+import { usePdfExport } from "@/hooks/use-pdf-export";
+import { ExportPdfButton } from "@/components/reports/export-pdf-button";
 
 type Props = { trades: CalendarTrade[] };
 
@@ -21,6 +23,7 @@ function fmtPnl(v: number): string {
 
 export function StrategiesContent({ trades }: Props) {
   const { t } = useLanguage();
+  const { exportRef, handleExport, isExporting, canExport } = usePdfExport("Strategies-Report");
   const metrics = useMemo(() => computeClientMetrics(trades), [trades]);
   const cumulativeData = useMemo(
     () => buildAccountBalance(trades, true),
@@ -30,12 +33,19 @@ export function StrategiesContent({ trades }: Props) {
   const empty = trades.length === 0;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">{t("strategies.title")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("strategies.description")}
-        </p>
+    <div className="space-y-6" ref={exportRef}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">{t("strategies.title")}</h1>
+          <p className="text-sm text-muted-foreground">
+            {t("strategies.description")}
+          </p>
+        </div>
+        <ExportPdfButton
+          onExport={handleExport}
+          isExporting={isExporting}
+          canExport={canExport}
+        />
       </div>
 
       {empty && (

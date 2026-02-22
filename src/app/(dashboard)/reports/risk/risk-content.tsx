@@ -22,6 +22,8 @@ import {
 } from "recharts";
 import { TrendingUp, TrendingDown, Zap, Trophy, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePdfExport } from "@/hooks/use-pdf-export";
+import { ExportPdfButton } from "@/components/reports/export-pdf-button";
 
 type Props = { trades: CalendarTrade[] };
 
@@ -37,6 +39,7 @@ function fmtPnl(v: number, useDollar: boolean): string {
 
 export function RiskContent({ trades }: Props) {
   const { t, locale } = useLanguage();
+  const { exportRef, handleExport, isExporting, canExport } = usePdfExport("Risk-Report");
   const searchParams = useSearchParams();
   const importId = searchParams.get("import") ?? undefined;
   const accountId = searchParams.get("account") ?? undefined;
@@ -70,12 +73,19 @@ export function RiskContent({ trades }: Props) {
   const empty = trades.length === 0;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">{t("risk.title")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("risk.description")}
-        </p>
+    <div className="space-y-6" ref={exportRef}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">{t("risk.title")}</h1>
+          <p className="text-sm text-muted-foreground">
+            {t("risk.description")}
+          </p>
+        </div>
+        <ExportPdfButton
+          onExport={handleExport}
+          isExporting={isExporting}
+          canExport={canExport}
+        />
       </div>
 
       {/* AI Risk Analysis */}

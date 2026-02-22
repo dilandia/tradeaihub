@@ -14,6 +14,8 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts";
+import { usePdfExport } from "@/hooks/use-pdf-export";
+import { ExportPdfButton } from "@/components/reports/export-pdf-button";
 
 type Props = { trades: CalendarTrade[] };
 
@@ -25,6 +27,7 @@ function fmtPnl(v: number): string {
 }
 
 export function WinsVsLossesContent({ trades }: Props) {
+  const { exportRef, handleExport, isExporting, canExport } = usePdfExport("Wins-vs-Losses-Report");
   const wins = useMemo(() => trades.filter((t) => t.is_win), [trades]);
   const losses = useMemo(() => trades.filter((t) => !t.is_win), [trades]);
 
@@ -110,14 +113,21 @@ export function WinsVsLossesContent({ trades }: Props) {
   const empty = trades.length === 0;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">
-          Wins vs Losses
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Comparação de desempenho entre trades vencedores e perdedores.
-        </p>
+    <div className="space-y-6" ref={exportRef}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">
+            Wins vs Losses
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Comparação de desempenho entre trades vencedores e perdedores.
+          </p>
+        </div>
+        <ExportPdfButton
+          onExport={handleExport}
+          isExporting={isExporting}
+          canExport={canExport}
+        />
       </div>
 
       {empty && (

@@ -336,6 +336,55 @@ export async function getCachedEquityCurve(
   );
 }
 
+/* ─── Drawdown Curve (W3-05: get_drawdown_curve RPC) ─── */
+
+export type DrawdownCurvePoint = {
+  date: string;
+  drawdown: number;
+};
+
+/**
+ * Fetch daily drawdown curve from the get_drawdown_curve RPC.
+ * Returns pre-aggregated daily (date, drawdown) points.
+ * Uses React cache() for per-request dedup.
+ */
+async function _getDrawdownCurve(
+  importId?: string | null,
+  accountId?: string | null,
+  startDate?: string | null,
+  endDate?: string | null,
+  useDollar: boolean = true
+): Promise<DrawdownCurvePoint[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase.rpc("get_drawdown_curve", {
+    p_user_id: user.id,
+    p_import_id: importId ?? null,
+    p_account_id: accountId ?? null,
+    p_start_date: startDate ?? null,
+    p_end_date: endDate ?? null,
+    p_use_dollar: useDollar,
+  });
+
+  if (error) {
+    console.error("[dashboard] getDrawdownCurve:", error.message);
+    return [];
+  }
+
+  return (
+    (data ?? []) as Array<{ date: string; drawdown: number }>
+  ).map((row) => ({
+    date: String(row.date),
+    drawdown: Number(row.drawdown),
+  }));
+}
+
+export const getDrawdownCurve = cache(_getDrawdownCurve);
+
 export async function getCachedDrawdownAnalysis(
   _userId: string,
   importId?: string,
@@ -345,6 +394,23 @@ export async function getCachedDrawdownAnalysis(
   return getDrawdownAnalysis(
     importId ?? null,
     accountId ?? null,
+    useDollar
+  );
+}
+
+export async function getCachedDrawdownCurve(
+  _userId: string,
+  importId?: string,
+  accountId?: string,
+  startDate?: string,
+  endDate?: string,
+  useDollar: boolean = true
+): Promise<DrawdownCurvePoint[]> {
+  return getDrawdownCurve(
+    importId ?? null,
+    accountId ?? null,
+    startDate ?? null,
+    endDate ?? null,
     useDollar
   );
 }

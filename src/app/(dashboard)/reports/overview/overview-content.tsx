@@ -25,6 +25,8 @@ import {
   Cell,
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { usePdfExport } from "@/hooks/use-pdf-export";
+import { ExportPdfButton } from "@/components/reports/export-pdf-button";
 
 type Props = { trades: CalendarTrade[] };
 
@@ -75,6 +77,7 @@ const MONTH_KEYS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep
 
 export function OverviewContent({ trades }: Props) {
   const { t, locale } = useLanguage();
+  const { exportRef, handleExport, isExporting, canExport } = usePdfExport("Overview-Report");
   const searchParams = useSearchParams();
   const importId = searchParams.get("import") ?? undefined;
   const accountId = searchParams.get("account") ?? undefined;
@@ -123,7 +126,14 @@ export function OverviewContent({ trades }: Props) {
   if (empty) {
     return (
       <div className="space-y-6">
-        <h1 className="text-xl font-semibold">{t("overview.title")}</h1>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-xl font-semibold">{t("overview.title")}</h1>
+          <ExportPdfButton
+            onExport={handleExport}
+            isExporting={isExporting}
+            canExport={canExport}
+          />
+        </div>
         <Card>
           <CardContent className="flex min-h-[200px] flex-col items-center justify-center py-12">
             <p className="text-sm text-muted-foreground">
@@ -136,11 +146,20 @@ export function OverviewContent({ trades }: Props) {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-xl font-semibold">{t("overview.title")}</h1>
-      <p className="text-sm text-muted-foreground">
-        {t("overview.description")}
-      </p>
+    <div className="space-y-6" ref={exportRef}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">{t("overview.title")}</h1>
+          <p className="text-sm text-muted-foreground">
+            {t("overview.description")}
+          </p>
+        </div>
+        <ExportPdfButton
+          onExport={handleExport}
+          isExporting={isExporting}
+          canExport={canExport}
+        />
+      </div>
 
       {/* AI Report Summary */}
       <AiAgentCard

@@ -19,6 +19,8 @@ import {
 } from "recharts";
 import { TrendingUp, TrendingDown, Zap, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePdfExport } from "@/hooks/use-pdf-export";
+import { ExportPdfButton } from "@/components/reports/export-pdf-button";
 
 type Props = { trades: CalendarTrade[] };
 
@@ -34,6 +36,7 @@ function fmtPnl(v: number, useDollar: boolean): string {
 
 export function TagsContent({ trades }: Props) {
   const { t } = useLanguage();
+  const { exportRef, handleExport, isExporting, canExport } = usePdfExport("Tags-Report");
   const useDollar = true;
   const stats = useMemo(() => buildTagStats(trades, useDollar), [trades]);
 
@@ -63,12 +66,19 @@ export function TagsContent({ trades }: Props) {
   const empty = trades.length === 0;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">{t("tags.title")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("tags.description")}
-        </p>
+    <div className="space-y-6" ref={exportRef}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">{t("tags.title")}</h1>
+          <p className="text-sm text-muted-foreground">
+            {t("tags.description")}
+          </p>
+        </div>
+        <ExportPdfButton
+          onExport={handleExport}
+          isExporting={isExporting}
+          canExport={canExport}
+        />
       </div>
 
       {!empty && kpis && stats.length > 0 && (

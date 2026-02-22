@@ -716,7 +716,9 @@
     "tags": "Tags",
     "optionsDaysTillExpiration": "Options: Days till expiration",
     "winsVsLosses": "Wins vs Losses",
-    "new": "NEW"
+    "new": "NEW",
+    "exportPdf": "Export PDF",
+    "exporting": "Exporting..."
   },
   "overview": {
     "title": "Overview",

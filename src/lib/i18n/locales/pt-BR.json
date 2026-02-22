@@ -716,7 +716,9 @@
     "tags": "Tags",
     "optionsDaysTillExpiration": "Opções: dias até vencimento",
     "winsVsLosses": "Vitórias vs Perdas",
-    "new": "NOVO"
+    "new": "NOVO",
+    "exportPdf": "Exportar PDF",
+    "exporting": "Exportando..."
   },
   "overview": {
     "title": "Visão Geral",

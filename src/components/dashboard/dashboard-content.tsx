@@ -73,6 +73,7 @@ import {
   buildTradeDurationPerformance,
   buildWinAvgTimeSeries,
   buildYearlyCalendar,
+  type DrawdownPoint,
 } from "@/lib/dashboard-calc";
 
 /* ─── Types ─── */
@@ -84,6 +85,7 @@ import type {
   DashboardMetrics,
   EquityCurvePoint,
   DrawdownAnalysis,
+  DrawdownCurvePoint,
 } from "@/app/actions/dashboard";
 
 type Props = {
@@ -105,6 +107,8 @@ type Props = {
    *  Consumed: maxDrawdownValue, maxDrawdownPct, recoveryDays (max-drawdown widget),
    *  currentStreak, maxConsecutiveWins, maxConsecutiveLosses (current-streak widget). */
   serverDrawdown?: DrawdownAnalysis | null;
+  /** W3-05: Pre-aggregated drawdown curve (daily points) from server RPC */
+  serverDrawdownCurve?: DrawdownCurvePoint[] | null;
 };
 
 /* ─── Formatters ─── */
@@ -174,6 +178,7 @@ export function DashboardContent({
   serverMetrics = null,
   serverEquityCurve = null,
   serverDrawdown = null,
+  serverDrawdownCurve = null,
 }: Props) {
   const { t } = useLanguage();
   const [viewMode, setViewMode] = useState<ViewMode>("dollar");
@@ -311,10 +316,21 @@ export function DashboardContent({
     () => buildAccountBalance(filteredTrades, useDollar),
     [filteredTrades, useDollar]
   );
-  const drawdownData = useMemo(
+  /* W3-05: Prefer server drawdown curve when no client filters active */
+  const serverDrawdownPoints = useMemo((): DrawdownPoint[] | null => {
+    if (!useServerData || !serverDrawdownCurve?.length) return null;
+    if (!useDollar) return null; // Server curve is dollar-based; pips mode needs client calc
+    return serverDrawdownCurve.map((pt) => ({
+      date: pt.date.slice(5), // "YYYY-MM-DD" -> "MM-DD"
+      drawdown: pt.drawdown,
+    }));
+  }, [useServerData, serverDrawdownCurve, useDollar]);
+
+  const clientDrawdownData = useMemo(
     () => buildDrawdown(filteredTrades, useDollar),
     [filteredTrades, useDollar]
   );
+  const drawdownData = serverDrawdownPoints ?? clientDrawdownData;
   const timePerf = useMemo(
     () => buildTradeTimePerformance(filteredTrades, useDollar),
     [filteredTrades, useDollar]

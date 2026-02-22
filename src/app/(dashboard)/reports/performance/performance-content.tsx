@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WidgetTooltip } from "@/components/dashboard/widget-tooltip";
 import {
@@ -21,10 +21,10 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { Download, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
+import { usePdfExport } from "@/hooks/use-pdf-export";
+import { ExportPdfButton } from "@/components/reports/export-pdf-button";
 
 type Props = { trades: CalendarTrade[] };
 
@@ -78,7 +78,7 @@ function KpiCell({
 
 export function PerformanceContent({ trades }: Props) {
   const [pnlMode, setPnlMode] = useState<"net" | "gross">("net");
-  const exportRef = useRef<HTMLDivElement>(null);
+  const { exportRef, handleExport, isExporting, canExport } = usePdfExport("Performance-Report");
 
   const useDollar = true;
   const metrics = useMemo(
@@ -99,28 +99,6 @@ export function PerformanceContent({ trades }: Props) {
   );
 
   const empty = trades.length === 0;
-
-  async function handleExportPdf() {
-    if (!exportRef.current) return;
-    try {
-      const canvas = await html2canvas(exportRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff",
-      });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4", true);
-      const w = pdf.internal.pageSize.getWidth();
-      const h = pdf.internal.pageSize.getHeight();
-      const ratio = canvas.width / canvas.height;
-      const pdfH = w / ratio;
-      pdf.addImage(imgData, "PNG", 0, 0, w, Math.min(pdfH, h));
-      pdf.save("Performance-Report.pdf");
-    } catch (err) {
-      console.error("Export PDF error:", err);
-    }
-  }
 
   return (
     <div className="space-y-6" ref={exportRef}>
@@ -143,14 +121,11 @@ export function PerformanceContent({ trades }: Props) {
             </select>
             <ChevronDown className="absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           </div>
-          <button
-            type="button"
-            onClick={handleExportPdf}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            <Download className="h-4 w-4" />
-            Export PDF
-          </button>
+          <ExportPdfButton
+            onExport={handleExport}
+            isExporting={isExporting}
+            canExport={canExport}
+          />
         </div>
       </div>
 
