@@ -179,6 +179,69 @@ function calcPips(pair: string, entry: number, exit: number, isWin: boolean, pro
   return isWin ? Math.abs(profit) : -Math.abs(profit);
 }
 
+/* ─────── Multilingual MT5 Header Synonyms ─────── */
+/* MT5 exports identical structure in all languages — only header text changes.
+   Covers: EN, ES, PT, FR, DE, IT, RU, ZH, JA, KO, AR, TR, PL, CZ, NL */
+
+const TIME_SYNONYMS = [
+  "time", "fecha/hora", "data/hora", "date/heure", "heure", "zeit",
+  "data/ora", "время", "时间", "日時", "시간", "tarih/saat", "czas",
+  "čas", "datum/tijd", "tid", "aika",
+];
+
+const SYMBOL_SYNONYMS = [
+  "symbol", "símbolo", "simbolo", "symbole", "символ",
+  "交易品种", "品种", "通貨ペア", "銘柄", "심볼", "الرمز", "sembol",
+  "symbool", "シンボル",
+];
+
+const PROFIT_SYNONYMS = [
+  "profit", "beneficio", "lucro", "bénéfice", "benefice", "gewinn",
+  "profitto", "прибыль", "利润", "盈利", "損益", "利益", "수익", "이익",
+  "الربح", "kâr", "kar", "zysk", "zisk", "winst",
+];
+
+const PRICE_SYNONYMS = [
+  "price", "precio", "preço", "preco", "prix", "preis",
+  "prezzo", "цена", "价格", "価格", "가격", "السعر", "fiyat",
+  "cena", "prijs",
+];
+
+const TYPE_SYNONYMS = [
+  "type", "tipo", "typ", "тип", "类型", "タイプ", "유형", "النوع", "tip",
+  "rodzaj", "soort",
+];
+
+const RESULTS_SYNONYMS = [
+  "results", "resultados", "résultats", "resultats", "ergebnisse",
+  "risultati", "результаты", "结果", "結果", "결과", "النتائج", "sonuçlar",
+  "wyniki", "výsledky", "resultaten",
+];
+
+/** Keywords in the title row that indicate a trading history report */
+const TITLE_TRADE_KW = [
+  "trade", "trading", "negociação", "negociacion", "handel",
+  "торговл", "交易", "取引", "거래", "işlem", "handels",
+];
+const TITLE_HISTORY_KW = [
+  "history", "historial", "histórico", "historico", "historique",
+  "historie", "storia", "истори", "历史", "履歴", "내역", "geçmiş", "gecmis",
+];
+const TITLE_REPORT_KW = [
+  "report", "informe", "relatório", "relatorio", "rapport",
+  "bericht", "rapporto", "отчет", "отчёт", "报告", "レポート", "보고서", "rapor",
+];
+
+/** Check if a header cell matches any of the given synonyms (exact match) */
+function matchesSyn(cell: string, syns: string[]): boolean {
+  return syns.includes(cell);
+}
+
+/** Find index of a column whose header matches any synonym */
+function findCol(headers: string[], syns: string[]): number {
+  return headers.findIndex((h) => syns.includes(h));
+}
+
 /* ─────── Excel: Detecção e parsing Doo/MT ─────── */
 
 function findPositionsHeaderRow(raw: unknown[][]): number {
@@ -187,7 +250,10 @@ function findPositionsHeaderRow(raw: unknown[][]): number {
     const row = raw[i] as unknown[];
     if (!Array.isArray(row) || row.length < 10) continue;
     const cells = row.map((c) => String(c ?? "").toLowerCase().trim());
-    if (cells[0] === "time" && cells.includes("symbol") && cells.includes("profit")) {
+    const hasTime = matchesSyn(cells[0], TIME_SYNONYMS);
+    const hasSymbol = cells.some((c) => matchesSyn(c, SYMBOL_SYNONYMS));
+    const hasProfit = cells.some((c) => matchesSyn(c, PROFIT_SYNONYMS));
+    if (hasTime && hasSymbol && hasProfit) {
       return i;
     }
   }
@@ -197,7 +263,11 @@ function findPositionsHeaderRow(raw: unknown[][]): number {
 export function isDooMtFormat(raw: unknown[][]): boolean {
   if (raw.length < 5) return false;
   const first = String((raw[0] ?? [])[0] ?? "").toLowerCase();
-  if (first.includes("trade") && first.includes("history")) return true;
+  // Check title for trade/history/report keywords in any language
+  const hasTrade = TITLE_TRADE_KW.some((k) => first.includes(k));
+  const hasHistory = TITLE_HISTORY_KW.some((k) => first.includes(k));
+  const hasReport = TITLE_REPORT_KW.some((k) => first.includes(k));
+  if ((hasTrade && hasHistory) || (hasTrade && hasReport) || (hasHistory && hasReport)) return true;
   return findPositionsHeaderRow(raw) >= 0;
 }
 
@@ -207,18 +277,18 @@ export function parseDooMtPositions(raw: unknown[][]): TradeInsert[] {
   if (headerIdx < 0) return trades;
 
   const headerRow = (raw[headerIdx] as unknown[]).map((c) => String(c ?? "").toLowerCase().trim());
-  const colSymbol = headerRow.indexOf("symbol");
-  const colProfit = headerRow.indexOf("profit");
-  const colType = headerRow.indexOf("type");
+  const colSymbol = findCol(headerRow, SYMBOL_SYNONYMS);
+  const colProfit = findCol(headerRow, PROFIT_SYNONYMS);
+  const colType = findCol(headerRow, TYPE_SYNONYMS);
   const colSL = headerRow.findIndex((c) => /s\s*[\/.]\s*l|l\s*[\/.]\s*s|stop\s*loss|sl\b/i.test(c));
   const colTP = headerRow.findIndex((c) => /t\s*[\/.]\s*p|p\s*[\/.]\s*t|take\s*profit|tp\b/i.test(c));
-  const fp = headerRow.indexOf("price");
-  const sp = fp >= 0 ? headerRow.indexOf("price", fp + 1) : -1;
+  const fp = findCol(headerRow, PRICE_SYNONYMS);
+  const sp = fp >= 0 ? headerRow.findIndex((c, i) => i > fp && matchesSyn(c, PRICE_SYNONYMS)) : -1;
   if (colSymbol < 0 || colProfit < 0) return trades;
 
   // Detect second "time" column (exit time) if present
-  const ft = headerRow.indexOf("time"); // first time column (entry/open)
-  const st = ft >= 0 ? headerRow.indexOf("time", ft + 1) : -1; // second time column (exit/close)
+  const ft = findCol(headerRow, TIME_SYNONYMS);
+  const st = ft >= 0 ? headerRow.findIndex((c, i) => i > ft && matchesSyn(c, TIME_SYNONYMS)) : -1;
 
   const dateRe = /^\d{4}[.\-/]/;
   for (let i = headerIdx + 1; i < raw.length; i++) {
@@ -232,7 +302,7 @@ export function parseDooMtPositions(raw: unknown[][]): TradeInsert[] {
     const exit = sp >= 0 ? parseNumber(row[sp]) : 0;
     const profit = parseNumber(row[colProfit]);
     if (!symbolVal) continue;
-    const pair = String(symbolVal).replace(/\.c$/i, "").trim().toUpperCase();
+    const pair = String(symbolVal).replace(/\.[a-z]$/i, "").trim().toUpperCase();
     if (!pair) continue;
 
     const tradeDate = firstCell.split(" ")[0].replace(/\./g, "-");
@@ -303,10 +373,11 @@ export function parseAccountInfo(raw: unknown[][]): AccountInfo {
 /* ─────── Excel: Results (bloco de métricas) ─────── */
 
 export function parseResultsSection(raw: unknown[][]): Omit<ImportSummary, keyof AccountInfo> | null {
-  // Encontra a linha "Results"
+  // Encontra a linha "Results" (multilingual)
   let resultsIdx = -1;
   for (let i = raw.length - 1; i >= 0; i--) {
-    if (String((raw[i] as unknown[])?.[0] ?? "").trim() === "Results") {
+    const cell = String((raw[i] as unknown[])?.[0] ?? "").toLowerCase().trim();
+    if (matchesSyn(cell, RESULTS_SYNONYMS)) {
       resultsIdx = i;
       break;
     }
@@ -485,24 +556,27 @@ export function parseHtml(html: string): ParseResult {
 
     let headerIdx = -1;
     for (let h = 0; h < Math.min(rows.length, 5); h++) {
-      const cells = rows[h].map((c) => c.toLowerCase());
-      if (cells[0] === "time" && cells.includes("symbol") && cells.includes("profit")) {
+      const cells = rows[h].map((c) => c.toLowerCase().trim());
+      const hasTime = matchesSyn(cells[0], TIME_SYNONYMS);
+      const hasSymbol = cells.some((c) => matchesSyn(c, SYMBOL_SYNONYMS));
+      const hasProfit = cells.some((c) => matchesSyn(c, PROFIT_SYNONYMS));
+      if (hasTime && hasSymbol && hasProfit) {
         headerIdx = h;
         break;
       }
     }
     if (headerIdx < 0) continue;
 
-    const headers = rows[headerIdx].map((c) => c.toLowerCase());
-    const colSymbol = headers.indexOf("symbol");
-    const colProfit = headers.indexOf("profit");
-    const fp = headers.indexOf("price");
-    const sp = fp >= 0 ? headers.indexOf("price", fp + 1) : -1;
+    const headers = rows[headerIdx].map((c) => c.toLowerCase().trim());
+    const colSymbol = findCol(headers, SYMBOL_SYNONYMS);
+    const colProfit = findCol(headers, PROFIT_SYNONYMS);
+    const fp = findCol(headers, PRICE_SYNONYMS);
+    const sp = fp >= 0 ? headers.findIndex((c, i) => i > fp && matchesSyn(c, PRICE_SYNONYMS)) : -1;
     if (colSymbol < 0 || colProfit < 0) continue;
 
     // Detect second "time" column (exit time) if present
-    const ft = headers.indexOf("time");
-    const st = ft >= 0 ? headers.indexOf("time", ft + 1) : -1;
+    const ft = findCol(headers, TIME_SYNONYMS);
+    const st = ft >= 0 ? headers.findIndex((c, i) => i > ft && matchesSyn(c, TIME_SYNONYMS)) : -1;
 
     const trades: TradeInsert[] = [];
     for (let i = headerIdx + 1; i < rows.length; i++) {
@@ -516,7 +590,7 @@ export function parseHtml(html: string): ParseResult {
       const exit = sp >= 0 ? parseNumber(row[sp]) : 0;
       const profit = parseNumber(row[colProfit]);
       if (!symbolVal) continue;
-      const pair = symbolVal.replace(/\.c$/i, "").trim().toUpperCase();
+      const pair = symbolVal.replace(/\.[a-z]$/i, "").trim().toUpperCase();
       if (!pair) continue;
 
       const tradeDate = firstCell.split(" ")[0].replace(/\./g, "-");
@@ -559,10 +633,10 @@ function rowToTrade(row: Record<string, unknown>): TradeInsert | null {
     return key ? row[Object.keys(row).find((k) => k.toLowerCase() === key)!] : undefined;
   };
 
-  const trade_date = String(get("trade_date", "date", "time") ?? "").trim().split(" ")[0];
-  const pair = String(get("pair", "symbol", "instrument") ?? "").trim().toUpperCase();
-  const entry_price = parseNumber(get("entry_price", "entry", "open", "price"));
-  const exit_price = parseNumber(get("exit_price", "exit", "close"));
+  const trade_date = String(get("trade_date", "date", "time", "fecha", "data", "datum", "zeit", "時間", "日時") ?? "").trim().split(" ")[0];
+  const pair = String(get("pair", "symbol", "instrument", "símbolo", "simbolo", "symbole", "品种") ?? "").trim().toUpperCase();
+  const entry_price = parseNumber(get("entry_price", "entry", "open", "price", "precio", "preço", "prix", "preis"));
+  const exit_price = parseNumber(get("exit_price", "exit", "close", "cierre", "fechamento"));
   let pips = parseNumber(get("pips", "pip"));
   const is_win = parseBool(get("is_win", "win", "profit", "result"));
   const risk_reward = get("risk_reward", "rr", "r:r") ? parseNumber(get("risk_reward", "rr", "r:r")) : undefined;
