@@ -101,10 +101,9 @@ type Props = {
   serverMetrics?: DashboardMetrics | null;
   /** W2-03: Pre-aggregated equity curve from server RPC */
   serverEquityCurve?: EquityCurvePoint[] | null;
-  /** W2-03: Pre-aggregated drawdown analysis from server RPC.
-   *  Currently consumed: maxDrawdownValue (max-drawdown widget), currentStreak (current-streak widget).
-   *  TODO Wave 3: expose remaining fields (currentDrawdownValue, currentDrawdownPct,
-   *  maxConsecutiveWins, maxConsecutiveLosses, recoveryDays) in dedicated metric cards. */
+  /** W2-03 + W3-03: Pre-aggregated drawdown analysis from server RPC.
+   *  Consumed: maxDrawdownValue, maxDrawdownPct, recoveryDays (max-drawdown widget),
+   *  currentStreak, maxConsecutiveWins, maxConsecutiveLosses (current-streak widget). */
   serverDrawdown?: DrawdownAnalysis | null;
 };
 
@@ -516,20 +515,45 @@ export function DashboardContent({
               }
             />
           );
-        case "current-streak":
+        case "current-streak": {
+          /* W3-03: Pass max consecutive wins/losses from server when available */
+          const maxConsWins = useServerData && serverDrawdown
+            ? serverDrawdown.maxConsecutiveWins
+            : performanceMetrics.maxConsecutiveWins;
+          const maxConsLosses = useServerData && serverDrawdown
+            ? serverDrawdown.maxConsecutiveLosses
+            : performanceMetrics.maxConsecutiveLosses;
           return (
             <CurrentStreakCombined
               title={t("widgets.currentStreak")}
               dayStreak={currentStreaks.dayStreak}
               tradeStreak={currentStreaks.tradeStreak}
+              maxConsecutiveWins={maxConsWins}
+              maxConsecutiveLosses={maxConsLosses}
               tooltip={t("widgets.currentStreakDesc")}
             />
           );
+        }
         case "max-drawdown": {
-          /* W2-03: Use server drawdown when available (pre-aggregated RPC) */
-          const maxDDValue = useServerData && serverDrawdown
+          /* W2-03 + W3-03: Use server drawdown when available */
+          const hasServerDD = useServerData && serverDrawdown;
+          const maxDDValue = hasServerDD
             ? serverDrawdown.maxDrawdownValue
             : Math.abs(performanceMetrics.maxDailyDrawdown);
+          const maxDDPct = hasServerDD ? serverDrawdown.maxDrawdownPct : null;
+          const recoveryDays = hasServerDD ? serverDrawdown.recoveryDays : null;
+          const ddSubtitle = !privacy && (maxDDPct != null || recoveryDays != null)
+            ? [
+                maxDDPct != null ? `${maxDDPct.toFixed(1)}%` : null,
+                recoveryDays != null
+                  ? recoveryDays === -1
+                    ? t("widgets.stillInDrawdown")
+                    : recoveryDays > 0
+                      ? `${recoveryDays}d ${t("widgets.recovery")}`
+                      : null
+                  : null,
+              ].filter(Boolean).join(" · ")
+            : undefined;
           return (
             <MetricCard
               title={t("widgets.maxDrawdown")}
@@ -538,6 +562,7 @@ export function DashboardContent({
                   ? H
                   : fmtPnl(0, maxDDValue, null, viewMode)
               }
+              subtitle={ddSubtitle}
               tooltip={t("widgets.maxDrawdownDesc")}
               variant="loss"
             />

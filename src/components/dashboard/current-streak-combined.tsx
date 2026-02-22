@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Calendar, Zap } from "lucide-react";
+import { Calendar, Zap, Trophy, XCircle } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
 import { WidgetTooltip } from "./widget-tooltip";
 
@@ -10,17 +10,20 @@ interface CurrentStreakCombinedProps {
   title: string;
   dayStreak: number;
   tradeStreak: number;
+  maxConsecutiveWins?: number;
+  maxConsecutiveLosses?: number;
   tooltip: string;
 }
 
 /**
- * Current Streak — combina Day e Trade em layout visual distinto.
- * Diferencia de "Current Trade Streak" com ícones e badges.
+ * Current Streak — combina Day e Trade + max consecutive wins/losses.
  */
 export function CurrentStreakCombined({
   title,
   dayStreak,
   tradeStreak,
+  maxConsecutiveWins,
+  maxConsecutiveLosses,
   tooltip,
 }: CurrentStreakCombinedProps) {
   const { t } = useLanguage();
@@ -28,6 +31,7 @@ export function CurrentStreakCombined({
   const tradeVariant = tradeStreak > 0 ? "profit" : tradeStreak < 0 ? "loss" : "default";
 
   const fmt = (v: number) => (v >= 0 ? `+${v}` : String(v));
+  const hasMaxConsec = maxConsecutiveWins != null && maxConsecutiveLosses != null;
 
   return (
     <Card className="flex h-full flex-col overflow-hidden p-3">
@@ -39,7 +43,7 @@ export function CurrentStreakCombined({
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col justify-center gap-2 pt-0">
         <div className="flex flex-wrap gap-2">
-          {/* Day streak — ícone calendário */}
+          {/* Day streak */}
           <div
             className={cn(
               "flex items-center gap-1.5 rounded-lg border px-2 py-1",
@@ -61,7 +65,7 @@ export function CurrentStreakCombined({
               {fmt(dayStreak)}
             </span>
           </div>
-          {/* Trade streak — ícone raio */}
+          {/* Trade streak */}
           <div
             className={cn(
               "flex items-center gap-1.5 rounded-lg border px-2 py-1",
@@ -84,6 +88,21 @@ export function CurrentStreakCombined({
             </span>
           </div>
         </div>
+        {/* W3-03: Max consecutive wins/losses */}
+        {hasMaxConsec && (
+          <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-1.5 rounded-lg border border-profit/20 bg-profit/5 px-2 py-0.5">
+              <Trophy className="h-3 w-3 shrink-0 text-profit/70" aria-hidden />
+              <span className="text-[10px] text-muted-foreground">{t("widgets.maxWins")}</span>
+              <span className="text-xs font-bold text-profit">{maxConsecutiveWins}</span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-lg border border-loss/20 bg-loss/5 px-2 py-0.5">
+              <XCircle className="h-3 w-3 shrink-0 text-loss/70" aria-hidden />
+              <span className="text-[10px] text-muted-foreground">{t("widgets.maxLosses")}</span>
+              <span className="text-xs font-bold text-loss">{maxConsecutiveLosses}</span>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
