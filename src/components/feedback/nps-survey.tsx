@@ -98,7 +98,7 @@ export function NpsSurvey() {
         setSubmitted(true);
         dismissNps();
         toast.success(t("nps.thanks"));
-        setTimeout(() => setVisible(false), 2500);
+        setTimeout(() => setVisible(false), 1500);
       }
     } catch {
       toast.error("Failed to submit");
@@ -116,7 +116,7 @@ export function NpsSurvey() {
           exit={{ opacity: 0, y: 80 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className={cn(
-            "fixed bottom-20 left-6 z-40 w-[340px]",
+            "fixed bottom-20 left-6 z-[60] w-[340px]",
             "rounded-xl border border-border bg-card p-5 shadow-xl"
           )}
         >
