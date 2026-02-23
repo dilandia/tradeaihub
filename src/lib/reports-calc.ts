@@ -319,6 +319,70 @@ export function buildTagStats(
     .sort((a, b) => b.tradeCount - a.tradeCount);
 }
 
+/* ─── Strategies ─── */
+
+export function buildStrategyStats(
+  trades: CalendarTrade[],
+  useDollar = true
+): SymbolStats[] {
+  const byStrategy = new Map<string, CalendarTrade[]>();
+  for (const t of trades) {
+    const key = t.strategy_id ?? "__none__";
+    const arr = byStrategy.get(key) ?? [];
+    arr.push(t);
+    byStrategy.set(key, arr);
+  }
+
+  return Array.from(byStrategy.entries())
+    .map(([strategyId, stratTrades]) => {
+      const wins = stratTrades.filter((t) => t.is_win);
+      const losses = stratTrades.filter((t) => !t.is_win);
+      const winRate =
+        stratTrades.length > 0
+          ? round((wins.length / stratTrades.length) * 100)
+          : 0;
+      const netPnl = stratTrades.reduce(
+        (s, t) => s + tv(t, useDollar),
+        0
+      );
+      const byDate = new Map<string, number>();
+      for (const t of stratTrades) {
+        byDate.set(t.date, (byDate.get(t.date) ?? 0) + 1);
+      }
+      const avgDailyVolume =
+        byDate.size > 0
+          ? round(stratTrades.length / byDate.size, 2)
+          : 0;
+      const avgWin =
+        wins.length > 0
+          ? round(
+              wins.reduce((s, t) => s + Math.abs(tv(t, useDollar)), 0) /
+                wins.length,
+              useDollar ? 2 : 1
+            )
+          : 0;
+      const avgLoss =
+        losses.length > 0
+          ? round(
+              losses.reduce((s, t) => s + Math.abs(tv(t, useDollar)), 0) /
+                losses.length,
+              useDollar ? 2 : 1
+            )
+          : 0;
+
+      return {
+        symbol: strategyId,
+        winRate,
+        netPnl: round(netPnl, useDollar ? 2 : 1),
+        tradeCount: stratTrades.length,
+        avgDailyVolume,
+        avgWin,
+        avgLoss,
+      };
+    })
+    .sort((a, b) => b.tradeCount - a.tradeCount);
+}
+
 /* ─── Risk (R-multiples buckets) ─── */
 
 export type RiskBucket = {

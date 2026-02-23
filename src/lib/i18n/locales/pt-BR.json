@@ -842,7 +842,7 @@
     "longsWinPct": "Longs win %",
     "shortsWinPct": "Shorts win %"
   },
-  "strategies": {
+  "strategiesReport": {
     "title": "Estratégias",
     "description": "Análise de performance por estratégia. Use tags para categorizar suas operações.",
     "summary": "Summary",
@@ -855,7 +855,14 @@
     "avgVol": "Avg vol",
     "avgWin": "Avg win",
     "avgLoss": "Avg loss",
-    "noTradesFilter": "Não há trades que correspondam ao filtro atual."
+    "noTradesFilter": "Não há trades que correspondam ao filtro atual.",
+    "noStrategy": "Sem estratégia",
+    "bestStrategy": "Melhor estratégia",
+    "worstStrategy": "Pior estratégia",
+    "mostActive": "Mais ativa",
+    "bestWinRate": "Melhor win rate",
+    "noStrategiesYet": "Nenhum trade com estratégia. Associe estratégias aos trades em Day View.",
+    "descriptionFull": "Análise de performance por estratégia de trading."
   },
   "symbols": {
     "title": "Símbolos",

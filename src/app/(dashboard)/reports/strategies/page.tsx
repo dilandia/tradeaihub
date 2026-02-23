@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { getTrades, getTradesByDateRange, toCalendarTrades } from "@/lib/trades";
 import { periodToDateRange } from "@/lib/date-utils";
+import { getStrategies } from "@/app/actions/strategies";
 import { StrategiesContent } from "./strategies-content";
 
 export const metadata: Metadata = {
@@ -20,12 +21,14 @@ export default async function StrategiesPage({
   const selectedAccountId = params.account ?? null;
   const period = params.period ?? "all";
 
-  // W3-02: Server-side date filtering — push period filter to DB
   const dateRange = periodToDateRange(period);
-  const trades = dateRange
-    ? await getTradesByDateRange(dateRange.startDate, dateRange.endDate, selectedImportId, selectedAccountId)
-    : await getTrades(selectedImportId, selectedAccountId);
+  const [trades, strategies] = await Promise.all([
+    dateRange
+      ? getTradesByDateRange(dateRange.startDate, dateRange.endDate, selectedImportId, selectedAccountId)
+      : getTrades(selectedImportId, selectedAccountId),
+    getStrategies(),
+  ]);
   const calendarTrades = toCalendarTrades(trades);
 
-  return <StrategiesContent trades={calendarTrades} />;
+  return <StrategiesContent trades={calendarTrades} strategies={strategies} />;
 }
