@@ -24,6 +24,21 @@ type JBlankedEvent = {
 
 type FetchResult = { ok: true; data: JBlankedEvent[] } | { ok: false; error: string };
 
+/** Calcula segunda-feira e sexta-feira da semana atual (seg-sex). */
+function getCurrentWeekRange(): { from: string; to: string } {
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+  const diffToMon = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diffToMon);
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  return {
+    from: monday.toISOString().slice(0, 10),
+    to: friday.toISOString().slice(0, 10),
+  };
+}
+
 async function fetchJBlanked(
   period: "today" | "week" | "range",
   from?: string,
@@ -38,7 +53,9 @@ async function fetchJBlanked(
   if (period === "today") {
     url = `${base}/today/`;
   } else if (period === "week") {
-    url = `${base}/week/`;
+    /* /week/ retorna a semana passada na JBlanked API — usar /range/ com datas da semana atual */
+    const week = getCurrentWeekRange();
+    url = `${base}/range/?from=${week.from}&to=${week.to}`;
   } else {
     if (!from || !to) return { ok: false, error: "Missing from/to for range" };
     url = `${base}/range/?from=${from}&to=${to}`;
