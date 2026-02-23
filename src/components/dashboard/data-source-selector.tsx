@@ -156,10 +156,18 @@ export function DataSourceSelector({
         <div
           ref={dropdownRef}
           className="fixed max-w-[calc(100vw-1rem)] w-72 rounded-xl border border-border bg-card p-1.5 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
-          style={{
-            top: rect.bottom + 6,
-            right: Math.max(8, window.innerWidth - rect.right),
-          }}
+          style={(() => {
+            const dropdownWidth = 288;
+            const spaceRight = window.innerWidth - rect.right;
+            const spaceLeft = rect.left;
+            const pos: React.CSSProperties = { top: rect.bottom + 6 };
+            if (spaceRight >= dropdownWidth || spaceRight >= spaceLeft) {
+              pos.right = Math.max(8, spaceRight);
+            } else {
+              pos.left = Math.max(8, spaceLeft);
+            }
+            return pos;
+          })()}
         >
           {/* ── All data ── */}
           <button

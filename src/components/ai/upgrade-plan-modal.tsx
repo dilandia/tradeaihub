@@ -72,7 +72,8 @@ export function UpgradePlanModal({ open, onClose, message, variant = "plan" }: P
       {/* Modal — cores do tema (bg-card, text-foreground) */}
       <div
         className={cn(
-          "fixed left-1/2 top-1/2 z-[9999] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border m-4",
+          "fixed left-[1rem] right-[1rem] top-1/2 z-[9999] mx-auto max-w-lg -translate-y-1/2 rounded-2xl border border-border",
+          "max-h-[calc(100vh-2rem)] overflow-y-auto",
           "bg-card text-foreground shadow-2xl shadow-black/20",
           "ring-1 ring-border"
         )}

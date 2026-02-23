@@ -153,10 +153,18 @@ export function ReportsNav() {
             <div
               ref={reportsDropdownRef}
               className="fixed max-w-[calc(100vw-1rem)] w-64 rounded-xl border border-border bg-card p-1 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
-              style={{
-                top: reportsRect.bottom + 4,
-                right: Math.max(8, window.innerWidth - reportsRect.right),
-              }}
+              style={(() => {
+                const dropdownWidth = 256;
+                const spaceRight = window.innerWidth - reportsRect.right;
+                const spaceLeft = reportsRect.left;
+                const pos: React.CSSProperties = { top: reportsRect.bottom + 4 };
+                if (spaceRight >= dropdownWidth || spaceRight >= spaceLeft) {
+                  pos.right = Math.max(8, spaceRight);
+                } else {
+                  pos.left = Math.max(8, spaceLeft);
+                }
+                return pos;
+              })()}
             >
               {REPORT_ITEMS.map(({ href, labelKey, icon: Icon }) => {
                 const isActive = pathname === href || pathname.startsWith(href + "/");

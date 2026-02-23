@@ -23,9 +23,12 @@ export function WidgetTooltip({ text, className }: WidgetTooltipProps) {
   useEffect(() => {
     if (!open || !ref.current) return;
     const rect = ref.current.getBoundingClientRect();
+    const tooltipWidth = 224; // w-56 = 14rem = 224px
+    const centerX = rect.left + rect.width / 2;
+    const clampedLeft = Math.max(tooltipWidth / 2 + 8, Math.min(centerX, window.innerWidth - tooltipWidth / 2 - 8));
     setPos({
       top: rect.top - 8,
-      left: rect.left + rect.width / 2,
+      left: clampedLeft,
     });
   }, [open]);
 

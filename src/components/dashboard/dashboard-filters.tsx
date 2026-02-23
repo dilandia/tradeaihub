@@ -111,10 +111,18 @@ export function DateRangeButton({ value, onChange }: DateRangeButtonProps) {
         <div
           ref={dropdownRef}
           className="fixed max-w-[calc(100vw-1rem)] w-44 rounded-xl border border-border bg-card p-1.5 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
-          style={{
-            top: rect.bottom + 6,
-            right: Math.max(8, window.innerWidth - rect.right),
-          }}
+          style={(() => {
+            const dropdownWidth = 176;
+            const spaceRight = window.innerWidth - rect.right;
+            const spaceLeft = rect.left;
+            const pos: React.CSSProperties = { top: rect.bottom + 6 };
+            if (spaceRight >= dropdownWidth || spaceRight >= spaceLeft) {
+              pos.right = Math.max(8, spaceRight);
+            } else {
+              pos.left = Math.max(8, spaceLeft);
+            }
+            return pos;
+          })()}
         >
           {PRESET_RANGE_KEYS.map((r) => (
             <button
@@ -241,10 +249,18 @@ export function FiltersButton({ trades, filters, onChange }: FiltersButtonProps)
         <div
           ref={dropdownRef}
           className="fixed max-w-[calc(100vw-1rem)] w-72 rounded-xl border border-border bg-card p-4 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
-          style={{
-            top: rect.bottom + 6,
-            right: Math.max(8, window.innerWidth - rect.right),
-          }}
+          style={(() => {
+            const dropdownWidth = 288;
+            const spaceRight = window.innerWidth - rect.right;
+            const spaceLeft = rect.left;
+            const pos: React.CSSProperties = { top: rect.bottom + 6 };
+            if (spaceRight >= dropdownWidth || spaceRight >= spaceLeft) {
+              pos.right = Math.max(8, spaceRight);
+            } else {
+              pos.left = Math.max(8, spaceLeft);
+            }
+            return pos;
+          })()}
         >
           {/* ── Header ── */}
           <div className="mb-3 flex items-center justify-between">

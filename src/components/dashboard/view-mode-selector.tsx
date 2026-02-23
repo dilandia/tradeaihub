@@ -87,10 +87,18 @@ export function ViewModeSelector({ value, onChange }: Props) {
         <div
           ref={dropdownRef}
           className="fixed max-w-[calc(100vw-1rem)] w-56 rounded-xl border border-border bg-card p-1.5 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
-          style={{
-            top: rect.bottom + 6,
-            right: Math.max(8, window.innerWidth - rect.right),
-          }}
+          style={(() => {
+            const dropdownWidth = 224;
+            const spaceRight = window.innerWidth - rect.right;
+            const spaceLeft = rect.left;
+            const pos: React.CSSProperties = { top: rect.bottom + 6 };
+            if (spaceRight >= dropdownWidth || spaceRight >= spaceLeft) {
+              pos.right = Math.max(8, spaceRight);
+            } else {
+              pos.left = Math.max(8, spaceLeft);
+            }
+            return pos;
+          })()}
         >
           {VIEW_MODES.map((mode) => {
             const Icon = mode.icon;

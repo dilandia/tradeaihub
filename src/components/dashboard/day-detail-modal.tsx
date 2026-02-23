@@ -78,13 +78,13 @@ export function DayDetailModal({ open, onClose, date, dayData, trades, privacy =
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm animate-in fade-in-0"
+        className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm animate-in fade-in-0"
         onClick={onClose}
         aria-hidden
       />
 
       {/* Modal */}
-      <div className="fixed inset-4 z-50 m-auto flex max-h-[90vh] max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-4 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
+      <div className="fixed inset-4 z-[111] m-auto flex max-h-[calc(100vh-2rem)] max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-4 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[90vh] sm:-translate-x-1/2 sm:-translate-y-1/2">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-4 sm:px-5">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

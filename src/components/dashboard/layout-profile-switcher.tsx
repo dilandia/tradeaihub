@@ -89,10 +89,18 @@ export function LayoutProfileSwitcher({
         <div
           ref={dropdownRef}
           className="fixed max-w-[calc(100vw-1rem)] min-w-[220px] rounded-xl border border-border bg-popover py-2 shadow-xl z-[9999]"
-          style={{
-            top: rect.bottom + 6,
-            right: Math.max(8, window.innerWidth - rect.right),
-          }}
+          style={(() => {
+            const dropdownWidth = 220;
+            const spaceRight = window.innerWidth - rect.right;
+            const spaceLeft = rect.left;
+            const pos: React.CSSProperties = { top: rect.bottom + 6 };
+            if (spaceRight >= dropdownWidth || spaceRight >= spaceLeft) {
+              pos.right = Math.max(8, spaceRight);
+            } else {
+              pos.left = Math.max(8, spaceLeft);
+            }
+            return pos;
+          })()}
         >
           <p className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("customize.myTemplates")}

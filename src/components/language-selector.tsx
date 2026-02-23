@@ -61,10 +61,18 @@ export function LanguageSelector() {
         <div
           ref={dropdownRef}
           className="fixed max-w-[calc(100vw-1rem)] w-48 rounded-xl border border-border bg-card p-1 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
-          style={{
-            top: dropdownRect.bottom + 6,
-            right: Math.max(8, window.innerWidth - dropdownRect.right),
-          }}
+          style={(() => {
+            const dropdownWidth = 192;
+            const spaceRight = window.innerWidth - dropdownRect.right;
+            const spaceLeft = dropdownRect.left;
+            const pos: React.CSSProperties = { top: dropdownRect.bottom + 6 };
+            if (spaceRight >= dropdownWidth || spaceRight >= spaceLeft) {
+              pos.right = Math.max(8, spaceRight);
+            } else {
+              pos.left = Math.max(8, spaceLeft);
+            }
+            return pos;
+          })()}
         >
           {LOCALES.map((loc) => (
             <button
