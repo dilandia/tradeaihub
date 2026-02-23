@@ -14,6 +14,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { sendPaymentFailedEmail } from "@/lib/email/send";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -57,6 +58,20 @@ export async function POST(req: Request) {
           const creditsAmount = parseInt(session.metadata?.credits_amount ?? "0", 10);
           const amountUsd = parseFloat(session.metadata?.credits_amount_usd ?? "0");
           const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
+
+          // Idempotency: check if this credit purchase was already processed
+          if (paymentIntentId) {
+            const { data: existingPurchase } = await supabase
+              .from("credit_purchases")
+              .select("id")
+              .eq("stripe_payment_intent_id", paymentIntentId)
+              .maybeSingle();
+
+            if (existingPurchase) {
+              console.log("[stripe/webhook] Duplicate credit purchase skipped:", paymentIntentId);
+              return NextResponse.json({ received: true, deduplicated: true });
+            }
+          }
 
           if (creditsAmount > 0) {
             const { data: existing } = await supabase
@@ -110,11 +125,27 @@ export async function POST(req: Request) {
         if (!plan) break;
 
         const subscriptionId = session.subscription as string;
+
+        // Idempotency: check if this subscription period was already processed
         const sub = await stripe.subscriptions.retrieve(subscriptionId);
         const firstItem = sub.items.data[0];
         const priceId = firstItem?.price.id;
         const periodStart = firstItem?.current_period_start ? new Date(firstItem.current_period_start * 1000).toISOString() : null;
         const periodEnd = firstItem?.current_period_end ? new Date(firstItem.current_period_end * 1000).toISOString() : null;
+
+        if (periodStart) {
+          const { data: existingSub } = await supabase
+            .from("subscriptions")
+            .select("id")
+            .eq("stripe_subscription_id", subscriptionId)
+            .eq("current_period_start", periodStart)
+            .maybeSingle();
+
+          if (existingSub) {
+            console.log("[stripe/webhook] Duplicate subscription checkout skipped:", subscriptionId);
+            return NextResponse.json({ received: true, deduplicated: true });
+          }
+        }
 
         await supabase.from("subscriptions").upsert(
           {
@@ -229,9 +260,42 @@ export async function POST(req: Request) {
         // Opcional: renovação bem-sucedida — período já atualizado no subscription.updated
         break;
 
-      case "invoice.payment_failed":
-        // Opcional: notificar usuário ou marcar past_due
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const parentSub = invoice.parent?.subscription_details?.subscription;
+        const subscriptionId = typeof parentSub === "string"
+          ? parentSub
+          : parentSub?.id;
+
+        if (!subscriptionId) break;
+
+        // Look up user from subscription metadata
+        try {
+          const sub = await stripe.subscriptions.retrieve(subscriptionId);
+          const userId = sub.metadata?.supabase_user_id;
+          if (!userId) break;
+
+          // Get user profile for email and locale
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("email, full_name, locale")
+            .eq("id", userId)
+            .single();
+
+          if (profile?.email) {
+            await sendPaymentFailedEmail({
+              to: profile.email,
+              userName: profile.full_name || undefined,
+              locale: profile.locale || undefined,
+            });
+            console.log("[stripe/webhook] Payment failed email sent to:", profile.email);
+          }
+        } catch (emailErr) {
+          console.error("[stripe/webhook] Failed to send payment_failed email:", emailErr);
+          // Non-blocking — webhook still returns 200
+        }
         break;
+      }
 
       default:
         // Ignorar outros eventos

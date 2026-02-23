@@ -320,8 +320,8 @@
     "blogLabel": "Blog",
     "blogHeroTitle": "Blog Trade AI Hub",
     "blogHeroSubtitle": "Insights, guias e sabedoria de trading para ajudar voce a crescer como trader.",
-    "blogComingSoonTitle": "Estamos preparando conteudo incrivel para voce",
-    "blogComingSoonDesc": "Nossa equipe esta criando guias detalhados, insights de mercado e estrategias de trading. Inscreva-se para ser o primeiro a saber quando lancarmos.",
+    "blogComingSoonTitle": "Fique Atualizado",
+    "blogComingSoonDesc": "Inscreva-se para receber notificacoes sobre novos artigos sobre estrategias de trading, metricas e insights com IA.",
     "blogEmailPlaceholder": "seu@email.com",
     "blogSubscribe": "Me Avise",
     "blogUpcomingTitle": "Em Breve",
@@ -331,8 +331,12 @@
     "blogArticle2Desc": "Do reconhecimento de padroes a analise comportamental, veja como a IA transforma a revisao de trades.",
     "blogArticle3Title": "De Perdedor a Vencedor: Uma Abordagem Baseada em Dados",
     "blogArticle3Desc": "Um guia pratico para usar seus dados de trading para identificar e corrigir erros recorrentes.",
-    "blogArticleSoon": "Em Breve",
+    "blogArticleSoon": "Fev 2026",
     "blogReadMore": "Ler mais",
+    "blogReadArticle": "Ler artigo",
+    "blogMinRead": "min de leitura",
+    "blogCta": "Comece a Rastrear Gratis",
+    "blogCtaSubtitle": "Junte-se a milhares de traders melhorando sua performance com insights baseados em dados.",
 
     "privacyTitle": "Politica de Privacidade",
     "privacyLastUpdated": "Ultima atualizacao: Fevereiro de 2026",
@@ -907,6 +911,17 @@
     "passwordMin": "Senha (mín. 6 caracteres)",
     "emailPlaceholder": "seu@email.com",
     "forgotPassword": "Esqueci a senha",
+    "forgotPasswordTitle": "Redefinir Senha",
+    "forgotPasswordSubtitle": "Digite seu e-mail e enviaremos um link de redefinição",
+    "sendResetLink": "Enviar Link",
+    "resetEmailSent": "Se uma conta existir com esse e-mail, enviamos um link de redefinição.",
+    "backToLogin": "Voltar ao login",
+    "newPassword": "Nova Senha",
+    "confirmNewPassword": "Confirmar Nova Senha",
+    "resetPassword": "Redefinir Senha",
+    "passwordUpdated": "Senha atualizada com sucesso! Faça login.",
+    "passwordsDoNotMatch": "As senhas não coincidem",
+    "signingIn": "Entrando...",
     "noAccount": "Não tem conta?",
     "hasAccount": "Já tem conta?",
     "signUp": "Cadastre-se"
@@ -1418,5 +1433,11 @@
     "rewardDesc": "Voce ganha 50 creditos de IA para cada amigo que assinar um plano Pro ou Elite. Seu amigo ganha 10 creditos de IA bonus ao se cadastrar com seu link.",
     "credits": "creditos",
     "referralApplied": "Codigo de indicacao aplicado! Voce recebera 10 creditos de IA bonus."
+  },
+  "cookies": {
+    "message": "Usamos cookies para melhorar sua experiencia e analisar o trafego do site.",
+    "accept": "Aceitar",
+    "reject": "Rejeitar",
+    "learnMore": "Saiba mais"
   }
 }

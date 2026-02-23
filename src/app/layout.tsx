@@ -10,6 +10,7 @@ import { PlanProvider } from "@/contexts/plan-context";
 import { COOKIE_LOCALE, LOCALES, DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
 import { PostHogProvider } from "@/providers/posthog-provider";
 import { PostHogPageView } from "@/providers/posthog-pageview";
+import { CookieConsent } from "@/components/cookie-consent";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -156,6 +157,7 @@ export default async function RootLayout({
               <PlanProvider>
                 <div className="min-h-screen bg-background">{children}</div>
                 <ThemedToaster />
+                <CookieConsent />
               </PlanProvider>
             </LanguageProvider>
           </ThemeProvider>

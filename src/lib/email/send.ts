@@ -4,6 +4,7 @@ import { getResendClient } from "@/lib/email/client"
 import { welcomeEmailHtml } from "@/lib/email/templates/welcome"
 import { passwordResetEmailHtml } from "@/lib/email/templates/password-reset"
 import { tradingReportEmailHtml } from "@/lib/email/templates/trading-report"
+import { paymentFailedEmailHtml } from "@/lib/email/templates/payment-failed"
 
 /**
  * Use the verified domain sender when available.
@@ -152,6 +153,44 @@ export async function sendTradingReportEmail(params: {
     return { success: true }
   } catch (error) {
     console.error("[Email] Failed to send trading report email:", error)
+    return {
+      success: false,
+      error: `Failed to send: ${error instanceof Error ? error.message : "Unknown"}`,
+    }
+  }
+}
+
+export async function sendPaymentFailedEmail(params: {
+  to: string
+  userName?: string
+  locale?: string
+}): Promise<EmailResult> {
+  const resend = getResendClient()
+  if (!resend) {
+    console.warn("[Email] RESEND_API_KEY not configured — skipping payment failed email")
+    return { success: false, error: "Email not configured" }
+  }
+
+  try {
+    const html = paymentFailedEmailHtml({
+      userName: params.userName,
+      locale: params.locale,
+    })
+
+    const subject = params.locale?.startsWith("pt")
+      ? "Problema com seu pagamento — Trade AI Hub"
+      : "Payment Failed — Trade AI Hub"
+
+    await resend.emails.send({
+      from: FROM,
+      to: params.to,
+      subject,
+      html,
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error("[Email] Failed to send payment failed email:", error)
     return {
       success: false,
       error: `Failed to send: ${error instanceof Error ? error.message : "Unknown"}`,

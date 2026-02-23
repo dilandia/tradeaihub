@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useRef } from "react";
-import { signIn } from "@/app/actions/auth";
+import { updatePassword } from "@/app/actions/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField, type FieldState } from "@/components/ui/form-field";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -11,76 +11,86 @@ import { useLanguage } from "@/contexts/language-context";
 
 type Props = { message?: string };
 
-export function LoginForm({ message }: Props) {
+export function ResetPasswordForm({ message }: Props) {
   const { t } = useLanguage();
   const formRef = useRef<HTMLFormElement>(null);
-  const [emailState, setEmailState] = useState<FieldState>("idle");
   const [passwordState, setPasswordState] = useState<FieldState>("idle");
-  const [emailError, setEmailError] = useState<string>("");
+  const [confirmState, setConfirmState] = useState<FieldState>("idle");
+  const [passwordError, setPasswordError] = useState<string>("");
+  const [confirmError, setConfirmError] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string>("");
 
-  // Validate email format
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  // Real-time email validation
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const email = e.currentTarget.value;
-    if (!email) {
-      setEmailState("idle");
-      setEmailError("");
-    } else if (!validateEmail(email)) {
-      setEmailState("invalid");
-      setEmailError(t("auth.invalidEmail") || "Invalid email format");
-    } else {
-      setEmailState("valid");
-      setEmailError("");
-    }
-  };
-
-  // Real-time password validation
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const password = e.currentTarget.value;
     if (!password) {
       setPasswordState("idle");
+      setPasswordError("");
     } else if (password.length < 6) {
       setPasswordState("invalid");
+      setPasswordError(t("auth.passwordTooShort") || "Password must be at least 6 characters");
     } else {
       setPasswordState("valid");
+      setPasswordError("");
+    }
+
+    // Re-validate confirm field if it has a value
+    const confirmInput = formRef.current?.querySelector<HTMLInputElement>('[name="confirmPassword"]');
+    if (confirmInput?.value) {
+      if (confirmInput.value !== password) {
+        setConfirmState("invalid");
+        setConfirmError(t("auth.passwordsDoNotMatch"));
+      } else if (password.length >= 6) {
+        setConfirmState("valid");
+        setConfirmError("");
+      }
     }
   };
 
-  // Form submission
+  const handleConfirmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const confirm = e.currentTarget.value;
+    const passwordInput = formRef.current?.querySelector<HTMLInputElement>('[name="password"]');
+    const password = passwordInput?.value || "";
+
+    if (!confirm) {
+      setConfirmState("idle");
+      setConfirmError("");
+    } else if (confirm !== password) {
+      setConfirmState("invalid");
+      setConfirmError(t("auth.passwordsDoNotMatch"));
+    } else {
+      setConfirmState("valid");
+      setConfirmError("");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormError("");
     setIsSubmitting(true);
 
     const formData = new FormData(formRef.current!);
-    const email = formData.get("email") as string;
     const password = formData.get("password") as string;
+    const confirmPassword = formData.get("confirmPassword") as string;
 
-    // Validate before submit
-    if (!validateEmail(email)) {
-      setEmailState("invalid");
-      setEmailError(t("auth.invalidEmail") || "Invalid email format");
+    if (password.length < 6) {
+      setPasswordState("invalid");
+      setPasswordError(t("auth.passwordTooShort") || "Password must be at least 6 characters");
       setIsSubmitting(false);
       return;
     }
 
-    if (password.length < 6) {
-      setPasswordState("invalid");
+    if (password !== confirmPassword) {
+      setConfirmState("invalid");
+      setConfirmError(t("auth.passwordsDoNotMatch"));
       setIsSubmitting(false);
       return;
     }
 
     try {
-      await signIn(formData);
+      await updatePassword(formData);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Login failed. Please try again.");
+      setFormError(error instanceof Error ? error.message : "Failed to update password.");
       setIsSubmitting(false);
     }
   };
@@ -92,16 +102,18 @@ export function LoginForm({ message }: Props) {
       </div>
       <Card className="w-full max-w-md border-border bg-card p-6 shadow-card md:p-8">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold">{t("common.appName")}</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            {t("auth.resetPassword")}
+          </CardTitle>
           <p className="text-sm text-muted-foreground">
-            {t("auth.loginSubtitle")}
+            {t("auth.forgotPasswordSubtitle")}
           </p>
         </CardHeader>
         <CardContent>
           {message && (
             <ErrorAlert
-              severity="info"
-              title="Info"
+              severity="warning"
+              title="Alert"
               message={message}
               className="mb-4"
             />
@@ -109,7 +121,7 @@ export function LoginForm({ message }: Props) {
           {formError && (
             <ErrorAlert
               severity="error"
-              title="Login Failed"
+              title="Error"
               message={formError}
               className="mb-4"
               onClose={() => setFormError("")}
@@ -117,54 +129,45 @@ export function LoginForm({ message }: Props) {
           )}
           <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-5">
             <FormField
-              id="email"
-              name="email"
-              type="email"
-              label={t("auth.email")}
-              placeholder={t("auth.emailPlaceholder")}
-              autoComplete="email"
-              state={emailState}
-              error={emailError}
-              onChange={handleEmailChange}
-              required
-              disabled={isSubmitting}
-            />
-            <FormField
               id="password"
               name="password"
               type="password"
-              label={t("auth.password")}
+              label={t("auth.newPassword")}
               placeholder="••••••••"
-              autoComplete="current-password"
+              autoComplete="new-password"
               state={passwordState}
-              error={passwordState === "invalid" ? t("auth.passwordTooShort") || "Password must be at least 6 characters" : ""}
+              error={passwordError}
               onChange={handlePasswordChange}
               required
               disabled={isSubmitting}
             />
-            <div className="flex justify-end">
-              <Link
-                href="/forgot-password"
-                className="text-xs text-muted-foreground underline underline-offset-2 hover:text-score transition-colors"
-              >
-                {t("auth.forgotPassword")}
-              </Link>
-            </div>
+            <FormField
+              id="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              label={t("auth.confirmNewPassword")}
+              placeholder="••••••••"
+              autoComplete="new-password"
+              state={confirmState}
+              error={confirmError}
+              onChange={handleConfirmChange}
+              required
+              disabled={isSubmitting}
+            />
             <button
               type="submit"
-              disabled={isSubmitting || emailState !== "valid" || passwordState !== "valid"}
+              disabled={isSubmitting || passwordState !== "valid" || confirmState !== "valid"}
               className="mt-2 h-12 w-full rounded-lg bg-score px-4 py-3 font-medium text-white transition-colors hover:bg-score/90 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-score focus:ring-offset-2 focus:ring-offset-background"
             >
-              {isSubmitting ? t("auth.signingIn") || "Signing in..." : t("auth.login")}
+              {isSubmitting ? t("common.loading") : t("auth.resetPassword")}
             </button>
           </form>
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            {t("auth.noAccount")}{" "}
             <Link
-              href="/register"
+              href="/login"
               className="font-medium text-score underline underline-offset-2 hover:no-underline transition-colors"
             >
-              {t("auth.signUp")}
+              {t("auth.backToLogin")}
             </Link>
           </p>
         </CardContent>

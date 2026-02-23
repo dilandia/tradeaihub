@@ -1,0 +1,132 @@
+"use client";
+
+import Link from "next/link";
+import { useState, useRef } from "react";
+import { requestPasswordReset } from "@/app/actions/auth";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormField, type FieldState } from "@/components/ui/form-field";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { LanguageSelector } from "@/components/language-selector";
+import { useLanguage } from "@/contexts/language-context";
+
+export function ForgotPasswordForm() {
+  const { t } = useLanguage();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [emailState, setEmailState] = useState<FieldState>("idle");
+  const [emailError, setEmailError] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const email = e.currentTarget.value;
+    if (!email) {
+      setEmailState("idle");
+      setEmailError("");
+    } else if (!validateEmail(email)) {
+      setEmailState("invalid");
+      setEmailError(t("auth.invalidEmail") || "Invalid email format");
+    } else {
+      setEmailState("valid");
+      setEmailError("");
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    const formData = new FormData(formRef.current!);
+    const email = formData.get("email") as string;
+
+    if (!validateEmail(email)) {
+      setEmailState("invalid");
+      setEmailError(t("auth.invalidEmail") || "Invalid email format");
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      await requestPasswordReset(formData);
+      setSubmitted(true);
+    } catch {
+      setSubmitted(true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center p-4 xs:p-3 sm:p-4">
+      <div className="absolute right-4 top-4">
+        <LanguageSelector />
+      </div>
+      <Card className="w-full max-w-md border-border bg-card p-6 shadow-card md:p-8">
+        <CardHeader className="space-y-1 text-center">
+          <CardTitle className="text-2xl font-bold">
+            {t("auth.forgotPasswordTitle")}
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {t("auth.forgotPasswordSubtitle")}
+          </p>
+        </CardHeader>
+        <CardContent>
+          {submitted ? (
+            <div className="space-y-4">
+              <ErrorAlert
+                severity="info"
+                title="Info"
+                message={t("auth.resetEmailSent")}
+              />
+              <p className="text-center">
+                <Link
+                  href="/login"
+                  className="text-sm font-medium text-score underline underline-offset-2 hover:no-underline transition-colors"
+                >
+                  {t("auth.backToLogin")}
+                </Link>
+              </p>
+            </div>
+          ) : (
+            <>
+              <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-5">
+                <FormField
+                  id="email"
+                  name="email"
+                  type="email"
+                  label={t("auth.email")}
+                  placeholder={t("auth.emailPlaceholder")}
+                  autoComplete="email"
+                  state={emailState}
+                  error={emailError}
+                  onChange={handleEmailChange}
+                  required
+                  disabled={isSubmitting}
+                />
+                <button
+                  type="submit"
+                  disabled={isSubmitting || emailState !== "valid"}
+                  className="mt-2 h-12 w-full rounded-lg bg-score px-4 py-3 font-medium text-white transition-colors hover:bg-score/90 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-score focus:ring-offset-2 focus:ring-offset-background"
+                >
+                  {isSubmitting ? t("common.loading") : t("auth.sendResetLink")}
+                </button>
+              </form>
+              <p className="mt-6 text-center text-sm text-muted-foreground">
+                <Link
+                  href="/login"
+                  className="font-medium text-score underline underline-offset-2 hover:no-underline transition-colors"
+                >
+                  {t("auth.backToLogin")}
+                </Link>
+              </p>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

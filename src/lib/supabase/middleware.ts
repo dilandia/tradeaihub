@@ -38,7 +38,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.hostname ||
     "";
   const host = rawHost.split(":")[0];
-  const isAuthPage = path === "/login" || path === "/register";
+  const isAuthPage = path === "/login" || path === "/register" || path === "/forgot-password" || path === "/reset-password";
 
   /* tradeaihub.com, www: domínio de landing em prod */
   const isProdLandingDomain =
@@ -60,7 +60,7 @@ export async function updateSession(request: NextRequest) {
       /* Segue para checagens de auth abaixo */
     } else if (isProdLandingDomain) {
       /* Login/register: redireciona para app */
-      if (path === "/login" || path === "/register") {
+      if (path === "/login" || path === "/register" || path === "/forgot-password" || path === "/reset-password") {
         return NextResponse.redirect(
           new URL(path, "https://app.tradeaihub.com")
         );

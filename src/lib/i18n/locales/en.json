@@ -320,8 +320,8 @@
     "blogLabel": "Blog",
     "blogHeroTitle": "Trade AI Hub Blog",
     "blogHeroSubtitle": "Insights, guides, and trading wisdom to help you grow as a trader.",
-    "blogComingSoonTitle": "We're working on amazing content for you",
-    "blogComingSoonDesc": "Our team is crafting in-depth guides, market insights, and trading strategies. Subscribe to be the first to know when we launch.",
+    "blogComingSoonTitle": "Stay Updated",
+    "blogComingSoonDesc": "Subscribe to get notified about new articles on trading strategies, metrics, and AI-powered insights.",
     "blogEmailPlaceholder": "your@email.com",
     "blogSubscribe": "Notify Me",
     "blogUpcomingTitle": "Coming Soon",
@@ -331,8 +331,12 @@
     "blogArticle2Desc": "From pattern recognition to behavioral analysis, learn how AI transforms trade review.",
     "blogArticle3Title": "From Losing to Winning: A Data-Driven Approach",
     "blogArticle3Desc": "A practical guide to using your trading data to identify and fix recurring mistakes.",
-    "blogArticleSoon": "Coming Soon",
+    "blogArticleSoon": "Feb 2026",
     "blogReadMore": "Read more",
+    "blogReadArticle": "Read article",
+    "blogMinRead": "min read",
+    "blogCta": "Start Tracking Free",
+    "blogCtaSubtitle": "Join thousands of traders improving their performance with data-driven insights.",
 
     "privacyTitle": "Privacy Policy",
     "privacyLastUpdated": "Last updated: February 2026",
@@ -918,6 +922,17 @@
     "passwordMin": "Password (min. 6 characters)",
     "emailPlaceholder": "you@email.com",
     "forgotPassword": "Forgot password?",
+    "forgotPasswordTitle": "Reset Password",
+    "forgotPasswordSubtitle": "Enter your email and we'll send you a reset link",
+    "sendResetLink": "Send Reset Link",
+    "resetEmailSent": "If an account exists with that email, we've sent a reset link.",
+    "backToLogin": "Back to login",
+    "newPassword": "New Password",
+    "confirmNewPassword": "Confirm New Password",
+    "resetPassword": "Reset Password",
+    "passwordUpdated": "Password updated successfully! Please log in.",
+    "passwordsDoNotMatch": "Passwords do not match",
+    "signingIn": "Signing in...",
     "noAccount": "Don't have an account?",
     "hasAccount": "Already have an account?",
     "signUp": "Sign up"
@@ -1429,5 +1444,11 @@
     "rewardDesc": "You earn 50 AI credits for each friend who subscribes to a Pro or Elite plan. Your friend gets 10 bonus AI credits just for signing up with your link.",
     "credits": "credits",
     "referralApplied": "Referral code applied! You'll get 10 bonus AI credits."
+  },
+  "cookies": {
+    "message": "We use cookies to improve your experience and analyze site traffic.",
+    "accept": "Accept",
+    "reject": "Reject",
+    "learnMore": "Learn more"
   }
 }
