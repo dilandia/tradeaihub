@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-/** Horas até considerar cache expirado. Notícias mudam semanalmente. */
-const CACHE_HOURS_TODAY = 12;
-const CACHE_HOURS_WEEK = 168; // 7 dias
-const CACHE_HOURS_RANGE = 168; // 7 dias
+/** Horas até considerar cache expirado. Dados econômicos atualizam ao longo do dia (actual values). */
+const CACHE_HOURS_TODAY = 4;
+const CACHE_HOURS_WEEK = 4;
+const CACHE_HOURS_RANGE = 24;
 
 type JBlankedEvent = {
   Name?: string;
@@ -124,11 +124,8 @@ function getCacheKey(period: string, from: string, to: string): string {
     return `today-${today}`;
   }
   if (period === "week") {
-    const now = new Date();
-    const start = new Date(now);
-    start.setDate(now.getDate() - now.getDay());
-    const weekStart = start.toISOString().slice(0, 10);
-    return `week-${weekStart}`;
+    const today = new Date().toISOString().slice(0, 10);
+    return `week-${today}`;
   }
   return `range-${from}-${to}`;
 }

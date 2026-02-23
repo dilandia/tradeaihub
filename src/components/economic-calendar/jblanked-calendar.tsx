@@ -195,6 +195,34 @@ export function JBlankedCalendar() {
     fetchEvents(false);
   }, [fetchEvents]);
 
+  // Auto-refresh: re-fetch when tab becomes visible after 30+ min idle
+  useEffect(() => {
+    let lastFetchTime = Date.now();
+    const STALE_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutos
+
+    const handleVisibility = () => {
+      if (
+        document.visibilityState === "visible" &&
+        Date.now() - lastFetchTime > STALE_THRESHOLD_MS
+      ) {
+        fetchEvents(true);
+        lastFetchTime = Date.now();
+      }
+    };
+
+    // Also set up a periodic refresh every 4 hours
+    const intervalId = setInterval(() => {
+      fetchEvents(true);
+      lastFetchTime = Date.now();
+    }, 4 * 60 * 60 * 1000);
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      clearInterval(intervalId);
+    };
+  }, [fetchEvents]);
+
   const events = useMemo(() => {
     let list = allEvents;
     if (currency) {
