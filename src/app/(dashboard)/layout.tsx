@@ -5,7 +5,10 @@ import { getUserTradingAccounts } from "@/lib/trading-accounts";
 import { COOKIE_LOCALE, DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
 import { formatDate } from "@/lib/i18n/date-utils";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { PlanHydrator } from "@/components/plan-hydrator";
 import { processReferralOnFirstLogin } from "@/lib/referral-processor";
+import { createClient } from "@/lib/supabase/server";
+import { getPlanInfo } from "@/lib/plan";
 
 export default async function DashboardLayout({
   children,
@@ -16,10 +19,14 @@ export default async function DashboardLayout({
   const locale = (cookieStore.get(COOKIE_LOCALE)?.value ?? DEFAULT_LOCALE) as Locale;
 
   /* Buscar dados compartilhados entre todas as páginas */
-  const [summaries, tradingAccounts, userName] = await Promise.all([
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const [summaries, tradingAccounts, userName, planInfo] = await Promise.all([
     getImportSummaries(),
     getUserTradingAccounts(),
     getUserFirstName(),
+    getPlanInfo(user?.id ?? null),
   ]);
 
   // Fire-and-forget: process referral code from user metadata on first login
@@ -46,6 +53,7 @@ export default async function DashboardLayout({
 
   return (
     <Suspense fallback={<div className="h-14" />}>
+      {planInfo && <PlanHydrator planInfo={planInfo} />}
       <DashboardShell
         accounts={accounts}
         imports={imports}

@@ -75,6 +75,11 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
+  /* API routes: return 401 JSON instead of redirect (avoids CORS cross-origin) */
+  if (isApiRoute && !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   if (!isAuthPage && !user) {
     return NextResponse.redirect(new URL("/login", request.url));
   }

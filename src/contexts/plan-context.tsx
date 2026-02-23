@@ -16,6 +16,8 @@ type PlanContextValue = {
   planInfo: PlanInfo | null;
   isLoading: boolean;
   refetch: () => Promise<void>;
+  /** Hydrate plan data from server — skips the initial client-side fetch */
+  hydrate: (info: PlanInfo) => void;
   canUseMetaApi: () => boolean;
   canAddMetaApiAccount: (currentCount: number) => boolean;
   canAddManualAccount: (currentCount: number) => boolean;
@@ -31,7 +33,11 @@ type PlanContextValue = {
 const PlanContext = createContext<PlanContextValue | null>(null);
 
 async function fetchPlan(): Promise<PlanInfo | null> {
-  const res = await fetch("/api/plan", { credentials: "include" });
+  const res = await fetch("/api/plan", {
+    credentials: "include",
+    cache: "no-store",
+    headers: { "Cache-Control": "no-cache" },
+  });
   if (!res.ok) return null;
   return res.json();
 }
@@ -44,26 +50,66 @@ export function PlanProvider({ children }: Props) {
 
   /** Guard against concurrent fetches — only one in-flight at a time */
   const fetchInFlight = useRef(false);
+  /** When true, a new fetch will be scheduled after the current one completes */
+  const pendingRefetch = useRef(false);
   /** Track pending retry timeouts so we can cancel on unmount */
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** When hydrated from server, skip the initial client-side fetch */
+  const hydratedRef = useRef(false);
+  /** Track whether we've ever had valid plan data (to avoid re-showing skeleton) */
+  const hadPlanData = useRef(false);
+
+  /** Hydrate plan data from server — eliminates initial loading flash */
+  const hydrate = useCallback((info: PlanInfo) => {
+    hydratedRef.current = true;
+    hadPlanData.current = true;
+    setPlanInfo(info);
+    setIsLoading(false);
+  }, []);
 
   const refetch = useCallback(async () => {
-    // Deduplicate: skip if a fetch is already in progress
-    if (fetchInFlight.current) return;
+    // If a fetch is already in progress, mark that we need another one after it
+    if (fetchInFlight.current) {
+      pendingRefetch.current = true;
+      return;
+    }
     fetchInFlight.current = true;
-    setIsLoading(true);
+    // Only show loading skeleton if we never had plan data.
+    // When refetching (e.g., after token refresh), keep showing current data.
+    if (!hadPlanData.current) {
+      setIsLoading(true);
+    }
+    let fetchedInfo: PlanInfo | null = null;
     try {
-      const info = await fetchPlan();
-      setPlanInfo(info);
+      fetchedInfo = await fetchPlan();
+      if (fetchedInfo) hadPlanData.current = true;
+      setPlanInfo(fetchedInfo);
     } finally {
       fetchInFlight.current = false;
-      setIsLoading(false);
+      // If another refetch was requested while we were fetching, do it now
+      if (pendingRefetch.current) {
+        pendingRefetch.current = false;
+        // Small delay to avoid hammering the API
+        retryTimerRef.current = setTimeout(() => {
+          retryTimerRef.current = null;
+          refetch();
+        }, 100);
+        // Keep isLoading=true only if we don't have plan data yet
+        // (if we already have valid plan data, show it while refetching)
+        if (fetchedInfo) {
+          setIsLoading(false);
+        }
+      } else {
+        setIsLoading(false);
+      }
     }
   }, []);
 
-  // Initial fetch on mount
+  // Initial fetch on mount — skip if already hydrated from server
   useEffect(() => {
-    refetch();
+    if (!hydratedRef.current) {
+      refetch();
+    }
   }, [refetch]);
 
   // Listen for auth state changes and refetch plan.
@@ -170,6 +216,7 @@ export function PlanProvider({ children }: Props) {
     planInfo,
     isLoading,
     refetch,
+    hydrate,
     canUseMetaApi,
     canAddMetaApiAccount,
     canAddManualAccount,
