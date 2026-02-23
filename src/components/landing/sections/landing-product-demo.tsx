@@ -220,7 +220,7 @@ export function LandingProductDemo() {
                   trend="up"
                   variant="profit"
                 />
-                <WinRateGauge value={68} title={t("widgets.winRate")} />
+                <WinRateGauge value={68} wins={34} losses={16} totalTrades={50} title={t("widgets.winRate")} />
                 <ProfitFactorGauge value={2.4} title={t("widgets.profitFactor")} />
                 <AvgWinLossBar
                   title={t("widgets.avgWinLoss")}

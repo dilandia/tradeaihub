@@ -220,6 +220,8 @@ export function DashboardContent({
   /* ─── Derived state ─── */
   const useDollar = viewMode === "dollar";
   const usePercentage = viewMode === "percentage";
+  /** Percentage mode uses dollar values as base, then divides by initialBalance */
+  const useDollarBase = useDollar || usePercentage;
   const unit = unitLabel(viewMode);
 
   /* ═══════════════════════════════════════════════
@@ -266,9 +268,9 @@ export function DashboardContent({
         filteredTrades,
         calYear,
         calMonth,
-        useDollar
+        useDollarBase
       ),
-    [filteredTrades, calYear, calMonth, useDollar]
+    [filteredTrades, calYear, calMonth, useDollarBase]
   );
   const dayTrades = useMemo(
     () =>
@@ -278,16 +280,16 @@ export function DashboardContent({
     [filteredTrades, selectedDay]
   );
   const dayWinRate = useMemo(
-    () => computeDayWinRate(filteredTrades, useDollar),
-    [filteredTrades, useDollar]
+    () => computeDayWinRate(filteredTrades, useDollarBase),
+    [filteredTrades, useDollarBase]
   );
   const performanceMetrics = useMemo(
-    () => buildPerformanceMetrics(filteredTrades, useDollar),
-    [filteredTrades, useDollar]
+    () => buildPerformanceMetrics(filteredTrades, useDollarBase),
+    [filteredTrades, useDollarBase]
   );
   const clientCurrentStreaks = useMemo(
-    () => computeCurrentStreaks(filteredTrades, useDollar),
-    [filteredTrades, useDollar]
+    () => computeCurrentStreaks(filteredTrades, useDollarBase),
+    [filteredTrades, useDollarBase]
   );
   /* W2-03: Prefer serverDrawdown streak data when no client filters active */
   const currentStreaks = useServerData && serverDrawdown
@@ -297,12 +299,11 @@ export function DashboardContent({
       }
     : clientCurrentStreaks;
   const radarMetrics = useMemo(
-    () => computeRadarMetrics(filteredTrades, useDollar),
-    [filteredTrades, useDollar]
+    () => computeRadarMetrics(filteredTrades, useDollarBase),
+    [filteredTrades, useDollarBase]
   );
   const netDailyPnl = useMemo(() => {
-    const useDollarForCalc = useDollar || usePercentage;
-    const data = buildNetDailyPnl(filteredTrades, useDollarForCalc);
+    const data = buildNetDailyPnl(filteredTrades, useDollarBase);
     if (usePercentage && initialBalance != null && initialBalance > 0) {
       return data.map((p) => ({
         ...p,
@@ -312,39 +313,41 @@ export function DashboardContent({
     return data;
   }, [filteredTrades, useDollar, usePercentage, initialBalance]);
   const accountBalance = useMemo(
-    () => buildAccountBalance(filteredTrades, useDollar),
-    [filteredTrades, useDollar]
+    () => buildAccountBalance(filteredTrades, useDollarBase),
+    [filteredTrades, useDollarBase]
   );
   /* W3-05: Prefer server drawdown curve when no client filters active */
   const serverDrawdownPoints = useMemo((): DrawdownPoint[] | null => {
     if (!useServerData || !serverDrawdownCurve?.length) return null;
-    if (!useDollar) return null; // Server curve is dollar-based; pips mode needs client calc
+    if (!useDollarBase) return null; // Server curve is dollar-based; pips mode needs client calc
     return serverDrawdownCurve.map((pt) => ({
       date: pt.date.slice(5), // "YYYY-MM-DD" -> "MM-DD"
-      drawdown: pt.drawdown,
+      drawdown: usePercentage && initialBalance != null && initialBalance > 0
+        ? (pt.drawdown / initialBalance) * 100
+        : pt.drawdown,
     }));
-  }, [useServerData, serverDrawdownCurve, useDollar]);
+  }, [useServerData, serverDrawdownCurve, useDollarBase, usePercentage, initialBalance]);
 
   const clientDrawdownData = useMemo(
-    () => buildDrawdown(filteredTrades, useDollar),
-    [filteredTrades, useDollar]
+    () => buildDrawdown(filteredTrades, useDollarBase),
+    [filteredTrades, useDollarBase]
   );
   const drawdownData = serverDrawdownPoints ?? clientDrawdownData;
   const timePerf = useMemo(
-    () => buildTradeTimePerformance(filteredTrades, useDollar),
-    [filteredTrades, useDollar]
+    () => buildTradeTimePerformance(filteredTrades, useDollarBase),
+    [filteredTrades, useDollarBase]
   );
   const durationPerf = useMemo(
-    () => buildTradeDurationPerformance(filteredTrades, useDollar),
-    [filteredTrades, useDollar]
+    () => buildTradeDurationPerformance(filteredTrades, useDollarBase),
+    [filteredTrades, useDollarBase]
   );
   const winAvgSeries = useMemo(
-    () => buildWinAvgTimeSeries(filteredTrades, useDollar),
-    [filteredTrades, useDollar]
+    () => buildWinAvgTimeSeries(filteredTrades, useDollarBase),
+    [filteredTrades, useDollarBase]
   );
   const yearlyData = useMemo(
-    () => buildYearlyCalendar(filteredTrades, useDollar),
-    [filteredTrades, useDollar]
+    () => buildYearlyCalendar(filteredTrades, useDollarBase),
+    [filteredTrades, useDollarBase]
   );
 
   /* ─── Cumulative P&L: prefer server equity curve when no filters active ─── */
@@ -367,10 +370,9 @@ export function DashboardContent({
 
   const clientCumulativePnl = useMemo(() => {
     const byDate = new Map<string, number>();
-    const useDollarForCalc = useDollar || usePercentage;
     for (const t of filteredTrades) {
       const val =
-        useDollarForCalc && t.profit_dollar != null ? t.profit_dollar : t.pips;
+        useDollarBase && t.profit_dollar != null ? t.profit_dollar : t.pips;
       byDate.set(t.date, (byDate.get(t.date) ?? 0) + val);
     }
     const sorted = Array.from(byDate.entries()).sort((a, b) =>
@@ -379,7 +381,7 @@ export function DashboardContent({
     let cum = 0;
     const points = sorted.map(([date, v]) => {
       cum += v;
-      const dec = useDollarForCalc ? 2 : 1;
+      const dec = useDollarBase ? 2 : 1;
       const f = 10 ** dec;
       return {
         date: date.slice(5),
@@ -464,7 +466,16 @@ export function DashboardContent({
             />
           );
         case "win-rate":
-          return <WinRateGauge value={metrics.winRate} title={t("widgets.winRate")} tooltip={t("dashboard.winRateTooltip")} />;
+          return (
+            <WinRateGauge
+              value={metrics.winRate}
+              wins={metrics.wins}
+              losses={metrics.losses}
+              totalTrades={metrics.totalTrades}
+              title={t("widgets.winRate")}
+              tooltip={t("dashboard.winRateTooltip")}
+            />
+          );
         case "avg-win-loss":
           return (
             <AvgWinLossBar
@@ -488,7 +499,7 @@ export function DashboardContent({
         case "profit-factor":
           return (
             <ProfitFactorGauge
-              value={useDollar ? metrics.profitFactorDollar : metrics.profitFactor}
+              value={useDollarBase ? metrics.profitFactorDollar : metrics.profitFactor}
               title={t("widgets.profitFactor")}
               tooltip={t("dashboard.profitFactorTooltip")}
             />
@@ -575,7 +586,14 @@ export function DashboardContent({
               value={
                 privacy
                   ? H
-                  : fmtPnl(0, maxDDValue, null, viewMode)
+                  : fmtPnl(
+                      0,
+                      maxDDValue,
+                      initialBalance != null && initialBalance > 0
+                        ? (maxDDValue / initialBalance) * 100
+                        : null,
+                      viewMode
+                    )
               }
               subtitle={ddSubtitle}
               tooltip={t("widgets.maxDrawdownDesc")}
@@ -591,7 +609,14 @@ export function DashboardContent({
               value={
                 privacy
                   ? H
-                  : fmtPnl(0, Math.abs(performanceMetrics.avgDailyDrawdown), null, viewMode)
+                  : fmtPnl(
+                      0,
+                      Math.abs(performanceMetrics.avgDailyDrawdown),
+                      initialBalance != null && initialBalance > 0
+                        ? (Math.abs(performanceMetrics.avgDailyDrawdown) / initialBalance) * 100
+                        : null,
+                      viewMode
+                    )
               }
               tooltip={t("widgets.avgDrawdownDesc")}
               variant="loss"
