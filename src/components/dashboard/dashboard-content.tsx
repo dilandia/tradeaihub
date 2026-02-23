@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect, type ReactNode } from "react";
 import { useLanguage } from "@/contexts/language-context";
-import { ThemeToggle } from "@/components/theme-toggle";
 import {
   DateRangeButton,
   FiltersButton,
@@ -773,7 +772,6 @@ export function DashboardContent({
           >
             <Settings2 className="h-5 w-5" />
           </button>
-          <ThemeToggle />
         </div>
       </div>
 

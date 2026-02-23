@@ -84,7 +84,7 @@ export function Sidebar() {
       {/* Mobile menu button */}
       <button
         type="button"
-        className="fixed left-4 top-4 z-50 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-border bg-card text-foreground lg:hidden"
+        className="fixed left-4 top-4 z-[110] flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-border bg-card text-foreground shadow-sm lg:hidden"
         onClick={() => setMobileOpen(true)}
         aria-label={t("common.openMenu")}
       >

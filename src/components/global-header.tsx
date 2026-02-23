@@ -11,6 +11,7 @@ import {
   type DataSourceSelection,
 } from "@/components/dashboard/data-source-selector";
 import { LanguageSelector } from "@/components/language-selector";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { signOut } from "@/app/actions/auth";
 
 type Props = {
@@ -88,6 +89,7 @@ export function GlobalHeader({ userName }: Props) {
               {planLabel}
             </span>
           )}
+          <ThemeToggle />
           <LanguageSelector />
           {hasAnySource && (
             <DataSourceSelector
