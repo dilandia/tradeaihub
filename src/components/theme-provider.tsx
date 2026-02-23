@@ -21,16 +21,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const stored = localStorage.getItem("takez-theme") as Theme | null;
     const initial = stored ?? "light";
     setThemeState(initial);
-    document.documentElement.classList.toggle("light", initial === "light");
-    document.documentElement.classList.toggle("dark", initial === "dark");
   }, []);
 
   const setTheme = (t: Theme) => {
     setThemeState(t);
     if (typeof window !== "undefined") {
       localStorage.setItem("takez-theme", t);
-      document.documentElement.classList.toggle("light", t === "light");
-      document.documentElement.classList.toggle("dark", t === "dark");
+      document.documentElement.className = t;
     }
   };
 

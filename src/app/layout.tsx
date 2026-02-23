@@ -71,6 +71,7 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Trade AI Hub",
   },
+  manifest: "/manifest.webmanifest",
   robots: {
     index: true,
     follow: true,
@@ -104,7 +105,14 @@ export default async function RootLayout({
   const initialLocale = (stored && LOCALES.includes(stored as Locale)) ? stored as Locale : DEFAULT_LOCALE;
 
   return (
-    <html lang={initialLocale} className="light" suppressHydrationWarning>
+    <html lang={initialLocale} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('takez-theme');if(t==='dark'){document.documentElement.className='dark'}else{document.documentElement.className='light'}}catch(e){document.documentElement.className='light'}})()`,
+          }}
+        />
+      </head>
       <body className={`${inter.variable} font-sans`}>
         <script
           type="application/ld+json"

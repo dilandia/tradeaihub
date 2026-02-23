@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   DollarSign,
   Percent,
@@ -35,26 +36,35 @@ type Props = {
 export function ViewModeSelector({ value, onChange }: Props) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<DOMRect | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const current = VIEW_MODES.find((m) => m.value === value) ?? VIEW_MODES[0];
   const CurrentIcon = current.icon;
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+    if (!open) return;
+    setRect(buttonRef.current?.getBoundingClientRect() ?? null);
+    function handler(e: MouseEvent | TouchEvent) {
+      const target = (e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
+      if (!target) return;
+      if (ref.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setOpen(false);
     }
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
   }, [open]);
 
   return (
     <div ref={ref} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
@@ -73,8 +83,15 @@ export function ViewModeSelector({ value, onChange }: Props) {
         />
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full z-50 mt-1.5 w-56 rounded-xl border border-border bg-card p-1.5 shadow-lg animate-in fade-in-0 zoom-in-95 slide-in-from-top-2">
+      {open && typeof document !== "undefined" && rect && createPortal(
+        <div
+          ref={dropdownRef}
+          className="fixed max-w-[calc(100vw-1rem)] w-56 rounded-xl border border-border bg-card p-1.5 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
+          style={{
+            top: rect.bottom + 6,
+            right: Math.max(8, window.innerWidth - rect.right),
+          }}
+        >
           {VIEW_MODES.map((mode) => {
             const Icon = mode.icon;
             const isActive = value === mode.value;
@@ -115,7 +132,8 @@ export function ViewModeSelector({ value, onChange }: Props) {
               </button>
             );
           })}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

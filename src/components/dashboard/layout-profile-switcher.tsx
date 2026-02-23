@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { LayoutGrid, ChevronDown, Pencil, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/language-context";
@@ -22,18 +23,26 @@ export function LayoutProfileSwitcher({
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [hovered, setHovered] = useState<1 | 2 | null>(null);
+  const [rect, setRect] = useState<DOMRect | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+    if (!open) return;
+    setRect(buttonRef.current?.getBoundingClientRect() ?? null);
+    function handler(e: MouseEvent | TouchEvent) {
+      const target = (e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
+      if (!target) return;
+      if (ref.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setOpen(false);
     }
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
   }, [open]);
 
   if (!layoutProfiles.loaded) return null;
@@ -63,6 +72,7 @@ export function LayoutProfileSwitcher({
   return (
     <div ref={ref} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen(!open)}
         title={t("customize.switchLayoutDesc")}
@@ -75,8 +85,15 @@ export function LayoutProfileSwitcher({
         <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full z-50 mt-1.5 min-w-[220px] rounded-xl border border-border bg-popover py-2 shadow-xl">
+      {open && typeof document !== "undefined" && rect && createPortal(
+        <div
+          ref={dropdownRef}
+          className="fixed max-w-[calc(100vw-1rem)] min-w-[220px] rounded-xl border border-border bg-popover py-2 shadow-xl z-[9999]"
+          style={{
+            top: rect.bottom + 6,
+            right: Math.max(8, window.innerWidth - rect.right),
+          }}
+        >
           <p className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("customize.myTemplates")}
           </p>
@@ -153,7 +170,8 @@ export function LayoutProfileSwitcher({
               </button>
             </>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/language-context";
 import { Calendar, ChevronDown, Filter, X, Check } from "lucide-react";
@@ -58,21 +59,33 @@ type DateRangeButtonProps = {
 export function DateRangeButton({ value, onChange }: DateRangeButtonProps) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<DOMRect | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const current = PRESET_RANGE_KEYS.find((r) => r.value === value) ?? PRESET_RANGE_KEYS[2];
 
   useEffect(() => {
     if (!open) return;
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    setRect(buttonRef.current?.getBoundingClientRect() ?? null);
+    function handler(e: MouseEvent | TouchEvent) {
+      const target = (e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
+      if (!target) return;
+      if (ref.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setOpen(false);
     }
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
   }, [open]);
 
   return (
     <div ref={ref} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
@@ -94,8 +107,15 @@ export function DateRangeButton({ value, onChange }: DateRangeButtonProps) {
         />
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full z-50 mt-1.5 w-44 rounded-xl border border-border bg-card p-1.5 shadow-lg animate-in fade-in-0 zoom-in-95 slide-in-from-top-2">
+      {open && typeof document !== "undefined" && rect && createPortal(
+        <div
+          ref={dropdownRef}
+          className="fixed max-w-[calc(100vw-1rem)] w-44 rounded-xl border border-border bg-card p-1.5 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
+          style={{
+            top: rect.bottom + 6,
+            right: Math.max(8, window.innerWidth - rect.right),
+          }}
+        >
           {PRESET_RANGE_KEYS.map((r) => (
             <button
               key={r.value}
@@ -117,7 +137,8 @@ export function DateRangeButton({ value, onChange }: DateRangeButtonProps) {
               )}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -136,15 +157,26 @@ type FiltersButtonProps = {
 export function FiltersButton({ trades, filters, onChange }: FiltersButtonProps) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<DOMRect | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    setRect(buttonRef.current?.getBoundingClientRect() ?? null);
+    function handler(e: MouseEvent | TouchEvent) {
+      const target = (e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
+      if (!target) return;
+      if (ref.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setOpen(false);
     }
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
   }, [open]);
 
   /* ── Extrair pares disponíveis (ordenados por frequência) ── */
@@ -184,6 +216,7 @@ export function FiltersButton({ trades, filters, onChange }: FiltersButtonProps)
   return (
     <div ref={ref} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
@@ -204,8 +237,15 @@ export function FiltersButton({ trades, filters, onChange }: FiltersButtonProps)
         )}
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full z-50 mt-1.5 w-72 rounded-xl border border-border bg-card p-4 shadow-lg animate-in fade-in-0 zoom-in-95 slide-in-from-top-2">
+      {open && typeof document !== "undefined" && rect && createPortal(
+        <div
+          ref={dropdownRef}
+          className="fixed max-w-[calc(100vw-1rem)] w-72 rounded-xl border border-border bg-card p-4 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
+          style={{
+            top: rect.bottom + 6,
+            right: Math.max(8, window.innerWidth - rect.right),
+          }}
+        >
           {/* ── Header ── */}
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground">{t("filters.filters")}</h3>
@@ -308,7 +348,8 @@ export function FiltersButton({ trades, filters, onChange }: FiltersButtonProps)
               </p>
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

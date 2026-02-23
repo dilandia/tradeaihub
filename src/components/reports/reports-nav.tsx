@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useDataSource } from "@/contexts/data-source-context";
@@ -49,7 +50,10 @@ export function ReportsNav() {
   const { selection } = useDataSource();
   const { t } = useLanguage();
   const [reportsOpen, setReportsOpen] = useState(false);
+  const [reportsRect, setReportsRect] = useState<DOMRect | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const reportsButtonRef = useRef<HTMLButtonElement>(null);
+  const reportsDropdownRef = useRef<HTMLDivElement>(null);
 
   const period = searchParams.get("period") ?? "all";
 
@@ -63,12 +67,19 @@ export function ReportsNav() {
 
   useEffect(() => {
     if (!reportsOpen) return;
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node))
-        setReportsOpen(false);
+    setReportsRect(reportsButtonRef.current?.getBoundingClientRect() ?? null);
+    function handler(e: MouseEvent | TouchEvent) {
+      const target = (e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
+      if (!target) return;
+      if (ref.current?.contains(target) || reportsDropdownRef.current?.contains(target)) return;
+      setReportsOpen(false);
     }
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
   }, [reportsOpen]);
 
   function buildHref(base: string): string {
@@ -121,6 +132,7 @@ export function ReportsNav() {
 
         <div ref={ref} className="relative shrink-0">
           <button
+            ref={reportsButtonRef}
             type="button"
             onClick={() => setReportsOpen(!reportsOpen)}
             className={cn(
@@ -137,8 +149,15 @@ export function ReportsNav() {
             <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", reportsOpen && "rotate-180")} />
           </button>
 
-          {reportsOpen && (
-            <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-xl border border-border bg-card p-1 shadow-lg animate-in fade-in-0 zoom-in-95">
+          {reportsOpen && typeof document !== "undefined" && reportsRect && createPortal(
+            <div
+              ref={reportsDropdownRef}
+              className="fixed max-w-[calc(100vw-1rem)] w-64 rounded-xl border border-border bg-card p-1 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
+              style={{
+                top: reportsRect.bottom + 4,
+                right: Math.max(8, window.innerWidth - reportsRect.right),
+              }}
+            >
               {REPORT_ITEMS.map(({ href, labelKey, icon: Icon }) => {
                 const isActive = pathname === href || pathname.startsWith(href + "/");
                 return (
@@ -158,7 +177,8 @@ export function ReportsNav() {
                   </Link>
                 );
               })}
-            </div>
+            </div>,
+            document.body
           )}
         </div>
 
