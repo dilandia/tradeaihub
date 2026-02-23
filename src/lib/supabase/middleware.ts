@@ -50,19 +50,25 @@ export async function updateSession(request: NextRequest) {
   const landingPublicPaths = ["/", "/about", "/contact", "/blog", "/privacy", "/terms"];
   const isLandingPublic = landingPublicPaths.includes(path);
 
+  /* Rotas de API nunca devem ser redirecionadas (evita CORS cross-origin) */
+  const isApiRoute = path.startsWith("/api/");
+
   if (isProdLandingDomain || isLocalhost) {
     if (isLandingPublic) return response;
-    /* Login/register: em prod landing redireciona para app */
-    if ((path === "/login" || path === "/register") && isProdLandingDomain) {
-      return NextResponse.redirect(
-        new URL(path, "https://app.tradeaihub.com")
-      );
-    }
-    /* Em prod landing: rotas do app (dashboard, trades, etc) redirecionam para app.tradeaihub.com */
-    if (isProdLandingDomain) {
+    /* API routes: processar diretamente, nunca redirecionar */
+    if (isApiRoute) {
+      /* Segue para checagens de auth abaixo */
+    } else if (isProdLandingDomain) {
+      /* Login/register: redireciona para app */
+      if (path === "/login" || path === "/register") {
+        return NextResponse.redirect(
+          new URL(path, "https://app.tradeaihub.com")
+        );
+      }
+      /* Rotas do app (dashboard, trades, etc) redirecionam para app.tradeaihub.com */
       return NextResponse.redirect(new URL(path, "https://app.tradeaihub.com"));
     }
-    /* Em localhost: permite todas as rotas (/, /login, /register, /dashboard, etc) - segue para checagens de auth */
+    /* Em localhost: permite todas as rotas */
   }
 
   if (isAuthPage && user) {
