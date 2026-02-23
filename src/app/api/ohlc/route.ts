@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
 import { fetchMetaApiCandles } from "@/lib/metaapi-ohlc";
+import { createClient } from "@/lib/supabase/server";
 
 type BarItem = {
   time: number;
@@ -203,6 +204,12 @@ async function fetchOhlcInternal(
  * MetaApi com timeout 8s – não trava.
  */
 export async function GET(req: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = req.nextUrl;
   const symbol = searchParams.get("symbol")?.trim();
   const startDate = searchParams.get("startDate")?.trim();
@@ -258,7 +265,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Nenhum dado encontrado. Configure FINNHUB_API_KEY ou TWELVE_DATA_API_KEY.",
+          "No chart data available for this symbol and date range.",
       },
       { status: 404 }
     );

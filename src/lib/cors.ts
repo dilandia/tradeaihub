@@ -28,11 +28,10 @@ export const CORS_HEADERS = {
  */
 export function getCorsHeaders(origin: string | null): Record<string, string> {
   const isAllowed = origin && ALLOWED_ORIGINS.includes(origin);
-  const allowedOrigin = isAllowed ? origin : ALLOWED_ORIGINS[0];
 
   return {
     ...CORS_HEADERS,
-    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Origin": isAllowed ? origin : "",
   };
 }
 

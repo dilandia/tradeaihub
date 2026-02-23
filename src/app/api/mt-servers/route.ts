@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 const PROVISIONING_BASE =
   "https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai";
@@ -10,6 +11,12 @@ const PROVISIONING_BASE =
  * Retorna: { brokers: { [brokerName]: string[] } }
  */
 export async function GET(req: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = req.nextUrl;
   const query = searchParams.get("query")?.trim();
   const version = searchParams.get("version") ?? "5"; // mt4 = 4, mt5 = 5
@@ -21,8 +28,8 @@ export async function GET(req: NextRequest) {
   const token = process.env.METAAPI_TOKEN;
   if (!token) {
     return NextResponse.json(
-      { error: "METAAPI_TOKEN not configured" },
-      { status: 500 }
+      { error: "Service temporarily unavailable" },
+      { status: 503 }
     );
   }
 

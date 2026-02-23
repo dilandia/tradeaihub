@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
     const origin = req.headers.get("origin");
     const corsHeaders = getCorsHeaders(origin);
     return NextResponse.json(
-      { error: msg.includes("OPENAI") ? "Configure OPENAI_API_KEY in .env.local" : msg },
+      { error: msg.includes("OPENAI") ? "AI service temporarily unavailable" : msg },
       { status: 500, headers: corsHeaders }
     );
   }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 /** Horas até considerar cache expirado. Dados econômicos atualizam ao longo do dia (actual values). */
 const CACHE_HOURS_TODAY = 4;
@@ -154,6 +155,12 @@ function getCacheHours(period: string): number {
 }
 
 export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const period = (searchParams.get("period") ?? "week") as "today" | "week" | "range";

@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
     console.error("[AI patterns]", err);
     const msg = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json(
-      { error: msg.includes("OPENAI") ? "Configure OPENAI_API_KEY in .env.local" : msg },
+      { error: msg.includes("OPENAI") ? "AI service temporarily unavailable" : msg },
       { status: 500 }
     );
   }
