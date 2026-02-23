@@ -75,13 +75,18 @@ export function DataSourceSelector({
   useEffect(() => {
     if (!open) return;
     updateRect();
-    function handler(e: MouseEvent) {
-      const target = e.target as Node;
+    function handler(e: MouseEvent | TouchEvent) {
+      const target = (e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
+      if (!target) return;
       if (ref.current?.contains(target) || dropdownRef.current?.contains(target)) return;
       setOpen(false);
     }
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
   }, [open, updateRect]);
 
   const hasAccounts = accounts.length > 0;
@@ -128,7 +133,7 @@ export function DataSourceSelector({
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
-          "inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3",
+          "inline-flex h-10 min-h-[44px] items-center gap-2 rounded-lg border border-border bg-card px-3",
           "text-sm font-medium text-foreground transition-colors",
           "hover:bg-muted focus:outline-none focus:ring-2 focus:ring-score focus:ring-offset-2 focus:ring-offset-background"
         )}
@@ -150,8 +155,11 @@ export function DataSourceSelector({
       {open && typeof document !== "undefined" && rect && createPortal(
         <div
           ref={dropdownRef}
-          className="fixed w-72 rounded-xl border border-border bg-card p-1.5 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
-          style={{ top: rect.bottom + 6, right: window.innerWidth - rect.right }}
+          className="fixed max-w-[calc(100vw-1rem)] w-72 rounded-xl border border-border bg-card p-1.5 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
+          style={{
+            top: rect.bottom + 6,
+            right: Math.max(8, window.innerWidth - rect.right),
+          }}
         >
           {/* ── All data ── */}
           <button

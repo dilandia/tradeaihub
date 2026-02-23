@@ -91,20 +91,20 @@ export function Sidebar() {
         <Menu className="h-5 w-5" />
       </button>
 
-      {/* Overlay */}
+      {/* Overlay — must sit above header (z-[100]) so tapping anywhere closes sidebar */}
       {mobileOpen && (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-[105] bg-black/50 lg:hidden"
           onClick={() => setMobileOpen(false)}
-        aria-label={t("common.closeMenu")}
-      />
+          aria-label={t("common.closeMenu")}
+        />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — above overlay */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-40 flex h-full w-64 flex-col border-r border-border bg-card transition-transform duration-200 lg:translate-x-0",
+          "fixed left-0 top-0 z-[106] flex h-full w-64 flex-col border-r border-border bg-card transition-transform duration-200 lg:translate-x-0 lg:z-40",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >

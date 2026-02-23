@@ -23,15 +23,20 @@ export function LanguageSelector() {
   useEffect(() => {
     if (!open) return;
     setDropdownRect(buttonRef.current?.getBoundingClientRect() ?? null);
-    function handler(e: MouseEvent) {
-      const target = e.target as Node;
+    function handler(e: MouseEvent | TouchEvent) {
+      const target = (e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
+      if (!target) return;
       const insideTrigger = ref.current?.contains(target);
       const insideDropdown = dropdownRef.current?.contains(target);
       if (insideTrigger || insideDropdown) return;
       setOpen(false);
     }
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
   }, [open]);
 
   return (
@@ -55,10 +60,10 @@ export function LanguageSelector() {
       {open && typeof document !== "undefined" && dropdownRect && createPortal(
         <div
           ref={dropdownRef}
-          className="fixed w-48 rounded-xl border border-border bg-card p-1 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
+          className="fixed max-w-[calc(100vw-1rem)] w-48 rounded-xl border border-border bg-card p-1 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
           style={{
             top: dropdownRect.bottom + 6,
-            right: window.innerWidth - dropdownRect.right,
+            right: Math.max(8, window.innerWidth - dropdownRect.right),
           }}
         >
           {LOCALES.map((loc) => (
