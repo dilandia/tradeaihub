@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   ChevronDown,
   Database,
@@ -61,18 +62,27 @@ export function DataSourceSelector({
   onChange,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<DOMRect | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const { t } = useLanguage();
+
+  const updateRect = useCallback(() => {
+    if (buttonRef.current) setRect(buttonRef.current.getBoundingClientRect());
+  }, []);
 
   useEffect(() => {
     if (!open) return;
+    updateRect();
     function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node))
-        setOpen(false);
+      const target = e.target as Node;
+      if (ref.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setOpen(false);
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+  }, [open, updateRect]);
 
   const hasAccounts = accounts.length > 0;
   const hasImports = imports.length > 0;
@@ -114,6 +124,7 @@ export function DataSourceSelector({
   return (
     <div ref={ref} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
@@ -136,8 +147,12 @@ export function DataSourceSelector({
         />
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full z-50 mt-1.5 w-72 rounded-xl border border-border bg-card p-1.5 shadow-lg animate-in fade-in-0 zoom-in-95 slide-in-from-top-2">
+      {open && typeof document !== "undefined" && rect && createPortal(
+        <div
+          ref={dropdownRef}
+          className="fixed w-72 rounded-xl border border-border bg-card p-1.5 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
+          style={{ top: rect.bottom + 6, right: window.innerWidth - rect.right }}
+        >
           {/* ── All data ── */}
           <button
             type="button"
@@ -237,7 +252,8 @@ export function DataSourceSelector({
               {t("common.manageAccounts")}
             </NextLink>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
