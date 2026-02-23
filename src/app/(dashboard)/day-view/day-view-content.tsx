@@ -8,6 +8,8 @@ import { WeekSection } from "@/components/day-view/week-section";
 import { DayViewCalendar } from "@/components/day-view/day-view-calendar";
 import { ColumnSelector, DEFAULT_COLUMNS } from "@/components/day-view/column-selector";
 import type { ColumnKey } from "@/components/day-view/column-selector";
+import { getStrategies, type Strategy } from "@/app/actions/strategies";
+import { getUserTags, type UserTag } from "@/app/actions/tags";
 
 /** Retorna a semana do mês (1-5) a partir da data YYYY-MM-DD */
 function getWeekOfMonth(date: string): number {
@@ -30,6 +32,21 @@ export function DayViewContent({ trades, initialDate }: Props) {
   const [expandedWeeks, setExpandedWeeks] = useState<Set<number>>(new Set([1, 2, 3, 4, 5]));
   const [columns, setColumns] = useState<ColumnKey[]>(DEFAULT_COLUMNS);
   const [columnSelectorOpen, setColumnSelectorOpen] = useState(false);
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [userTags, setUserTags] = useState<UserTag[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const [s, ut] = await Promise.all([getStrategies(), getUserTags()]);
+      if (!cancelled) {
+        setStrategies(s);
+        setUserTags(ut);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
   /* Aplicar initialDate da URL (ex.: vindo do modal do calendário) */
   useEffect(() => {
@@ -211,6 +228,8 @@ export function DayViewContent({ trades, initialDate }: Props) {
                   columns={columns}
                   expandedWeeks={expandedWeeks}
                   onToggleWeek={toggleWeek}
+                  strategies={strategies}
+                  userTags={userTags}
                 />
               ))}
             </div>

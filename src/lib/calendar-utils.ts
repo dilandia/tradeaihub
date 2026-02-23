@@ -53,6 +53,8 @@ export type CalendarTrade = {
   exit_time: string | null;
   duration_minutes: number | null;
   tags?: string[];
+  notes?: string | null;
+  strategy_id?: string | null;
 };
 
 /** Monta CalendarData a partir de CalendarTrade[] */

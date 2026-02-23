@@ -8,7 +8,10 @@ import { formatDateShort } from "@/lib/i18n/date-utils";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 import { AreaChart, Area, ResponsiveContainer, YAxis } from "recharts";
 import { DayTradesTable } from "./day-trades-table";
+import { TradeEditModal } from "./trade-edit-modal";
 import type { ColumnKey } from "./column-selector";
+import type { Strategy } from "@/app/actions/strategies";
+import type { UserTag } from "@/app/actions/tags";
 
 type Props = {
   date: string;
@@ -16,6 +19,8 @@ type Props = {
   expanded: boolean;
   onToggle: () => void;
   columns: ColumnKey[];
+  strategies?: Strategy[];
+  userTags?: UserTag[];
 };
 
 function fmtMoney(val: number): string {
@@ -24,8 +29,10 @@ function fmtMoney(val: number): string {
   return `-$${abs.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export function DayCard({ date, trades, expanded, onToggle, columns }: Props) {
+export function DayCard({ date, trades, expanded, onToggle, columns, strategies = [], userTags = [] }: Props) {
   const { locale, t } = useLanguage();
+  const [editingTrade, setEditingTrade] = useState<CalendarTrade | null>(null);
+
   const metrics = useMemo(() => {
     const wins = trades.filter((t) => t.is_win);
     const losses = trades.filter((t) => !t.is_win);
@@ -62,90 +69,117 @@ export function DayCard({ date, trades, expanded, onToggle, columns }: Props) {
 
   const isPositive = metrics.grossPnl >= 0;
 
+  const handleAddNote = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Open modal for the first trade of the day
+    if (trades.length > 0) {
+      setEditingTrade(trades[0]);
+    }
+  };
+
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden transition-all">
-      {/* Header row */}
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30"
-      >
-        {expanded
-          ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-          : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-        }
-        <span className="text-sm font-semibold text-foreground">{formatDateShort(date, locale)}</span>
-        <span className={cn("text-sm font-bold", isPositive ? "text-profit" : "text-loss")}>
-          {t("dayView.netPnl")} {fmtMoney(metrics.grossPnl)}
-        </span>
-        <span className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); }}
-            className="rounded-md border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            + {t("dayView.addNote")}
-          </button>
-        </span>
-      </button>
+    <>
+      <div className="rounded-xl border border-border bg-card overflow-hidden transition-all">
+        {/* Header row */}
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30"
+        >
+          {expanded
+            ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+            : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          }
+          <span className="text-sm font-semibold text-foreground">{formatDateShort(date, locale)}</span>
+          <span className={cn("text-sm font-bold", isPositive ? "text-profit" : "text-loss")}>
+            {t("dayView.netPnl")} {fmtMoney(metrics.grossPnl)}
+          </span>
+          <span className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleAddNote}
+              className="rounded-md border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              + {t("dayView.addNote")}
+            </button>
+          </span>
+        </button>
 
-      {/* Expanded content */}
-      {expanded && (
-        <div className="border-t border-border">
-          {/* Stats bar with mini chart */}
-          <div className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-start">
-            {/* Mini chart */}
-            <div className="h-20 w-full sm:h-24 sm:w-40 shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={miniChartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
-                  <defs>
-                    <linearGradient id={`dayGrad-${date}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={isPositive ? "#10B981" : "#EF4444"} stopOpacity={0.3} />
-                      <stop offset="100%" stopColor={isPositive ? "#10B981" : "#EF4444"} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <YAxis domain={["auto", "auto"]} hide />
-                  <Area
-                    type="monotone"
-                    dataKey="pnl"
-                    stroke={isPositive ? "#10B981" : "#EF4444"}
-                    strokeWidth={1.5}
-                    fill={`url(#dayGrad-${date})`}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+        {/* Expanded content */}
+        {expanded && (
+          <div className="border-t border-border">
+            {/* Stats bar with mini chart */}
+            <div className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-start">
+              {/* Mini chart */}
+              <div className="h-20 w-full sm:h-24 sm:w-40 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={miniChartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+                    <defs>
+                      <linearGradient id={`dayGrad-${date}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={isPositive ? "#10B981" : "#EF4444"} stopOpacity={0.3} />
+                        <stop offset="100%" stopColor={isPositive ? "#10B981" : "#EF4444"} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <YAxis domain={["auto", "auto"]} hide />
+                    <Area
+                      type="monotone"
+                      dataKey="pnl"
+                      stroke={isPositive ? "#10B981" : "#EF4444"}
+                      strokeWidth={1.5}
+                      fill={`url(#dayGrad-${date})`}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Key metrics */}
+              <div className="grid flex-1 grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
+                <MetricItem label="Total Trades" value={String(metrics.totalTrades)} />
+                <MetricItem
+                  label="Gross P&L"
+                  value={fmtMoney(metrics.grossPnl)}
+                  color={isPositive ? "text-profit" : "text-loss"}
+                />
+                <MetricItem
+                  label="Winners / Losers"
+                  value={`${metrics.wins} / ${metrics.losses}`}
+                  color={metrics.wins >= metrics.losses ? "text-profit" : "text-loss"}
+                />
+                <MetricItem label="Commissions" value="$0" />
+                <MetricItem label="Win Rate" value={`${metrics.winRate.toFixed(2)}%`} />
+                <MetricItem label="Volume" value={String(metrics.totalTrades)} />
+                <MetricItem
+                  label="Profit Factor"
+                  value={metrics.profitFactor >= 99 ? "\u221E" : metrics.profitFactor.toFixed(2)}
+                />
+              </div>
             </div>
 
-            {/* Key metrics */}
-            <div className="grid flex-1 grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
-              <MetricItem label="Total Trades" value={String(metrics.totalTrades)} />
-              <MetricItem
-                label="Gross P&L"
-                value={fmtMoney(metrics.grossPnl)}
-                color={isPositive ? "text-profit" : "text-loss"}
-              />
-              <MetricItem
-                label="Winners / Losers"
-                value={`${metrics.wins} / ${metrics.losses}`}
-                color={metrics.wins >= metrics.losses ? "text-profit" : "text-loss"}
-              />
-              <MetricItem label="Commissions" value="$0" />
-              <MetricItem label="Win Rate" value={`${metrics.winRate.toFixed(2)}%`} />
-              <MetricItem label="Volume" value={String(metrics.totalTrades)} />
-              <MetricItem
-                label="Profit Factor"
-                value={metrics.profitFactor >= 99 ? "∞" : metrics.profitFactor.toFixed(2)}
+            {/* Trades table */}
+            <div className="border-t border-border px-4 py-3">
+              <DayTradesTable
+                trades={trades}
+                columns={columns}
+                strategies={strategies}
+                userTags={userTags}
+                onEditTrade={(trade) => setEditingTrade(trade)}
               />
             </div>
           </div>
+        )}
+      </div>
 
-          {/* Trades table */}
-          <div className="border-t border-border px-4 py-3">
-            <DayTradesTable trades={trades} columns={columns} />
-          </div>
-        </div>
+      {/* Edit modal */}
+      {editingTrade && (
+        <TradeEditModal
+          open={!!editingTrade}
+          onClose={() => setEditingTrade(null)}
+          trade={editingTrade}
+          strategies={strategies}
+          userTags={userTags}
+        />
       )}
-    </div>
+    </>
   );
 }
 

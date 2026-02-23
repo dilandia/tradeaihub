@@ -346,7 +346,8 @@ export async function deleteImport(importId: string): Promise<{ error?: string }
 export async function updateTradeNotesAndTags(
   tradeId: string,
   notes: string | null,
-  tags: string[]
+  tags: string[],
+  strategyId?: string | null
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -357,6 +358,7 @@ export async function updateTradeNotesAndTags(
     tradeId,
     notes,
     tags,
+    strategyId: strategyId ?? null,
   });
 
   if (!validation.success) {
@@ -366,13 +368,14 @@ export async function updateTradeNotesAndTags(
     return { error: errorMessages };
   }
 
-  const { tradeId: validTradeId, notes: validNotes, tags: validTags } = validation.data;
+  const { tradeId: validTradeId, notes: validNotes, tags: validTags, strategyId: validStrategyId } = validation.data;
 
   const { error } = await supabase
     .from("trades")
     .update({
       notes: validNotes?.trim() || null,
       tags: validTags?.length ? validTags : [],
+      strategy_id: validStrategyId ?? null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", validTradeId)
@@ -406,6 +409,7 @@ export type TradeWithTagDetails = {
   notes: string | null;
   import_id: string | null;
   trading_account_id: string | null;
+  strategy_id: string | null;
   entry_time: string | null;
   exit_time: string | null;
   duration_minutes: number | null;

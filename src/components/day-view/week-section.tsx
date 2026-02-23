@@ -7,6 +7,8 @@ import { useLanguage } from "@/contexts/language-context";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 import { DayCard } from "./day-card";
 import type { ColumnKey } from "./column-selector";
+import type { Strategy } from "@/app/actions/strategies";
+import type { UserTag } from "@/app/actions/tags";
 
 function fmtMoney(val: number): string {
   const abs = Math.abs(val);
@@ -23,6 +25,8 @@ type Props = {
   columns: ColumnKey[];
   expandedWeeks: Set<number>;
   onToggleWeek: (week: number) => void;
+  strategies?: Strategy[];
+  userTags?: UserTag[];
 };
 
 export function WeekSection({
@@ -34,6 +38,8 @@ export function WeekSection({
   columns,
   expandedWeeks,
   onToggleWeek,
+  strategies = [],
+  userTags = [],
 }: Props) {
   const { t } = useLanguage();
 
@@ -87,6 +93,8 @@ export function WeekSection({
                 expanded={expandedDays.has(date)}
                 onToggle={() => onToggleDay(date)}
                 columns={columns}
+                strategies={strategies}
+                userTags={userTags}
               />
             </div>
           ))}

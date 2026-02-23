@@ -1,16 +1,23 @@
 "use client";
 
+import { Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/language-context";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 import type { ColumnKey } from "./column-selector";
+import type { Strategy } from "@/app/actions/strategies";
+import type { UserTag } from "@/app/actions/tags";
 
 type Props = {
   trades: CalendarTrade[];
   columns: ColumnKey[];
+  strategies?: Strategy[];
+  userTags?: UserTag[];
+  onEditTrade?: (trade: CalendarTrade) => void;
 };
 
 function fmtDuration(mins: number | null): string {
-  if (mins == null) return "—";
+  if (mins == null) return "\u2014";
   if (mins < 1) return `${Math.round(mins * 60)}s`;
   if (mins < 60) return `${Math.round(mins)}m`;
   const h = Math.floor(mins / 60);
@@ -19,14 +26,14 @@ function fmtDuration(mins: number | null): string {
 }
 
 function fmtMoney(val: number | null): string {
-  if (val == null) return "—";
+  if (val == null) return "\u2014";
   const abs = Math.abs(val);
   if (val >= 0) return `$${abs.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   return `-$${abs.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function fmtROI(trade: CalendarTrade): string {
-  if (!trade.entry_price || trade.entry_price === 0) return "—";
+  if (!trade.entry_price || trade.entry_price === 0) return "\u2014";
   const roi = ((trade.exit_price - trade.entry_price) / trade.entry_price) * 100;
   return `${roi >= 0 ? "" : "("}${Math.abs(roi).toFixed(2)}%${roi < 0 ? ")" : ""}`;
 }
@@ -46,10 +53,76 @@ const COLUMN_CONFIG: Record<ColumnKey, { label: string; align?: "right" | "cente
   tags: { label: "Tags" },
 };
 
-function CellValue({ col, trade }: { col: ColumnKey; trade: CalendarTrade }) {
+function TagBadges({
+  tags,
+  userTags,
+}: {
+  tags: string[];
+  userTags: UserTag[];
+}) {
+  if (tags.length === 0) return <span className="text-muted-foreground/70">{"\u2014"}</span>;
+
+  const tagColorMap = new Map(userTags.map((ut) => [ut.name.toLowerCase(), ut.color]));
+  const visible = tags.slice(0, 3);
+  const remaining = tags.length - 3;
+
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      {visible.map((tag) => {
+        const color = tagColorMap.get(tag.toLowerCase()) ?? "#7C3AED";
+        return (
+          <span
+            key={tag}
+            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium text-white"
+            style={{ backgroundColor: color }}
+          >
+            {tag}
+          </span>
+        );
+      })}
+      {remaining > 0 && (
+        <span className="text-[10px] text-muted-foreground">+{remaining}</span>
+      )}
+    </span>
+  );
+}
+
+function StrategyBadge({
+  strategyId,
+  strategies,
+}: {
+  strategyId: string | null | undefined;
+  strategies: Strategy[];
+}) {
+  if (!strategyId) return <span className="text-muted-foreground/70">{"\u2014"}</span>;
+  const strategy = strategies.find((s) => s.id === strategyId);
+  if (!strategy) return <span className="text-muted-foreground/70">{"\u2014"}</span>;
+
+  return (
+    <span className="inline-flex items-center gap-1 text-xs">
+      <span
+        className="inline-block h-2 w-2 shrink-0 rounded-full"
+        style={{ backgroundColor: strategy.color }}
+      />
+      <span className="max-w-[80px] truncate">{strategy.name}</span>
+    </span>
+  );
+}
+
+function CellValue({
+  col,
+  trade,
+  strategies,
+  userTags,
+}: {
+  col: ColumnKey;
+  trade: CalendarTrade;
+  strategies: Strategy[];
+  userTags: UserTag[];
+}) {
   switch (col) {
     case "open_time":
-      return <span className="text-muted-foreground">{trade.entry_time ?? trade.time ?? "—"}</span>;
+      return <span className="text-muted-foreground">{trade.entry_time ?? trade.time ?? "\u2014"}</span>;
     case "ticker":
       return <span className="font-medium text-score">{trade.pair}</span>;
     case "side": {
@@ -76,19 +149,19 @@ function CellValue({ col, trade }: { col: ColumnKey; trade: CalendarTrade }) {
       return <span className="text-muted-foreground">{fmtROI(trade)}</span>;
     case "r_multiple": {
       const rr = trade.risk_reward;
-      if (rr == null) return <span className="text-muted-foreground">—</span>;
+      if (rr == null) return <span className="text-muted-foreground">{"\u2014"}</span>;
       return (
         <span className={cn("font-medium", rr >= 0 ? "text-profit" : "text-loss")}>
-          {rr >= 0 ? "" : ""}{rr.toFixed(2)}R
+          {rr.toFixed(2)}R
         </span>
       );
     }
     case "duration":
       return <span className="text-muted-foreground">{fmtDuration(trade.duration_minutes)}</span>;
     case "entry_price":
-      return <span className="text-muted-foreground">{trade.entry_price?.toFixed(2) ?? "—"}</span>;
+      return <span className="text-muted-foreground">{trade.entry_price?.toFixed(2) ?? "\u2014"}</span>;
     case "exit_price":
-      return <span className="text-muted-foreground">{trade.exit_price?.toFixed(2) ?? "—"}</span>;
+      return <span className="text-muted-foreground">{trade.exit_price?.toFixed(2) ?? "\u2014"}</span>;
     case "pips":
       return (
         <span className={cn("font-medium", trade.pips >= 0 ? "text-profit" : "text-loss")}>
@@ -96,17 +169,19 @@ function CellValue({ col, trade }: { col: ColumnKey; trade: CalendarTrade }) {
         </span>
       );
     case "tags":
-      return <span className="text-muted-foreground/70">—</span>;
+      return <TagBadges tags={trade.tags ?? []} userTags={userTags} />;
     default:
-      return <span>—</span>;
+      return <span>{"\u2014"}</span>;
   }
 }
 
-export function DayTradesTable({ trades, columns }: Props) {
+export function DayTradesTable({ trades, columns, strategies = [], userTags = [], onEditTrade }: Props) {
+  const { t } = useLanguage();
+
   if (trades.length === 0) {
     return (
       <p className="py-6 text-center text-sm text-muted-foreground">
-        Nenhuma negociação neste dia
+        {t("dayView.noTradesMonth")}
       </p>
     );
   }
@@ -117,6 +192,9 @@ export function DayTradesTable({ trades, columns }: Props) {
     const tb = b.entry_time ?? b.time ?? "";
     return tb.localeCompare(ta);
   });
+
+  const showStrategy = strategies.length > 0;
+  const showActions = !!onEditTrade;
 
   return (
     <div className="overflow-x-auto">
@@ -134,6 +212,14 @@ export function DayTradesTable({ trades, columns }: Props) {
                 {COLUMN_CONFIG[col]?.label ?? col}
               </th>
             ))}
+            {showStrategy && (
+              <th className="whitespace-nowrap px-3 pb-2 font-medium">
+                {t("trades.strategy")}
+              </th>
+            )}
+            {showActions && (
+              <th className="whitespace-nowrap px-3 pb-2 font-medium text-right" />
+            )}
           </tr>
         </thead>
         <tbody>
@@ -150,9 +236,26 @@ export function DayTradesTable({ trades, columns }: Props) {
                     COLUMN_CONFIG[col]?.align === "right" && "text-right"
                   )}
                 >
-                  <CellValue col={col} trade={trade} />
+                  <CellValue col={col} trade={trade} strategies={strategies} userTags={userTags} />
                 </td>
               ))}
+              {showStrategy && (
+                <td className="whitespace-nowrap px-3 py-2.5">
+                  <StrategyBadge strategyId={trade.strategy_id} strategies={strategies} />
+                </td>
+              )}
+              {showActions && (
+                <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                  <button
+                    type="button"
+                    onClick={() => onEditTrade(trade)}
+                    className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    aria-label={t("common.edit")}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

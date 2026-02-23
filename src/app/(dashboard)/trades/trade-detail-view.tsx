@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,9 +8,13 @@ import { useLanguage } from "@/contexts/language-context";
 import { cn } from "@/lib/utils";
 import type { DbTrade, TradeWithMetaApi } from "@/lib/trades";
 import { updateTradeNotesAndTags } from "@/app/actions/trades";
-import { ArrowLeft, Tag, Save, Loader2 } from "lucide-react";
+import { getStrategies, type Strategy } from "@/app/actions/strategies";
+import { getUserTags, type UserTag } from "@/app/actions/tags";
+import { ArrowLeft, Tag, Save, Loader2, Crosshair } from "lucide-react";
 import { TradeChartLightweight } from "@/components/trades/trade-chart-lightweight";
 import { TradeRunningPnlChart } from "@/components/trades/trade-running-pnl-chart";
+import { TagAutocomplete } from "@/components/trades/tag-autocomplete";
+import { StrategySelector } from "@/components/trades/strategy-selector";
 
 interface TradeDetailViewProps {
   trade: TradeWithMetaApi;
@@ -40,7 +44,7 @@ export function TradeDetailView({ trade, importId, accountId }: TradeDetailViewP
   const router = useRouter();
   const [notes, setNotes] = useState(trade.notes ?? "");
   const [tags, setTags] = useState<string[]>(trade.tags ?? []);
-  const [tagInput, setTagInput] = useState("");
+  const [strategyId, setStrategyId] = useState<string | null>(trade.strategy_id ?? null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [runningPnlBars, setRunningPnlBars] = useState<{
@@ -48,6 +52,22 @@ export function TradeDetailView({ trade, importId, accountId }: TradeDetailViewP
     entryTs: number;
     exitTs: number;
   } | null>(null);
+
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [userTags, setUserTags] = useState<UserTag[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const [s, ut] = await Promise.all([getStrategies(), getUserTags()]);
+      if (!cancelled) {
+        setStrategies(s);
+        setUserTags(ut);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
   const pnl = trade.profit_dollar != null ? Number(trade.profit_dollar) : Number(trade.pips);
   const hasDollar = trade.profit_dollar != null;
@@ -57,26 +77,14 @@ export function TradeDetailView({ trade, importId, accountId }: TradeDetailViewP
   const handleSave = useCallback(async () => {
     setSaving(true);
     setError(null);
-    const result = await updateTradeNotesAndTags(trade.id, notes || null, tags);
+    const result = await updateTradeNotesAndTags(trade.id, notes || null, tags, strategyId);
     setSaving(false);
     if (result.error) {
       setError(result.error);
       return;
     }
     router.refresh();
-  }, [trade.id, notes, tags, router]);
-
-  const addTag = () => {
-    const v = tagInput.trim();
-    if (v && !tags.includes(v)) {
-      setTags([...tags, v]);
-      setTagInput("");
-    }
-  };
-
-  const removeTag = (tag: string) => {
-    setTags(tags.filter((x) => x !== tag));
-  };
+  }, [trade.id, notes, tags, strategyId, router]);
 
   const handleBarsLoaded = useCallback((bars: BarData[], entryTs: number, exitTs: number) => {
     setRunningPnlBars({ bars, entryTs, exitTs });
@@ -187,7 +195,7 @@ export function TradeDetailView({ trade, importId, accountId }: TradeDetailViewP
           </CardContent>
         </Card>
 
-        {/* Notes e Tags */}
+        {/* Notes */}
         <Card>
           <CardContent className="p-4">
             <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
@@ -205,49 +213,37 @@ export function TradeDetailView({ trade, importId, accountId }: TradeDetailViewP
             />
           </CardContent>
         </Card>
+
+        {/* Tags */}
         <Card>
           <CardContent className="p-4">
             <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
               <Tag className="h-4 w-4" />
               {t("trades.addTag")}
             </h3>
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium"
-                >
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => removeTag(tag)}
-                    className="rounded-full p-0.5 hover:bg-muted-foreground/20"
-                    aria-label={`Remover ${tag}`}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-              <div className="flex gap-1">
-                <input
-                  type="text"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
-                  placeholder={t("trades.selectTag")}
-                  className="h-7 w-32 rounded-md border border-input bg-background px-2 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
-                <button
-                  type="button"
-                  onClick={addTag}
-                  className="inline-flex h-7 items-center justify-center rounded-md border border-input bg-background px-2 text-xs font-medium hover:bg-accent hover:text-accent-foreground"
-                >
-                  +
-                </button>
-              </div>
-            </div>
+            <TagAutocomplete
+              tags={tags}
+              onTagsChange={setTags}
+              userTags={userTags}
+            />
           </CardContent>
         </Card>
+
+        {/* Strategy */}
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
+              <Crosshair className="h-4 w-4" />
+              {t("trades.strategy")}
+            </h3>
+            <StrategySelector
+              value={strategyId}
+              onChange={setStrategyId}
+              strategies={strategies}
+            />
+          </CardContent>
+        </Card>
+
         <div className="flex items-center gap-2">
           <button
             type="button"

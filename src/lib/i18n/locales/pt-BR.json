@@ -660,7 +660,8 @@
     "positiveDays": "Dias positivos",
     "netPnl": "Net P&L",
     "addNote": "Adicionar nota",
-    "viewDetails": "Ver detalhes"
+    "viewDetails": "Ver detalhes",
+    "editTrade": "Editar Trade"
   },
   "trades": {
     "title": "Trades",
@@ -704,7 +705,10 @@
     "exit": "Saída",
     "entryExit": "Entrada / Saída",
     "viewRealDataTradingView": "Ver dados reais no TradingView",
-    "realData": "Dados reais"
+    "realData": "Dados reais",
+    "strategy": "Estrategia",
+    "noStrategy": "Sem estrategia",
+    "createTag": "Criar \"{name}\""
   },
   "reports": {
     "title": "Relatórios",

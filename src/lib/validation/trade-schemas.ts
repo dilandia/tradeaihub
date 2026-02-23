@@ -48,6 +48,12 @@ export const UpdateTradeSchema = z.object({
   tags: z
     .array(z.string().trim().min(1, "Tag cannot be empty").max(50, "Tag too long"))
     .describe("Array of tags"),
+  strategyId: z
+    .string()
+    .uuid("Invalid strategy ID format")
+    .nullable()
+    .optional()
+    .describe("UUID of linked strategy (null to unlink)"),
 });
 
 export type UpdateTradeInput = z.infer<typeof UpdateTradeSchema>;

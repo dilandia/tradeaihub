@@ -21,6 +21,7 @@ export type DbTrade = {
   duration_minutes: number | null;
   profit_dollar: number | null;
   trading_account_id: string | null;
+  strategy_id: string | null;
   deleted_at: string | null;
 };
 
@@ -567,6 +568,8 @@ export function toCalendarTrades(trades: DbTrade[]): CalendarTrade[] {
     exit_time: t.exit_time ?? null,
     duration_minutes: t.duration_minutes != null ? Number(t.duration_minutes) : null,
     tags: t.tags?.length ? t.tags : undefined,
+    notes: t.notes ?? null,
+    strategy_id: t.strategy_id ?? null,
   }));
 }
 
