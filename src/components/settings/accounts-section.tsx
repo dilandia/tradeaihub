@@ -133,17 +133,35 @@ export function AccountsSection({ accounts: initial }: Props) {
       )
     );
 
-    toast.loading(`Sincronizando ${accountName}...`, { id: `sync-${accountId}` });
+    // Rotating sync messages to show progress
+    const syncSteps = [
+      t("settings.accountsPage.syncStep1"),
+      t("settings.accountsPage.syncStep2"),
+      t("settings.accountsPage.syncStep3"),
+      t("settings.accountsPage.syncStep4"),
+      t("settings.accountsPage.syncStep5"),
+      t("settings.accountsPage.syncStep6"),
+      t("settings.accountsPage.syncStep7"),
+    ];
+
+    let stepIndex = 0;
+    toast.loading(syncSteps[0], { id: `sync-${accountId}`, description: accountName });
+
+    const interval = setInterval(() => {
+      stepIndex = Math.min(stepIndex + 1, syncSteps.length - 1);
+      toast.loading(syncSteps[stepIndex], { id: `sync-${accountId}`, description: accountName });
+    }, 3000);
 
     startTransition(async () => {
       const result = await syncTradingAccount(accountId);
+      clearInterval(interval);
       if (result.success && result.account) {
         setAccounts((prev) =>
           prev.map((a) => (a.id === accountId ? result.account! : a))
         );
-        toast.success("Sincronização concluída", {
+        toast.success(t("settings.accountsPage.syncSuccess"), {
           id: `sync-${accountId}`,
-          description: `${accountName} sincronizada com sucesso.`,
+          description: `${accountName} ${t("settings.accountsPage.syncSuccessDesc")}`,
         });
       } else {
         setAccounts((prev) =>
@@ -153,7 +171,7 @@ export function AccountsSection({ accounts: initial }: Props) {
               : a
           )
         );
-        toast.error("Falha na sincronização", {
+        toast.error(t("settings.accountsPage.syncFailed"), {
           id: `sync-${accountId}`,
           description: result.error ?? "Erro desconhecido ao sincronizar.",
         });

@@ -957,7 +957,17 @@
       "statusError": "Erro",
       "statusDisconnected": "Desconectada",
       "typeAutoSync": "Auto-sync",
-      "typeManual": "Manual"
+      "typeManual": "Manual",
+      "syncStep1": "Conectando ao servidor...",
+      "syncStep2": "Autenticando credenciais...",
+      "syncStep3": "Extraindo dados de trades...",
+      "syncStep4": "Processando transações...",
+      "syncStep5": "Sincronizando com o banco de dados...",
+      "syncStep6": "Atualizando métricas...",
+      "syncStep7": "Finalizando sincronização...",
+      "syncSuccess": "Sincronização concluída",
+      "syncSuccessDesc": "sincronizada com sucesso.",
+      "syncFailed": "Falha na sincronização"
     },
     "importHistory": "Histórico de importação",
     "tags": "Tags",

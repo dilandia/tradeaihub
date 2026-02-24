@@ -968,7 +968,17 @@
       "statusError": "Error",
       "statusDisconnected": "Disconnected",
       "typeAutoSync": "Auto-sync",
-      "typeManual": "Manual"
+      "typeManual": "Manual",
+      "syncStep1": "Connecting to server...",
+      "syncStep2": "Authenticating credentials...",
+      "syncStep3": "Extracting trade data...",
+      "syncStep4": "Processing transactions...",
+      "syncStep5": "Syncing with database...",
+      "syncStep6": "Updating metrics...",
+      "syncStep7": "Finalizing sync...",
+      "syncSuccess": "Sync complete",
+      "syncSuccessDesc": "synced successfully.",
+      "syncFailed": "Sync failed"
     },
     "importHistory": "Import History",
     "tags": "Tags",
