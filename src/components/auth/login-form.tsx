@@ -79,7 +79,12 @@ export function LoginForm({ message }: Props) {
 
     try {
       await signIn(formData);
-    } catch (error) {
+    } catch (error: unknown) {
+      // Next.js redirect() throws internally — re-throw so the redirect completes
+      const digest = (error as Record<string, unknown>)?.digest;
+      if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+        throw error;
+      }
       setFormError(error instanceof Error ? error.message : "Login failed. Please try again.");
       setIsSubmitting(false);
     }
