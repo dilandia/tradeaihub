@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const REFERRER_REWARD_CREDITS = 50;
+const REFERRER_REWARD_CREDITS = 20;
 const REFERRED_BONUS_CREDITS = 10;
 
 // ─── Types ───────────────────────────────────────────────────────────────────

@@ -1428,9 +1428,9 @@
     "step2Title": "2. Amigo Se Cadastra",
     "step2": "Seu amigo se registra usando seu link e ganha 10 creditos de IA bonus.",
     "step3Title": "3. Ambos Ganham",
-    "step3": "Quando seu amigo assina um plano pago, voce ganha 50 creditos de IA!",
+    "step3": "Quando seu amigo assina um plano pago, voce ganha 20 creditos de IA!",
     "reward": "Detalhes da Recompensa",
-    "rewardDesc": "Voce ganha 50 creditos de IA para cada amigo que assinar um plano Pro ou Elite. Seu amigo ganha 10 creditos de IA bonus ao se cadastrar com seu link.",
+    "rewardDesc": "Voce ganha 20 creditos de IA para cada amigo que assinar um plano Pro ou Elite. Seu amigo ganha 10 creditos de IA bonus ao se cadastrar com seu link.",
     "credits": "creditos",
     "referralApplied": "Codigo de indicacao aplicado! Voce recebera 10 creditos de IA bonus."
   },

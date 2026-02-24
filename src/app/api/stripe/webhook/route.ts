@@ -194,16 +194,16 @@ export async function POST(req: Request) {
               .update({
                 status: "rewarded",
                 reward_type: "credits",
-                reward_amount: 50,
+                reward_amount: 20,
                 converted_at: refNow,
                 rewarded_at: refNow,
               })
               .eq("id", pendingRef.id);
 
-            // Grant 50 credits to the referrer
+            // Grant 20 credits to the referrer
             await supabase.rpc("add_referral_credits", {
               p_user_id: pendingRef.referrer_id,
-              p_amount: 50,
+              p_amount: 20,
             });
           }
         } catch (refErr) {
