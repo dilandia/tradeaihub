@@ -10,6 +10,7 @@ export type EmailEventType =
   | "import_completed"     // triggers: O2 skip, O3, T10
   | "ai_agent_used"        // triggers: O4 skip, C2
   | "feature_gate_hit"     // triggers: C1
+  | "aha_moment"           // triggers: C4 (first AI insight)
   | "strategy_created"     // triggers: O5 skip
   | "credit_limit_80"      // triggers: C3
   | "credits_exhausted"    // triggers: T11

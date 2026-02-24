@@ -14,6 +14,7 @@ import {
 import { periodToDateRange } from "@/lib/date-utils";
 import { RiskRequestSchema, validateAiRequest } from "@/lib/validation/ai-schemas";
 import { trackEvent } from "@/lib/email/events";
+import { fireAhaMomentEmail } from "@/lib/ai/aha-moment";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 
 export async function POST(req: NextRequest) {
@@ -125,6 +126,8 @@ export async function POST(req: NextRequest) {
     await setCachedInsight("risk", cacheParams, insights);
     await consumeCreditsAfterSuccess(user.id);
     trackEvent(user.id, "ai_agent_used", { agent_type: "risk" }).catch(() => {})
+    // C4: Aha moment — send email on first AI insight (fire-and-forget)
+    fireAhaMomentEmail(user.id, "risk_analysis").catch(() => {})
     return NextResponse.json(
       { insights },
       {

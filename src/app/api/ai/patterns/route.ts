@@ -8,6 +8,7 @@ import { getTrades, getTradesByDateRange, toCalendarTrades } from "@/lib/trades"
 import { periodToDateRange } from "@/lib/date-utils";
 import { PatternsRequestSchema, validateAiRequest } from "@/lib/validation/ai-schemas";
 import { trackEvent } from "@/lib/email/events";
+import { fireAhaMomentEmail } from "@/lib/ai/aha-moment";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 
 function buildPatternsFromTrades(trades: CalendarTrade[]) {
@@ -123,6 +124,8 @@ export async function POST(req: NextRequest) {
     await setCachedInsight("patterns", cacheParams, insights);
     await consumeCreditsAfterSuccess(user.id);
     trackEvent(user.id, "ai_agent_used", { agent_type: "patterns" }).catch(() => {})
+    // C4: Aha moment — send email on first AI insight (fire-and-forget)
+    fireAhaMomentEmail(user.id, "pattern_detection").catch(() => {})
     return NextResponse.json(
       { insights },
       {

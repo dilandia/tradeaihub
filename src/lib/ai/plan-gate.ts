@@ -5,7 +5,7 @@
 
 import { getPlanInfo, getUserAiCredits, consumeAiCredits, ensureAiCreditsForPeriod } from "@/lib/plan";
 import { trackEvent } from "@/lib/email/events";
-import { sendCreditsExhaustedEmail } from "@/lib/email/send";
+import { sendCreditsExhaustedEmail, sendConversionC1Email } from "@/lib/email/send";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const CREDITS_PER_ANALYSIS = 1;
@@ -22,6 +22,8 @@ export async function checkAiCredits(userId: string): Promise<AiGateResult> {
     return { ok: false, error: "planErrors.aiFree", code: "plan" };
   }
   if (!planInfo.canUseAi) {
+    // C1: Feature gate hit — fire-and-forget email to Free users
+    fireFeatureGateEmail(userId, "AI Analysis").catch(() => {});
     return { ok: false, error: "planErrors.aiFree", code: "plan" };
   }
 
@@ -41,6 +43,8 @@ export async function checkAiCopilotCredits(userId: string): Promise<AiGateResul
     return { ok: false, error: "planErrors.aiCopilotElite", code: "plan" };
   }
   if (!planInfo.canUseAiCopilot) {
+    // C1: Feature gate hit — fire-and-forget email to non-Elite users
+    fireFeatureGateEmail(userId, "AI Copilot").catch(() => {});
     return { ok: false, error: "planErrors.aiCopilotElite", code: "plan" };
   }
 
@@ -102,5 +106,34 @@ export async function consumeCreditsAfterSuccess(userId: string): Promise<void> 
   const result = await consumeAiCredits(userId, CREDITS_PER_ANALYSIS);
   if (result.success) {
     checkCreditThresholds(userId).catch(() => {})
+  }
+}
+
+/**
+ * C1: Fire feature gate email when a Free user hits a plan restriction.
+ * Fire-and-forget — never blocks the calling function.
+ */
+async function fireFeatureGateEmail(userId: string, featureName: string): Promise<void> {
+  try {
+    trackEvent(userId, "feature_gate_hit", { feature: featureName }).catch(() => {})
+
+    const supabase = createAdminClient()
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("email, full_name, locale")
+      .eq("id", userId)
+      .single()
+
+    if (profile?.email) {
+      sendConversionC1Email({
+        to: profile.email,
+        userName: profile.full_name || undefined,
+        locale: profile.locale || undefined,
+        featureName,
+        userId,
+      }).catch(() => {})
+    }
+  } catch {
+    // Non-blocking — silently ignore feature gate email failures
   }
 }
