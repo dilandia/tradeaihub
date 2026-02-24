@@ -7,12 +7,13 @@ export function welcomeEmailHtml(params: WelcomeEmailParams): string {
   const isPt = params.locale?.startsWith("pt")
   const name = params.userName || "Trader"
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.tradeaihub.com"
+  const importUrl = `${appUrl}/import`
   const dashboardUrl = `${appUrl}/dashboard`
 
   const t = {
     preheader: isPt
-      ? `Bem-vindo ao Trade AI Hub, ${name}!`
-      : `Welcome to Trade AI Hub, ${name}!`,
+      ? `Comece em 2 minutos — importe seus trades e descubra insights com IA`
+      : `Get started in 2 minutes — import your trades and discover AI insights`,
     heading: isPt
       ? `Bem-vindo ao Trade AI Hub!`
       : `Welcome to Trade AI Hub!`,
@@ -20,26 +21,29 @@ export function welcomeEmailHtml(params: WelcomeEmailParams): string {
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Sua conta foi criada com sucesso. Estamos felizes em ter voce aqui. O Trade AI Hub vai te ajudar a analisar seus trades com inteligencia artificial.`
-      : `Your account has been created successfully. We're glad to have you here. Trade AI Hub will help you analyze your trades with artificial intelligence.`,
+      ? `Sua conta foi criada com sucesso! Junte-se a centenas de traders que ja estao analisando seu desempenho com inteligencia artificial.`
+      : `Your account has been created successfully! Join hundreds of traders already analyzing their performance with artificial intelligence.`,
     stepsTitle: isPt
-      ? `Primeiros passos:`
-      : `Getting started:`,
-    step1: isPt
-      ? `Importe seus trades (CSV ou conecte sua conta MT4/MT5)`
-      : `Import your trades (CSV or connect your MT4/MT5 account)`,
-    step2: isPt
-      ? `Explore o Dashboard com metricas em tempo real`
-      : `Explore the Dashboard with real-time metrics`,
-    step3: isPt
-      ? `Use o AI Hub para insights inteligentes sobre seu desempenho`
-      : `Use the AI Hub for smart insights about your performance`,
-    step4: isPt
-      ? `Configure alertas e acompanhe sua evolucao`
-      : `Set up alerts and track your progress`,
+      ? `Comece em 3 passos simples (leva 2 minutos):`
+      : `Get started in 3 simple steps (takes 2 minutes):`,
+    step1Title: isPt ? `Importe seus trades` : `Import your trades`,
+    step1Desc: isPt
+      ? `Exporte seu historico do MT4/MT5 e faca upload em segundos. Suportamos 15+ idiomas.`
+      : `Export your MT4/MT5 history and upload in seconds. We support 15+ languages.`,
+    step2Title: isPt ? `Explore seu Dashboard` : `Explore your Dashboard`,
+    step2Desc: isPt
+      ? `Veja suas metricas de performance, equity curve e analise detalhada.`
+      : `See your performance metrics, equity curve, and detailed analysis.`,
+    step3Title: isPt ? `Receba insights da IA` : `Get AI insights`,
+    step3Desc: isPt
+      ? `Nossos 7 agentes de IA analisam seus trades e encontram padroes, riscos e oportunidades.`
+      : `Our 7 AI agents analyze your trades and find patterns, risks, and opportunities.`,
     cta: isPt
-      ? `Ir para o Dashboard`
-      : `Go to Dashboard`,
+      ? `Importar Meus Trades`
+      : `Import My Trades`,
+    secondaryCta: isPt
+      ? `Ou explore o Dashboard primeiro`
+      : `Or explore your Dashboard first`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,
@@ -95,28 +99,42 @@ export function welcomeEmailHtml(params: WelcomeEmailParams): string {
               <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#94a3b8;">
                 ${t.intro}
               </p>
-              <p style="margin:0 0 16px;font-size:15px;font-weight:600;color:#e2e8f0;">
+              <p style="margin:0 0 20px;font-size:15px;font-weight:600;color:#e2e8f0;">
                 ${t.stepsTitle}
               </p>
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <!-- Step 1 -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
                 <tr>
-                  <td style="padding:8px 0;font-size:14px;line-height:1.5;color:#94a3b8;">
-                    <span style="color:#6366f1;font-weight:700;margin-right:8px;">1.</span> ${t.step1}
+                  <td width="36" valign="top" style="padding-top:2px;">
+                    <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#7c3aed);text-align:center;line-height:28px;font-size:14px;font-weight:700;color:#ffffff;">1</div>
+                  </td>
+                  <td style="padding-left:12px;">
+                    <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#e2e8f0;">${t.step1Title}</p>
+                    <p style="margin:0;font-size:13px;line-height:1.5;color:#94a3b8;">${t.step1Desc}</p>
                   </td>
                 </tr>
+              </table>
+              <!-- Step 2 -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
                 <tr>
-                  <td style="padding:8px 0;font-size:14px;line-height:1.5;color:#94a3b8;">
-                    <span style="color:#6366f1;font-weight:700;margin-right:8px;">2.</span> ${t.step2}
+                  <td width="36" valign="top" style="padding-top:2px;">
+                    <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#7c3aed);text-align:center;line-height:28px;font-size:14px;font-weight:700;color:#ffffff;">2</div>
+                  </td>
+                  <td style="padding-left:12px;">
+                    <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#e2e8f0;">${t.step2Title}</p>
+                    <p style="margin:0;font-size:13px;line-height:1.5;color:#94a3b8;">${t.step2Desc}</p>
                   </td>
                 </tr>
+              </table>
+              <!-- Step 3 -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
                 <tr>
-                  <td style="padding:8px 0;font-size:14px;line-height:1.5;color:#94a3b8;">
-                    <span style="color:#6366f1;font-weight:700;margin-right:8px;">3.</span> ${t.step3}
+                  <td width="36" valign="top" style="padding-top:2px;">
+                    <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#7c3aed);text-align:center;line-height:28px;font-size:14px;font-weight:700;color:#ffffff;">3</div>
                   </td>
-                </tr>
-                <tr>
-                  <td style="padding:8px 0;font-size:14px;line-height:1.5;color:#94a3b8;">
-                    <span style="color:#6366f1;font-weight:700;margin-right:8px;">4.</span> ${t.step4}
+                  <td style="padding-left:12px;">
+                    <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#e2e8f0;">${t.step3Title}</p>
+                    <p style="margin:0;font-size:13px;line-height:1.5;color:#94a3b8;">${t.step3Desc}</p>
                   </td>
                 </tr>
               </table>
@@ -124,16 +142,24 @@ export function welcomeEmailHtml(params: WelcomeEmailParams): string {
           </tr>
           <!-- CTA Button -->
           <tr>
-            <td style="padding:8px 40px 40px;text-align:center;">
+            <td style="padding:8px 40px 12px;text-align:center;">
               <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
                 <tr>
                   <td style="border-radius:8px;background:linear-gradient(to right,#6366f1,#7c3aed);">
-                    <a href="${dashboardUrl}" target="_blank" style="display:inline-block;padding:14px 32px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">
+                    <a href="${importUrl}" target="_blank" style="display:inline-block;padding:14px 32px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">
                       ${t.cta}
                     </a>
                   </td>
                 </tr>
               </table>
+            </td>
+          </tr>
+          <!-- Secondary CTA -->
+          <tr>
+            <td style="padding:0 40px 32px;text-align:center;">
+              <a href="${dashboardUrl}" target="_blank" style="font-size:13px;color:#6366f1;text-decoration:underline;">
+                ${t.secondaryCta}
+              </a>
             </td>
           </tr>
           <!-- Divider -->

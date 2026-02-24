@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { trackEvent } from "@/lib/email/events";
 
 /* ─── Types ─── */
 
@@ -107,6 +108,7 @@ export async function createStrategy(
   }
 
   revalidatePath("/strategies");
+  trackEvent(user.id, "strategy_created").catch(() => {})
   return { success: true, id: data?.id };
 }
 

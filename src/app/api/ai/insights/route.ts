@@ -9,6 +9,7 @@ import { periodToDateRange } from "@/lib/date-utils";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { InsightsRequestSchema, validateAiRequest } from "@/lib/validation/ai-schemas";
 import { getCorsHeaders, handleCorsPrelight } from "@/lib/cors";
+import { trackEvent } from "@/lib/email/events";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 
 export async function OPTIONS(req: NextRequest) {
@@ -118,6 +119,7 @@ export async function POST(req: NextRequest) {
 
     await setCachedInsight("insights", cacheParams, insights);
     await consumeCreditsAfterSuccess(user.id);
+    trackEvent(user.id, "ai_agent_used", { agent_type: "insights" }).catch(() => {})
     return NextResponse.json(
       { insights },
       {

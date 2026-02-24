@@ -7,6 +7,7 @@ import { checkAiCredits, consumeCreditsAfterSuccess } from "@/lib/ai/plan-gate";
 import { getTrades, getTradesByDateRange, toCalendarTrades } from "@/lib/trades";
 import { periodToDateRange } from "@/lib/date-utils";
 import { PatternsRequestSchema, validateAiRequest } from "@/lib/validation/ai-schemas";
+import { trackEvent } from "@/lib/email/events";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 
 function buildPatternsFromTrades(trades: CalendarTrade[]) {
@@ -121,6 +122,7 @@ export async function POST(req: NextRequest) {
 
     await setCachedInsight("patterns", cacheParams, insights);
     await consumeCreditsAfterSuccess(user.id);
+    trackEvent(user.id, "ai_agent_used", { agent_type: "patterns" }).catch(() => {})
     return NextResponse.json(
       { insights },
       {

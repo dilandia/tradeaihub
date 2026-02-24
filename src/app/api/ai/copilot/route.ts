@@ -17,6 +17,7 @@ import {
 import { checkRateLimit } from "@/lib/rate-limit";
 import { CopilotRequestSchema, validateAiRequest } from "@/lib/validation/ai-schemas";
 import { getCorsHeaders, handleCorsPrelight } from "@/lib/cors";
+import { trackEvent } from "@/lib/email/events";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 
 const MAX_HISTORY_MESSAGES = 10;
@@ -186,6 +187,7 @@ export async function POST(req: NextRequest) {
           await addMessage(conversationId!, "user", message.trim(), user.id);
           await addMessage(conversationId!, "assistant", fullContent.trim(), user.id);
           await consumeCopilotCreditsAfterSuccess(user.id);
+          trackEvent(user.id, "ai_agent_used", { agent_type: "copilot" }).catch(() => {})
         } catch (err) {
           console.error("[AI Copilot stream]", err);
           controller.error(err);

@@ -196,7 +196,7 @@ export async function getPlanInfo(userId: string | null): Promise<PlanInfo | nul
 export async function consumeAiCredits(
   userId: string,
   amount: number
-): Promise<boolean> {
+): Promise<{ success: boolean; creditsRemaining: number }> {
   const supabase = createAdminClient();
   const { data, error } = await supabase.rpc("consume_ai_credits_atomic", {
     p_user_id: userId,
@@ -205,12 +205,15 @@ export async function consumeAiCredits(
 
   if (error) {
     console.error(`Failed to consume AI credits for user ${userId}:`, error);
-    return false;
+    return { success: false, creditsRemaining: -1 };
   }
 
   // RPC returns { success: boolean, credits_remaining: integer }
   const result = data as { success: boolean; credits_remaining: number } | null;
-  return result?.success ?? false;
+  return {
+    success: result?.success ?? false,
+    creditsRemaining: result?.credits_remaining ?? -1,
+  };
 }
 
 /** Garante que o usuário tem registro em ai_credits e reseta período se necessário.

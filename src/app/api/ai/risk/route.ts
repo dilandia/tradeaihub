@@ -13,6 +13,7 @@ import {
 } from "@/lib/dashboard-calc";
 import { periodToDateRange } from "@/lib/date-utils";
 import { RiskRequestSchema, validateAiRequest } from "@/lib/validation/ai-schemas";
+import { trackEvent } from "@/lib/email/events";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 
 export async function POST(req: NextRequest) {
@@ -123,6 +124,7 @@ export async function POST(req: NextRequest) {
 
     await setCachedInsight("risk", cacheParams, insights);
     await consumeCreditsAfterSuccess(user.id);
+    trackEvent(user.id, "ai_agent_used", { agent_type: "risk" }).catch(() => {})
     return NextResponse.json(
       { insights },
       {

@@ -8,6 +8,7 @@ import { getTrades, getTradesByDateRange, toCalendarTrades } from "@/lib/trades"
 import { buildPerformanceMetrics } from "@/lib/dashboard-calc";
 import { periodToDateRange } from "@/lib/date-utils";
 import { ReportSummaryRequestSchema, validateAiRequest } from "@/lib/validation/ai-schemas";
+import { trackEvent } from "@/lib/email/events";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 
 export async function POST(req: NextRequest) {
@@ -102,6 +103,7 @@ export async function POST(req: NextRequest) {
 
     await setCachedInsight("report-summary", cacheParams, summary);
     await consumeCreditsAfterSuccess(user.id);
+    trackEvent(user.id, "ai_agent_used", { agent_type: "report-summary" }).catch(() => {})
     return NextResponse.json(
       { summary },
       {

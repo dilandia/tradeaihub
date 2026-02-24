@@ -10,6 +10,9 @@ import {
   UpdateTradeSchema,
   validateTradeFormData,
 } from "@/lib/validation/trade-schemas";
+import { trackEvent } from "@/lib/email/events";
+import { sendImportCompletedEmail } from "@/lib/email/send";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /* ─────────────────────────────────────────────
  * Criar trade manualmente
@@ -189,6 +192,31 @@ export async function importTradesFromFile(formData: FormData): Promise<{
   revalidatePath("/", "layout");
   revalidatePath("/import");
   revalidateTag("trades");
+
+  // Track import completed event + send email (fire-and-forget)
+  trackEvent(user.id, "import_completed", {
+    trade_count: trades.length,
+    account_name: file.name,
+  }).catch(() => {})
+
+  const adminSupabase = createAdminClient()
+  const { data: profile } = await adminSupabase
+    .from("profiles")
+    .select("email, full_name, locale")
+    .eq("id", user.id)
+    .single()
+
+  if (profile?.email) {
+    sendImportCompletedEmail({
+      to: profile.email,
+      userName: profile.full_name || undefined,
+      locale: profile.locale || undefined,
+      tradeCount: trades.length,
+      accountName: file.name || "Unknown",
+      userId: user.id,
+    }).catch(() => {})
+  }
+
   return { imported: trades.length, importId };
 }
 

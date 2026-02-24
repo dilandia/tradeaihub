@@ -11,6 +11,7 @@ import {
 } from "@/lib/dashboard-calc";
 import { periodToDateRange } from "@/lib/date-utils";
 import { TakerzScoreRequestSchema, validateAiRequest } from "@/lib/validation/ai-schemas";
+import { trackEvent } from "@/lib/email/events";
 
 export async function POST(req: NextRequest) {
   try {
@@ -93,6 +94,7 @@ export async function POST(req: NextRequest) {
 
     await setCachedInsight("takerz-score", cacheParams, insights);
     await consumeCreditsAfterSuccess(user.id);
+    trackEvent(user.id, "ai_agent_used", { agent_type: "takerz-score" }).catch(() => {})
     return NextResponse.json(
       { insights },
       {

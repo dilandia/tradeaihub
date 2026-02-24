@@ -14,7 +14,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { sendPaymentFailedEmail } from "@/lib/email/send";
+import { sendPaymentFailedEmail, sendPaymentConfirmationEmail, sendUpgradeConfirmedEmail, sendCancellationEmail } from "@/lib/email/send";
+import { trackEvent } from "@/lib/email/events";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -178,6 +179,49 @@ export async function POST(req: Request) {
           );
         }
 
+        trackEvent(userId, "plan_upgraded", { plan }).catch(() => {})
+
+        // Send payment confirmation + upgrade email
+        try {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("email, full_name, locale")
+            .eq("id", userId)
+            .single();
+
+          if (profile?.email) {
+            const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+            const nextDate = periodEnd
+              ? new Date(periodEnd).toLocaleDateString(profile.locale?.startsWith("pt") ? "pt-BR" : "en-US", { year: "numeric", month: "long", day: "numeric" })
+              : "—";
+            const amount = session.amount_total
+              ? `$${(session.amount_total / 100).toFixed(2)}`
+              : "—";
+
+            // Fire-and-forget: don't block webhook
+            sendPaymentConfirmationEmail({
+              to: profile.email,
+              userName: profile.full_name || undefined,
+              locale: profile.locale || undefined,
+              planName: planLabel,
+              amountPaid: amount,
+              nextBillingDate: nextDate,
+              userId,
+            }).catch((e) => console.error("[stripe/webhook] payment confirmation email error:", e));
+
+            sendUpgradeConfirmedEmail({
+              to: profile.email,
+              userName: profile.full_name || undefined,
+              locale: profile.locale || undefined,
+              planName: planLabel,
+              nextBillingDate: nextDate,
+              userId,
+            }).catch((e) => console.error("[stripe/webhook] upgrade confirmed email error:", e));
+          }
+        } catch (emailErr) {
+          console.error("[stripe/webhook] Failed to send checkout emails:", emailErr);
+        }
+
         // Convert referral: if this user was referred and is subscribing for the first time
         try {
           const { data: pendingRef } = await supabase
@@ -252,6 +296,39 @@ export async function POST(req: Request) {
             .from("ai_credits")
             .update({ credits_remaining: 0, updated_at: new Date().toISOString() })
             .eq("user_id", userId);
+
+          // Send cancellation email and track event
+          try {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("email, full_name, locale")
+              .eq("id", userId)
+              .single();
+
+            if (profile?.email) {
+              const periodEnd = firstItem?.current_period_end;
+              const accessEndDate = periodEnd
+                ? new Date(periodEnd * 1000).toLocaleDateString(
+                    profile.locale?.startsWith("pt") ? "pt-BR" : "en-US",
+                    { year: "numeric", month: "long", day: "numeric" }
+                  )
+                : "—";
+
+              sendCancellationEmail({
+                to: profile.email,
+                userName: profile.full_name || undefined,
+                locale: profile.locale || undefined,
+                planName: subscription.metadata?.plan || "Pro",
+                accessEndDate,
+                userId,
+              }).catch((e) => console.error("[stripe/webhook] cancellation email error:", e));
+            }
+
+            // Track event for email lifecycle
+            trackEvent(userId, "plan_cancelled").catch(() => {});
+          } catch (emailErr) {
+            console.error("[stripe/webhook] Failed to send cancellation email:", emailErr);
+          }
         }
         break;
       }
