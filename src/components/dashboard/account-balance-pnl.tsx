@@ -42,7 +42,7 @@ export function AccountBalancePnl({
       <CardContent className="flex min-h-0 flex-1 flex-col justify-center gap-0.5 pt-0">
         <div
           className={cn(
-            "text-lg font-bold leading-tight sm:text-xl",
+            "truncate text-lg font-bold leading-tight sm:text-xl",
             variant === "profit" && "text-profit",
             variant === "loss" && "text-loss",
             variant === "default" && "text-foreground"
@@ -52,7 +52,7 @@ export function AccountBalancePnl({
         </div>
         <p
           className={cn(
-            "text-[11px] leading-tight",
+            "truncate text-[11px] leading-tight",
             variant === "profit" && "text-profit/80",
             variant === "loss" && "text-loss/80",
             variant === "default" && "text-muted-foreground"

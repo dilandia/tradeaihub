@@ -79,7 +79,7 @@ export function DashboardShell({ children, accounts, imports, userName }: Props)
       <FeedbackButton />
       <NpsSurvey />
       <Sidebar />
-      <main className="lg:pl-64">
+      <main className="min-w-0 overflow-x-hidden lg:pl-64">
         <GlobalHeader userName={userName} />
         {children}
       </main>

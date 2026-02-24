@@ -11,9 +11,9 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         </div>
       </header>
 
-      <div className="flex">
+      <div className="flex flex-col lg:flex-row">
         <SettingsSidebar />
-        <div className="flex-1 p-4 lg:p-6">{children}</div>
+        <div className="min-w-0 flex-1 p-4 lg:p-6">{children}</div>
       </div>
     </div>
   );

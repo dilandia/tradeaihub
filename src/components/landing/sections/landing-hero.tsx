@@ -42,16 +42,16 @@ function MockDashboardCard() {
   return (
     <div className="relative mx-auto mt-12 max-w-2xl lg:mt-16">
       <div className="absolute -inset-4 rounded-2xl bg-gradient-to-r from-indigo-500/20 via-violet-500/10 to-indigo-500/20 blur-xl" />
-      <div className="relative rounded-xl border border-white/10 bg-[#12121f]/90 p-6 backdrop-blur-sm">
+      <div className="relative rounded-xl border border-white/10 bg-[#12121f]/90 p-4 backdrop-blur-sm sm:p-6">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-wider text-gray-500">
+        <div className="mb-4 flex items-center justify-between gap-2 sm:mb-6">
+          <div className="min-w-0">
+            <p className="truncate text-xs uppercase tracking-wider text-gray-500">
               Portfolio Performance
             </p>
-            <p className="mt-1 text-2xl font-bold text-white">+$4,832.50</p>
+            <p className="mt-1 text-xl font-bold text-white sm:text-2xl">+$4,832.50</p>
           </div>
-          <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 sm:px-3">
             <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
             <span className="text-xs font-medium text-emerald-400">+12.4%</span>
           </div>
@@ -75,7 +75,7 @@ function MockDashboardCard() {
         </div>
 
         {/* Stats row */}
-        <div className="mt-6 grid grid-cols-3 gap-4 border-t border-white/5 pt-4">
+        <div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/5 pt-4 sm:mt-6 sm:gap-4">
           <div>
             <p className="text-xs text-gray-500">Win Rate</p>
             <p className="text-sm font-semibold text-white">67.8%</p>
@@ -112,7 +112,7 @@ export function LandingHero() {
         }
 
   return (
-    <section className="relative min-h-[90vh] overflow-hidden bg-[#121212] px-4 pt-32 pb-20 sm:px-6 sm:pt-40 sm:pb-28 lg:px-8">
+    <section className="relative min-h-[90vh] overflow-hidden bg-[#121212] px-3 pt-32 pb-20 sm:px-6 sm:pt-40 sm:pb-28 lg:px-8">
       {/* Radial glow overlay */}
       <div
         className="pointer-events-none absolute inset-0 -z-0"
@@ -162,11 +162,11 @@ export function LandingHero() {
         {/* Trust badges */}
         <MotionOrDiv
           {...motionProps(0.4)}
-          className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-400"
+          className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-gray-400 px-2"
         >
           {TRUST_BADGES.map(({ icon: Icon, key }) => (
-            <span key={key} className="flex items-center gap-1.5">
-              <Icon className="h-4 w-4" />
+            <span key={key} className="flex items-center gap-1.5 whitespace-nowrap">
+              <Icon className="h-4 w-4 shrink-0" />
               {t(key)}
             </span>
           ))}

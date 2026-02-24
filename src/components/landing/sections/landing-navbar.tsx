@@ -122,7 +122,7 @@ export function LandingNavbar() {
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="border-t border-white/[0.06] bg-[#121212]/95 backdrop-blur-xl md:hidden overflow-hidden"
           >
-            <nav className="flex flex-col gap-1 px-4 py-4">
+            <nav className="flex flex-col gap-1 px-4 py-4 overflow-hidden">
               {NAV_LINKS.map(({ key, href }) => (
                 <a
                   key={key}

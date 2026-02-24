@@ -63,14 +63,14 @@ export function LanguageSelector() {
           className="fixed max-w-[calc(100vw-1rem)] w-48 rounded-xl border border-border bg-card p-1 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
           style={(() => {
             const dropdownWidth = 192;
-            const spaceRight = window.innerWidth - dropdownRect.right;
-            const spaceLeft = dropdownRect.left;
+            const vw = window.innerWidth;
             const pos: React.CSSProperties = { top: dropdownRect.bottom + 6 };
-            if (spaceRight >= dropdownWidth || spaceRight >= spaceLeft) {
-              pos.right = Math.max(8, spaceRight);
-            } else {
-              pos.left = Math.max(8, spaceLeft);
+            // Right-align with button, clamped to viewport
+            let right = vw - dropdownRect.right;
+            if (vw - right - dropdownWidth < 8) {
+              right = vw - dropdownWidth - 8;
             }
+            pos.right = Math.max(8, right);
             return pos;
           })()}
         >

@@ -44,7 +44,7 @@ export function MetricCard({
       <CardContent className="flex min-h-0 flex-1 flex-col justify-center pt-0">
         <div
           className={cn(
-            "flex items-center gap-1.5 text-lg font-bold leading-tight sm:text-xl",
+            "flex items-center gap-1.5 text-lg font-bold leading-tight sm:text-xl min-w-0",
             variant === "profit" && "text-profit",
             variant === "loss" && "text-loss",
             variant === "score" && "text-score",
@@ -53,7 +53,7 @@ export function MetricCard({
         >
           {trend === "up" && <TrendingUp className="h-4 w-4 shrink-0 text-profit" aria-hidden />}
           {trend === "down" && <TrendingDown className="h-4 w-4 shrink-0 text-loss" aria-hidden />}
-          {value}
+          <span className="truncate">{value}</span>
         </div>
         {subtitle && <p className="mt-0.5 text-[11px] text-muted-foreground">{subtitle}</p>}
         {children}

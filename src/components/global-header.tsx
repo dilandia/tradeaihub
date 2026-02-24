@@ -56,7 +56,7 @@ export function GlobalHeader({ userName }: Props) {
 
   return (
     <header className="sticky top-0 z-[100] border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-14 items-center gap-2 pl-14 pr-3 sm:gap-3 sm:pr-4 lg:pl-6 lg:pr-6">
+      <div className="flex h-14 items-center gap-1.5 overflow-x-auto pl-14 pr-3 scrollbar-none sm:gap-3 sm:pr-4 lg:pl-6 lg:pr-6">
         {/* Left: user greeting */}
         <div className="hidden flex-col lg:flex">
           <span className="text-sm font-semibold text-foreground">
@@ -74,7 +74,7 @@ export function GlobalHeader({ userName }: Props) {
         <div className="flex-1" />
 
         {/* Right: actions — compact on mobile */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {/* Plan badge — hidden below sm */}
           {isPlanLoading ? (
             <span className="hidden h-6 w-14 animate-pulse rounded-full bg-muted sm:inline-block" />

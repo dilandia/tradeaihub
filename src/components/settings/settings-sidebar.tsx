@@ -82,8 +82,8 @@ export function SettingsSidebar() {
 
   return (
     <>
-      {/* Mobile: scroll horizontal */}
-      <div className="overflow-x-auto border-b border-border px-4 py-2 lg:hidden">
+      {/* Mobile: grid 2 rows showing all options */}
+      <div className="border-b border-border px-3 py-2 lg:hidden">
         <MobileNav t={t} />
       </div>
       {/* Desktop: sidebar vertical */}
@@ -100,7 +100,7 @@ function MobileNav({ t }: { t: (k: string) => string }) {
   const allItems = [...USER_NAV, ...GENERAL_NAV];
 
   return (
-    <nav className="flex gap-1">
+    <nav className="grid grid-cols-4 gap-1">
       {allItems.map(({ href, labelKey, icon: Icon, disabled }) => {
         const isActive = pathname === href;
         return (
@@ -108,7 +108,7 @@ function MobileNav({ t }: { t: (k: string) => string }) {
             key={href}
             href={disabled ? "#" : href}
             className={cn(
-              "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors",
+              "flex flex-col items-center gap-1 rounded-lg px-1 py-2 text-[10px] font-medium leading-tight text-center transition-colors",
               isActive
                 ? "bg-score/10 text-score"
                 : disabled
@@ -117,8 +117,8 @@ function MobileNav({ t }: { t: (k: string) => string }) {
             )}
             onClick={(e) => disabled && e.preventDefault()}
           >
-            <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            {t(labelKey)}
+            <Icon className="h-4 w-4 shrink-0" aria-hidden />
+            <span className="truncate w-full">{t(labelKey)}</span>
           </Link>
         );
       })}

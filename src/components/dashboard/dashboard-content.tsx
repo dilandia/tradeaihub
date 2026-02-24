@@ -763,7 +763,7 @@ export function DashboardContent({
       )}
       {/* ═══════ TOOLBAR (filtros, view mode, widgets) ═══════ */}
       <div className="sticky top-14 z-20 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex min-h-[48px] items-center gap-2 overflow-x-auto px-4 lg:px-6 scrollbar-none">
+        <div className="flex min-h-[48px] items-center gap-1.5 overflow-x-auto px-4 lg:gap-2 lg:px-6 scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
           <span className="shrink-0 text-sm font-semibold text-foreground">{t("dashboard.title")}</span>
           <div className="min-w-2 flex-1" />
           <LayoutProfileSwitcher

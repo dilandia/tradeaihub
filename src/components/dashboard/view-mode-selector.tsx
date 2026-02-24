@@ -89,14 +89,14 @@ export function ViewModeSelector({ value, onChange }: Props) {
           className="fixed max-w-[calc(100vw-1rem)] w-56 rounded-xl border border-border bg-card p-1.5 shadow-lg animate-in fade-in-0 zoom-in-95 z-[9999]"
           style={(() => {
             const dropdownWidth = 224;
-            const spaceRight = window.innerWidth - rect.right;
-            const spaceLeft = rect.left;
+            const vw = window.innerWidth;
             const pos: React.CSSProperties = { top: rect.bottom + 6 };
-            if (spaceRight >= dropdownWidth || spaceRight >= spaceLeft) {
-              pos.right = Math.max(8, spaceRight);
-            } else {
-              pos.left = Math.max(8, spaceLeft);
+            // Right-align with button, clamped to viewport
+            let right = vw - rect.right;
+            if (vw - right - dropdownWidth < 8) {
+              right = vw - dropdownWidth - 8;
             }
+            pos.right = Math.max(8, right);
             return pos;
           })()}
         >

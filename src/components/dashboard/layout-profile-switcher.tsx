@@ -88,17 +88,17 @@ export function LayoutProfileSwitcher({
       {open && typeof document !== "undefined" && rect && createPortal(
         <div
           ref={dropdownRef}
-          className="fixed max-w-[calc(100vw-1rem)] min-w-[220px] rounded-xl border border-border bg-popover py-2 shadow-xl z-[9999]"
+          className="fixed max-w-[calc(100vw-1rem)] min-w-[220px] rounded-xl border border-border bg-card py-2 shadow-xl z-[9999]"
           style={(() => {
             const dropdownWidth = 220;
-            const spaceRight = window.innerWidth - rect.right;
-            const spaceLeft = rect.left;
+            const vw = window.innerWidth;
             const pos: React.CSSProperties = { top: rect.bottom + 6 };
-            if (spaceRight >= dropdownWidth || spaceRight >= spaceLeft) {
-              pos.right = Math.max(8, spaceRight);
-            } else {
-              pos.left = Math.max(8, spaceLeft);
+            // Right-align with button, clamped to viewport
+            let right = vw - rect.right;
+            if (vw - right - dropdownWidth < 8) {
+              right = vw - dropdownWidth - 8;
             }
+            pos.right = Math.max(8, right);
             return pos;
           })()}
         >
