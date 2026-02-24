@@ -9,27 +9,27 @@ export function retentionR6PreCancellationHtml(params: RetentionR6Params): strin
 
   const t = {
     preheader: isPt
-      ? `Antes de ir, queremos ajudar. Sua opiniao importa para nos.`
-      : `Before you go, we want to help. Your feedback matters to us.`,
-    heading: isPt ? `Antes de Ir...` : `Before You Go...`,
+      ? `Antes de cancelar, veja o que voce perderia — e o que podemos fazer`
+      : `Before you cancel, see what you'd lose — and what we can do`,
+    heading: isPt ? `Podemos Conversar?` : `Can We Talk?`,
     greeting: isPt ? `Oi ${name},` : `Hey ${name},`,
     intro: isPt
-      ? `Percebemos que voce visitou a pagina de cancelamento. Antes de tomar uma decisao, queremos que saiba que estamos aqui para ajudar.`
-      : `We noticed you visited the cancellation page. Before you make a decision, we want you to know we're here to help.`,
-    valueTitle: isPt ? `O que voce tem acesso:` : `What you have access to:`,
+      ? `${name}, percebemos que voce esta considerando cancelar. Antes de tomar essa decisao, queremos entender: tem algo que nao esta funcionando para voce?`
+      : `${name}, we noticed you're considering canceling. Before you make that decision, we want to understand: is something not working for you?`,
+    valueTitle: isPt ? `Se voce cancelar, vai perder acesso a:` : `If you cancel, you'll lose access to:`,
     value1: isPt
-      ? `Todas as analises de IA e insights dos seus trades`
-      : `All AI analysis and insights from your trades`,
+      ? `Todos os insights e analises de IA acumulados`
+      : `All accumulated AI insights and analysis`,
     value2: isPt
-      ? `Historico completo de performance e evolucao`
-      : `Complete performance history and evolution`,
+      ? `Historico completo de evolucao do seu trading`
+      : `Complete history of your trading evolution`,
     value3: isPt
-      ? `7 agentes de IA para diferentes analises`
-      : `7 AI agents for different analysis types`,
+      ? `Agentes de IA personalizados para seu perfil`
+      : `AI agents personalized for your profile`,
     helpTitle: isPt ? `Podemos ajudar:` : `We can help:`,
     help1: isPt
-      ? `Se o preco e um problema, podemos encontrar uma solucao`
-      : `If pricing is an issue, we can find a solution`,
+      ? `Se o preco e a questao, podemos encontrar uma solucao`
+      : `If price is the issue, we can find a solution`,
     help2: isPt
       ? `Se algo nao esta funcionando, queremos corrigir`
       : `If something isn't working, we want to fix it`,
@@ -37,9 +37,9 @@ export function retentionR6PreCancellationHtml(params: RetentionR6Params): strin
       ? `Se voce precisa de uma funcionalidade diferente, conte para nos`
       : `If you need a different feature, let us know`,
     closing: isPt
-      ? `Sua opiniao e muito importante para nos. Adorariamos ouvir como podemos melhorar.`
-      : `Your feedback is very important to us. We'd love to hear how we can improve.`,
-    cta: isPt ? `Fale Conosco` : `Talk to Us`,
+      ? `Responda este email e vamos conversar. Queremos encontrar uma solucao que funcione para voce.`
+      : `Reply to this email and let's talk. We want to find a solution that works for you.`,
+    cta: isPt ? `Prefiro Continuar` : `I'd Rather Stay`,
     ctaFeedback: isPt ? `Dar Feedback` : `Give Feedback`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`

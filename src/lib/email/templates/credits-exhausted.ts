@@ -13,17 +13,17 @@ export function creditsExhaustedEmailHtml(params: CreditsExhaustedParams): strin
 
   const t = {
     preheader: isPt
-      ? `Seus creditos de IA acabaram — veja o que voce ainda pode fazer`
-      : `Your AI credits are exhausted — see what you can still do`,
+      ? `Os insights de IA pararam — mas seus trades continuam precisando de analise`
+      : `AI insights stopped — but your trades still need analysis`,
     heading: isPt
-      ? `Creditos de IA Esgotados`
-      : `AI Credits Exhausted`,
+      ? `Creditos Esgotados`
+      : `Credits Used Up`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Seus creditos de IA no plano <strong style="color:#a855f7;">${params.currentPlan}</strong> chegaram a zero. Mas nao se preocupe — voce ainda pode usar varios recursos da plataforma.`
-      : `Your AI credits on the <strong style="color:#a855f7;">${params.currentPlan}</strong> Plan have reached zero. But don't worry — you can still use many platform features.`,
+      ? `Voce usou todos os seus creditos de IA no plano <strong style="color:#a855f7;">${params.currentPlan}</strong>. Isso significa que voce estava extraindo valor real da plataforma. A boa noticia: voce ainda pode usar varios recursos.`
+      : `You've used all your AI credits on the <strong style="color:#a855f7;">${params.currentPlan}</strong> plan. This means you were getting real value from the platform. The good news: you can still use many features.`,
     availableTitle: isPt
       ? `Recursos que continuam disponiveis:`
       : `Features still available:`,
@@ -33,18 +33,18 @@ export function creditsExhaustedEmailHtml(params: CreditsExhaustedParams): strin
     avail4: isPt ? `Calendario economico` : `Economic calendar`,
     outro: isPt
       ? isFree
-        ? `Para desbloquear mais creditos de IA e recursos premium, considere fazer upgrade para o Pro.`
-        : `Voce pode adquirir creditos adicionais para continuar usando os agentes de IA.`
+        ? `Para voltar a ter acesso completo a IA e desbloquear recursos premium, o Pro e o proximo passo natural.`
+        : `Quer continuar usando os agentes de IA sem esperar? Adicione creditos extras agora.`
       : isFree
-        ? `To unlock more AI credits and premium features, consider upgrading to Pro.`
-        : `You can purchase additional credits to continue using the AI agents.`,
+        ? `To regain full AI access and unlock premium features, Pro is the natural next step.`
+        : `Want to keep using AI agents without waiting? Add extra credits now.`,
     cta: isPt
       ? isFree
-        ? `Fazer Upgrade para Pro`
-        : `Comprar Mais Creditos`
+        ? `Desbloquear IA Completa`
+        : `Adicionar Creditos`
       : isFree
-        ? `Upgrade to Pro`
-        : `Buy More Credits`,
+        ? `Unlock Full AI`
+        : `Add Credits`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

@@ -11,17 +11,17 @@ export function conversionC6ValueRecapHtml(params: ConversionC6Params): string {
 
   const t = {
     preheader: isPt
-      ? `Veja o que seu plano Free oferece — e o que voce esta perdendo`
-      : `See what your Free plan offers — and what you're missing`,
+      ? `Voce ja fez muito no Trade AI Hub. Mas o melhor ainda esta bloqueado`
+      : `You've done a lot on Trade AI Hub. But the best is still locked`,
     heading: isPt
-      ? `Destaques do Seu Plano Free`
-      : `Your Free Plan Highlights`,
+      ? `Duas Semanas de Progresso`
+      : `Two Weeks of Progress`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Ja faz duas semanas que voce se juntou ao Trade AI Hub. Aqui esta um resumo do que seu plano Free oferece — e do que mais voce pode desbloquear.`
-      : `It's been two weeks since you joined Trade AI Hub. Here's a recap of what your Free plan offers — and what more you can unlock.`,
+      ? `Em apenas 14 dias, voce ja deu passos importantes na organizacao do seu trading. Imagine o que acontece quando voce desbloqueia o potencial completo.`
+      : `In just 14 days, you've taken important steps organizing your trading. Imagine what happens when you unlock the full potential.`,
     freeTitle: isPt ? `O que voce tem hoje:` : `What you have today:`,
     free1: isPt ? `Dashboard com metricas basicas de trading` : `Dashboard with basic trading metrics`,
     free2: isPt ? `1 conta de trading vinculada` : `1 linked trading account`,
@@ -33,7 +33,7 @@ export function conversionC6ValueRecapHtml(params: ConversionC6Params): string {
     pro3: isPt ? `Exportacao PDF dos seus relatorios` : `PDF export of your reports`,
     pro4: isPt ? `Estrategias ilimitadas e tags avancadas` : `Unlimited strategies and advanced tags`,
     pro5: isPt ? `5 contas de trading + 60 creditos de IA/mes` : `5 trading accounts + 60 AI credits/month`,
-    cta: isPt ? `Comparar Planos` : `Compare Plans`,
+    cta: isPt ? `Ver O Que Estou Perdendo` : `See What I'm Missing`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

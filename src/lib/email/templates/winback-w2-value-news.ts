@@ -11,30 +11,30 @@ export function winbackW2ValueNewsHtml(params: WinbackW2Params): string {
 
   const t = {
     preheader: isPt
-      ? `Confira as novidades no Trade AI Hub desde sua ultima visita`
-      : `Check out what's new at Trade AI Hub since your last visit`,
-    heading: isPt ? `Novidades` : `What's New`,
+      ? `3 semanas longe. Seus trades desse periodo tem historias para contar`
+      : `3 weeks away. Your trades from this period have stories to tell`,
+    heading: isPt ? `Muita Coisa Mudou` : `A Lot Has Changed`,
     greeting: isPt ? `Oi ${name},` : `Hey ${name},`,
     intro: isPt
-      ? `Estivemos trabalhando em melhorias desde sua ultima visita. Aqui esta o que ha de novo:`
-      : `We've been working on improvements since your last visit. Here's what's new:`,
-    feature1Title: isPt ? `Dashboard Mais Rapido` : `Faster Dashboard`,
+      ? `${name}, nas ultimas 3 semanas, lancamos melhorias que voce vai querer experimentar. O dashboard esta mais rapido, os insights mais precisos, e adicionamos novas formas de visualizar seus dados.`
+      : `${name}, in the last 3 weeks, we launched improvements you'll want to try. The dashboard is faster, insights more precise, and we added new ways to visualize your data.`,
+    feature1Title: isPt ? `Performance ate 3x mais rapida no dashboard` : `Up to 3x faster dashboard performance`,
     feature1Desc: isPt
-      ? `Otimizamos a performance do dashboard para carregar ate 3x mais rapido.`
-      : `We optimized dashboard performance to load up to 3x faster.`,
-    feature2Title: isPt ? `Insights de IA Aprimorados` : `Enhanced AI Insights`,
+      ? `Navegacao fluida, carregamento instantaneo. A experiencia mudou completamente.`
+      : `Smooth navigation, instant loading. The experience has completely changed.`,
+    feature2Title: isPt ? `Insights de IA com recomendacoes mais especificas` : `AI insights with more specific recommendations`,
     feature2Desc: isPt
-      ? `Nossos agentes de IA agora geram recomendacoes mais precisas e acionaveis.`
-      : `Our AI agents now generate more accurate and actionable recommendations.`,
-    feature3Title: isPt ? `Estrategias e Tags` : `Strategies & Tags`,
+      ? `Os agentes agora identificam padroes que antes passavam despercebidos.`
+      : `Agents now identify patterns that previously went unnoticed.`,
+    feature3Title: isPt ? `Nova visualizacao de equity curve e drawdown` : `New equity curve and drawdown visualization`,
     feature3Desc: isPt
-      ? `Organize seus trades com tags e acompanhe performance por estrategia.`
-      : `Organize your trades with tags and track performance by strategy.`,
+      ? `Acompanhe a evolucao do seu capital com graficos mais detalhados.`
+      : `Track your capital evolution with more detailed charts.`,
     tipTitle: isPt ? `Dica de Trading` : `Trading Tip`,
     tip: isPt
-      ? `Traders que revisam seus trades diariamente melhoram sua taxa de acerto em media 15% ao longo de 3 meses.`
-      : `Traders who review their trades daily improve their win rate by an average of 15% over 3 months.`,
-    cta: isPt ? `Ver as Novidades` : `See What's New`,
+      ? `Seus dados de trading continuam salvos e prontos para analise. Quanto antes voce voltar, mais cedo descobre padroes que podem fazer diferenca no proximo mes.`
+      : `Your trading data is still saved and ready for analysis. The sooner you come back, the sooner you discover patterns that could make a difference next month.`,
+    cta: isPt ? `Ver As Novidades` : `See What's New`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

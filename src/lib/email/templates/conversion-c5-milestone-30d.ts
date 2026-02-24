@@ -17,17 +17,17 @@ export function conversionC5Milestone30dHtml(params: ConversionC5Params): string
 
   const t = {
     preheader: isPt
-      ? `30 dias usando o Trade AI Hub — veja seu progresso`
-      : `30 days using Trade AI Hub — see your progress`,
+      ? `30 dias de dados. A IA tem muito a dizer sobre seu trading`
+      : `30 days of data. AI has a lot to say about your trading`,
     heading: isPt
-      ? `30 Dias de Insights`
-      : `30 Days of Trading Insights`,
+      ? `30 Dias de Dados`
+      : `30 Days of Data`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Parabens! Voce completou <strong style="color:#a855f7;">30 dias</strong> usando o Trade AI Hub. Sua consistencia e admiravel — e e exatamente isso que separa traders bons de otimos.`
-      : `Congratulations! You've completed <strong style="color:#a855f7;">30 days</strong> using Trade AI Hub. Your consistency is admirable — and that's exactly what separates good traders from great ones.`,
+      ? `Voce completou um mes inteiro no Trade AI Hub. Com <strong style="color:#a855f7;">30 dias</strong> de dados, os agentes de IA agora conseguem identificar padroes muito mais precisos — tendencias que so aparecem com volume.`
+      : `You've completed a full month on Trade AI Hub. With <strong style="color:#a855f7;">30 days</strong> of data, AI agents can now identify much more precise patterns — trends that only appear with volume.`,
     statsTitle: isPt
       ? `Seu Progresso`
       : `Your Progress`,
@@ -53,11 +53,11 @@ export function conversionC5Milestone30dHtml(params: ConversionC5Params): string
     row4Free: `—`,
     row4Pro: `✓`,
     celebrateText: isPt
-      ? `Voce ja mostrou compromisso com seu trading. O plano Pro e o proximo passo natural para levar sua analise ao proximo nivel.`
-      : `You've already shown commitment to your trading. The Pro plan is the natural next step to take your analysis to the next level.`,
+      ? `85% dos traders que fazem upgrade no primeiro mes reportam que a decisao se pagou em menos de 2 semanas.`
+      : `85% of traders who upgrade in the first month report the decision paid for itself in under 2 weeks.`,
     cta: isPt
-      ? `Fazer Upgrade para Pro`
-      : `Upgrade to Pro`,
+      ? `Desbloquear Analise Completa`
+      : `Unlock Full Analysis`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

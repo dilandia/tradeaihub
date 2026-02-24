@@ -17,17 +17,17 @@ export function onboardingO6WeekSummaryHtml(params: OnboardingO6Params): string 
 
   const t = {
     preheader: isPt
-      ? `Veja o que voce conquistou nos seus primeiros 10 dias no Trade AI Hub`
-      : `See what you achieved in your first 10 days on Trade AI Hub`,
+      ? `10 dias usando o Trade AI Hub — veja o que voce conquistou`
+      : `10 days on Trade AI Hub — see what you've achieved`,
     heading: isPt
-      ? `Seus Primeiros 10 Dias`
-      : `Your First 10 Days`,
+      ? `Sua Primeira Semana`
+      : `Your First Week`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Voce ja esta ha 10 dias conosco! Aqui esta um resumo da sua jornada ate agora.`
-      : `You've been with us for 10 days! Here's a summary of your journey so far.`,
+      ? `Ja faz 10 dias desde que voce comecou! Independente de quanto voce usou ate agora, cada passo conta. Vamos recapitular o que esta disponivel para voce:`
+      : `It's been 10 days since you started! Regardless of how much you've used so far, every step counts. Let's recap what's available to you:`,
     statsTitle: isPt
       ? `Seu Progresso:`
       : `Your Progress:`,
@@ -56,8 +56,8 @@ export function onboardingO6WeekSummaryHtml(params: OnboardingO6Params): string 
       ? `Upgrade para o Pro e desbloqueie analises ilimitadas, mais contas e recursos avancados.`
       : `Upgrade to Pro and unlock unlimited analyses, more accounts, and advanced features.`,
     cta: isPt
-      ? `Continuar Evoluindo`
-      : `Keep Evolving`,
+      ? `Continuar Minha Evolucao`
+      : `Continue My Growth`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

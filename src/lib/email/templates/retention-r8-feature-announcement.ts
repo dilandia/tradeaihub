@@ -16,17 +16,17 @@ export function retentionR8FeatureAnnouncementHtml(params: RetentionR8Params): s
 
   const t = {
     preheader: isPt
-      ? `Novidade no Trade AI Hub: ${params.featureTitle}`
-      : `What's new on Trade AI Hub: ${params.featureTitle}`,
+      ? `Acabamos de lancar algo que voce vai querer experimentar`
+      : `We just launched something you'll want to try`,
     heading: isPt
-      ? `Novidades`
-      : `What's New`,
+      ? `Novidade Fresquinha`
+      : `Fresh Off The Press`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Acabamos de lancar algo que vai melhorar sua experiencia de trading. Veja o que ha de novo:`
-      : `We just shipped something that will improve your trading experience. Here's what's new:`,
+      ? `${name}, temos uma novidade que pode mudar a forma como voce usa o Trade AI Hub:`
+      : `${name}, we have an update that could change how you use Trade AI Hub:`,
     howToUse: isPt ? `Como usar:` : `How to use it:`,
     howToUseText: isPt
       ? `Acesse sua conta no Trade AI Hub e explore a nova funcionalidade. Ela ja esta disponivel e pronta para uso.`

@@ -11,30 +11,30 @@ export function retentionR5ActivityDecliningHtml(params: RetentionR5Params): str
 
   const t = {
     preheader: isPt
-      ? `Seus trades estao esperando para serem analisados`
-      : `Your trades are waiting to be analyzed`,
-    heading: isPt ? `Sentimos Sua Falta` : `We Miss You`,
+      ? `Seus trades das ultimas semanas ainda nao foram analisados pela IA`
+      : `Your recent trades haven't been analyzed by AI yet`,
+    heading: isPt ? `Novidades Te Esperando` : `Updates Waiting For You`,
     greeting: isPt ? `Oi ${name},` : `Hey ${name},`,
     intro: isPt
-      ? `Faz um tempo que voce nao aparece por aqui. Tudo bem?`
-      : `It's been a while since your last visit. Everything ok?`,
+      ? `${name}, faz uns dias que voce nao aparece e queriamos te contar que tem novidades.`
+      : `${name}, it's been a few days since your last visit and we wanted to let you know there are updates.`,
     body: isPt
-      ? `Seus trades estao esperando para serem analisados. A consistencia na revisao dos seus trades e um dos melhores habitos que um trader pode ter.`
-      : `Your trades are waiting to be analyzed. Consistency in reviewing your trades is one of the best habits a trader can build.`,
+      ? `Enquanto voce esteve fora, continuamos trabalhando para melhorar sua experiencia. E seus trades mais recentes ainda nao foram analisados — os agentes de IA estao prontos.`
+      : `While you were away, we kept working to improve your experience. And your recent trades haven't been analyzed yet — the AI agents are ready.`,
     whatsNew: isPt ? `O que ha de novo:` : `What's new:`,
     new1: isPt
-      ? `Melhorias de performance em todo o dashboard`
-      : `Performance improvements across the dashboard`,
+      ? `Dashboard mais rapido e com novas visualizacoes`
+      : `Faster dashboard with new visualizations`,
     new2: isPt
-      ? `Novos insights de IA com recomendacoes mais precisas`
-      : `New AI insights with more accurate recommendations`,
+      ? `Insights de IA mais precisos com dados acumulados`
+      : `More precise AI insights with accumulated data`,
     new3: isPt
-      ? `Interface mais rapida e responsiva`
-      : `Faster and more responsive interface`,
+      ? `Interface otimizada para analise rapida`
+      : `Optimized interface for quick analysis`,
     noPressure: isPt
-      ? `Sem pressao — estamos aqui quando voce precisar.`
-      : `No pressure — we're here when you need us.`,
-    cta: isPt ? `Voltar e Analisar` : `Come Back and Analyze`,
+      ? `Sem pressao — quando voce voltar, tudo estara pronto.`
+      : `No pressure — when you come back, everything will be ready.`,
+    cta: isPt ? `Ver O Que Mudou` : `See What's Changed`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

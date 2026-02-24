@@ -12,38 +12,38 @@ export function onboardingO2ImportGuideHtml(params: OnboardingO2Params): string 
 
   const t = {
     preheader: isPt
-      ? `Importe seus trades em 3 passos simples e veja seu dashboard ganhar vida`
-      : `Import your trades in 3 easy steps and watch your dashboard come alive`,
+      ? `Traders que importam nos primeiros 2 dias descobrem padroes que mudam tudo`
+      : `Traders who import in the first 2 days discover game-changing patterns`,
     heading: isPt
-      ? `Importe Seus Trades`
-      : `Import Your Trades`,
+      ? `Seu Trading Tem Uma Historia Escondida`
+      : `Your Trading Has a Hidden Story`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Pronto para ver seus dados de trading ganharem vida? E super simples — leva menos de 2 minutos.`
-      : `Ready to see your trading data come alive? It's super simple — takes less than 2 minutes.`,
+      ? `Cada trade que voce ja fez carrega uma licao. O problema? Sem analise, essas licoes ficam invisiveis. Em menos de 2 minutos, voce pode revelar padroes que nem sabia que existiam.`
+      : `Every trade you've ever made carries a lesson. The problem? Without analysis, those lessons stay invisible. In less than 2 minutes, you can reveal patterns you didn't even know existed.`,
     stepsTitle: isPt
-      ? `3 Passos Simples:`
-      : `3 Easy Steps:`,
+      ? `Como Funciona (2 minutos):`
+      : `How It Works (2 minutes):`,
     step1Title: isPt ? `Exporte do MT5` : `Export from MT5`,
     step1Desc: isPt
-      ? `Abra o MT5 → Historico da Conta → Clique com botao direito → Salvar como Relatorio Detalhado`
-      : `Open MT5 → Account History → Right click → Save as Detailed Report`,
+      ? `No MT5: Historico da Conta → Botao direito → Salvar como Relatorio Detalhado`
+      : `In MT5: Account History → Right click → Save as Detailed Report`,
     step2Title: isPt ? `Faca o Upload` : `Upload the File`,
     step2Desc: isPt
-      ? `Va ao Trade AI Hub → Importar → Faca upload do arquivo HTML`
-      : `Go to Trade AI Hub → Import → Upload the HTML file`,
-    step3Title: isPt ? `Pronto!` : `Done!`,
+      ? `Faca upload do arquivo no Trade AI Hub — aceita HTML ou CSV`
+      : `Upload the file to Trade AI Hub — accepts HTML or CSV`,
+    step3Title: isPt ? `Descoberta!` : `Discovery!`,
     step3Desc: isPt
-      ? `Seu dashboard atualiza automaticamente com todas as suas metricas e analises.`
-      : `Your dashboard updates automatically with all your metrics and analysis.`,
+      ? `A IA analisa automaticamente seus padroes, pontos fortes e oportunidades de melhoria.`
+      : `AI automatically analyzes your patterns, strengths and improvement opportunities.`,
     cta: isPt
-      ? `Importar Meus Trades`
-      : `Import My Trades`,
+      ? `Revelar Meus Padroes`
+      : `Reveal My Patterns`,
     helpLink: isPt
-      ? `Precisa de ajuda? Veja nosso guia`
-      : `Need help? Check our guide`,
+      ? `Precisa de ajuda com a importacao?`
+      : `Need help with importing?`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

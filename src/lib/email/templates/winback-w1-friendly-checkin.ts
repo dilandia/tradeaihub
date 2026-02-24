@@ -11,20 +11,20 @@ export function winbackW1FriendlyCheckinHtml(params: WinbackW1Params): string {
 
   const t = {
     preheader: isPt
-      ? `Sentimos sua falta! Seus trades estao esperando por voce.`
-      : `We miss you! Your trades are waiting for you.`,
-    heading: isPt ? `Sentimos Sua Falta` : `We Miss You`,
+      ? `Enquanto voce esteve fora, a IA continuou encontrando padroes`
+      : `While you were away, AI kept finding patterns`,
+    heading: isPt ? `Tem Novidades Para Voce` : `There's News For You`,
     greeting: isPt ? `Oi ${name},` : `Hey ${name},`,
     intro: isPt
-      ? `Faz um tempo que voce nao aparece por aqui e queriamos saber se esta tudo bem.`
-      : `It's been a while since your last visit and we wanted to check in.`,
+      ? `${name}, faz duas semanas que voce nao aparece e tivemos que te contar: a plataforma evoluiu.`
+      : `${name}, it's been two weeks since your last visit and we had to tell you: the platform has evolved.`,
     body: isPt
-      ? `Seus trades estao esperando para serem analisados. A cada dia que passa, mais dados voce pode importar e melhores insights a IA pode gerar.`
-      : `Your trades are waiting to be analyzed. With each passing day, more data you can import and better insights the AI can generate.`,
+      ? `Seus dados continuam aqui, esperando por voce. E quanto mais tempo passa, mais valioso fica analisar seus trades recentes — padroes se formam e a IA esta pronta para revela-los.`
+      : `Your data is still here, waiting for you. And the longer it's been, the more valuable it is to analyze your recent trades — patterns form and AI is ready to reveal them.`,
     socialProof: isPt
-      ? `Traders ativos na plataforma analisam em media 50+ trades por semana e reportam melhorias consistentes na tomada de decisao.`
-      : `Active traders on the platform analyze 50+ trades per week on average and report consistent improvements in decision-making.`,
-    cta: isPt ? `Voltar e Analisar` : `Come Back and Analyze`,
+      ? `Traders que voltam apos uma pausa reportam que a analise retroativa e uma das funcionalidades mais valiosas. Ver seu trading com olhos frescos muda tudo.`
+      : `Traders who return after a break report that retroactive analysis is one of the most valuable features. Seeing your trading with fresh eyes changes everything.`,
+    cta: isPt ? `Retomar Minha Analise` : `Resume My Analysis`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

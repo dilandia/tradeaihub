@@ -15,30 +15,18 @@ export function retentionR2TradeMilestoneHtml(params: RetentionR2Params): string
 
   const t = {
     preheader: isPt
-      ? `Voce analisou ${milestone} trades! Parabens pela conquista!`
-      : `You've analyzed ${milestone} trades! Congrats on the milestone!`,
-    heading: isPt ? `Marco Atingido!` : `Milestone Reached!`,
+      ? `${milestone} trades! Poucos traders chegam aqui. Voce e um deles`
+      : `${milestone} trades! Few traders reach this. You're one of them`,
+    heading: isPt ? `Marco Historico!` : `Historic Milestone!`,
     greeting: isPt ? `Parabens, ${name}!` : `Congratulations, ${name}!`,
     milestone: isPt
       ? `Voce analisou`
       : `You've analyzed`,
     milestoneTradesWord: isPt ? `trades` : `trades`,
     journey: isPt
-      ? milestone >= 5000
-        ? `Voce e um verdadeiro mestre da analise. Poucos traders chegam tao longe. Seu comprometimento com dados esta no mais alto nivel.`
-        : milestone >= 1000
-          ? `Mil trades analisados! Voce esta no caminho dos traders de elite. Cada trade e um aprendizado e voce ja tem muitos.`
-          : milestone >= 500
-            ? `Meio caminho andado para o proximo grande marco! Sua consistencia na analise esta fazendo a diferenca.`
-            : `Seus primeiros 100 trades analisados! O habito de analisar cada trade e o que separa traders amadores dos profissionais.`
-      : milestone >= 5000
-        ? `You're a true analysis master. Few traders come this far. Your data commitment is at the highest level.`
-        : milestone >= 1000
-          ? `One thousand trades analyzed! You're on the path of elite traders. Every trade is a lesson and you've got plenty.`
-          : milestone >= 500
-            ? `Halfway to the next big milestone! Your consistency in analysis is making a real difference.`
-            : `Your first 100 trades analyzed! The habit of reviewing every trade is what separates amateurs from pros.`,
-    cta: isPt ? `Ver Meu Progresso` : `View My Progress`,
+      ? `${name}, voce acabou de atingir ${milestone} trades analisados no Trade AI Hub! Isso nao e so um numero — e prova de que voce leva o trading a serio. Com esse volume de dados, os agentes de IA conseguem identificar padroes cada vez mais precisos. Quanto mais trades, melhores os insights.`
+      : `${name}, you just hit ${milestone} trades analyzed on Trade AI Hub! This isn't just a number — it's proof you take trading seriously. With this volume of data, AI agents can identify increasingly precise patterns. More trades, better insights.`,
+    cta: isPt ? `Ver Minhas Estatisticas` : `View My Stats`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

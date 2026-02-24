@@ -11,29 +11,29 @@ export function onboardingO5StrategiesHtml(params: OnboardingO5Params): string {
 
   const t = {
     preheader: isPt
-      ? `Organize seus trades por estrategia e descubra o que funciona melhor`
-      : `Organize your trades by strategy and discover what works best`,
+      ? `Traders profissionais nao operam sem um plano. Voce tem o seu?`
+      : `Professional traders never trade without a plan. Do you have yours?`,
     heading: isPt
-      ? `Rastreie Suas Estrategias`
-      : `Track Your Strategies`,
+      ? `Organize Seu Trading`
+      : `Organize Your Trading`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Traders profissionais sabem exatamente quais estrategias funcionam. Com o Trade AI Hub, voce tambem pode.`
-      : `Professional traders know exactly which strategies work. With Trade AI Hub, so can you.`,
+      ? `Sabe a diferenca entre traders que evoluem e os que ficam no mesmo lugar? Organizacao. Quando voce categoriza trades por estrategia, algo magico acontece: voce descobre qual das suas abordagens realmente funciona.`
+      : `Know the difference between traders who improve and those who stay stuck? Organization. When you categorize trades by strategy, something magical happens: you discover which of your approaches actually works.`,
     feature1Title: isPt ? `Crie Estrategias` : `Create Strategies`,
     feature1Desc: isPt
-      ? `Crie estrategias personalizadas para categorizar seus trades — scalping, swing, breakout, ou qualquer uma que voce use.`
-      : `Create custom strategies to categorize your trades — scalping, swing, breakout, or any you use.`,
-    feature2Title: isPt ? `Acompanhe Performance` : `Track Performance`,
+      ? `Crie estrategias e vincule cada trade a uma delas`
+      : `Create strategies and link each trade to one`,
+    feature2Title: isPt ? `Tags Coloridas` : `Color Tags`,
     feature2Desc: isPt
-      ? `Veja qual estrategia tem o melhor win rate, profit factor e retorno — com dados reais dos seus trades.`
-      : `See which strategy has the best win rate, profit factor, and return — with real data from your trades.`,
-    feature3Title: isPt ? `Compare Resultados` : `Compare Results`,
+      ? `Use tags coloridas para categorizar (scalping, swing, news...)`
+      : `Use color tags to categorize (scalping, swing, news...)`,
+    feature3Title: isPt ? `Metricas por Estrategia` : `Strategy Metrics`,
     feature3Desc: isPt
-      ? `Compare estrategias lado a lado e tome decisoes baseadas em dados, nao em intuicao.`
-      : `Compare strategies side by side and make decisions based on data, not intuition.`,
+      ? `Veja qual estrategia da mais lucro com metricas separadas`
+      : `See which strategy profits most with separate metrics`,
     cta: isPt
       ? `Criar Minha Primeira Estrategia`
       : `Create My First Strategy`,

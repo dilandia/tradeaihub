@@ -11,35 +11,35 @@ export function onboardingO3DiscoverInsightsHtml(params: OnboardingO3Params): st
 
   const t = {
     preheader: isPt
-      ? `Descubra padroes ocultos nos seus trades com inteligencia artificial`
-      : `Discover hidden patterns in your trades with artificial intelligence`,
+      ? `7 agentes de IA analisaram seus trades. Voce nao vai acreditar no que encontraram`
+      : `7 AI agents analyzed your trades. You won't believe what they found`,
     heading: isPt
-      ? `Seus Insights de IA`
-      : `Your AI Insights`,
+      ? `Seus Insights Estao Prontos`
+      : `Your Insights Are Ready`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Nossos agentes de IA estao prontos para analisar seus trades. Veja o que eles podem revelar:`
-      : `Our AI agents are ready to analyze your trades. Here's what they can reveal:`,
+      ? `Seus trades ja foram importados — otimo! Mas o dashboard e so o comeco. A verdadeira magia acontece quando voce ativa os agentes de IA. Cada um analisa seus dados de um angulo diferente.`
+      : `Your trades are imported — great! But the dashboard is just the beginning. The real magic happens when you activate the AI agents. Each one analyzes your data from a different angle.`,
     feature1Icon: `&#128269;`,
     feature1Title: isPt ? `Deteccao de Padroes` : `Pattern Detection`,
     feature1Desc: isPt
-      ? `Encontre padroes recorrentes nos seus trades — descubra o que funciona e o que nao funciona.`
-      : `Find recurring patterns in your trades — discover what works and what doesn't.`,
+      ? `Encontra padroes de lucro que voce repete sem perceber`
+      : `Finds profit patterns you repeat without realizing`,
     feature2Icon: `&#9888;`,
     feature2Title: isPt ? `Analise de Risco` : `Risk Analysis`,
     feature2Desc: isPt
-      ? `Entenda sua exposicao ao risco e receba recomendacoes para proteger seu capital.`
-      : `Understand your risk exposure and get recommendations to protect your capital.`,
+      ? `Detecta habitos que prejudicam seu resultado`
+      : `Detects habits hurting your results`,
     feature3Icon: `&#127942;`,
     feature3Title: isPt ? `TakeZ Score` : `TakeZ Score`,
     feature3Desc: isPt
-      ? `Receba sua pontuacao de performance — um score unico que avalia suas habilidades como trader.`
-      : `Get your performance score — a unique score that evaluates your skills as a trader.`,
+      ? `Avalia se voce esta arriscando demais (ou de menos)`
+      : `Evaluates if you're risking too much (or too little)`,
     cta: isPt
-      ? `Ver Minha Analise`
-      : `View My Analysis`,
+      ? `Ativar Meus Agentes de IA`
+      : `Activate My AI Agents`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

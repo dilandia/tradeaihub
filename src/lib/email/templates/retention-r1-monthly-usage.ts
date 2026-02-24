@@ -25,20 +25,20 @@ export function retentionR1MonthlyUsageHtml(params: RetentionR1Params): string {
 
   const t = {
     preheader: isPt
-      ? `Seu resumo mensal de atividade no Trade AI Hub`
-      : `Your monthly activity summary on Trade AI Hub`,
-    heading: isPt ? `Resumo Mensal` : `Monthly Summary`,
+      ? `Seu mes em numeros: trades analisados, insights gerados, evolucao real`
+      : `Your month in numbers: trades analyzed, insights generated, real growth`,
+    heading: isPt ? `Seu Mes Em Numeros` : `Your Month In Numbers`,
     greeting: isPt ? `Oi ${name},` : `Hey ${name},`,
     intro: isPt
-      ? `Aqui esta o resumo da sua atividade neste mes. Continue assim!`
-      : `Here's your activity summary for this month. Keep it up!`,
+      ? `${name}, mais um mes de evolucao no trading. Vamos ver o que voce conquistou?`
+      : `${name}, another month of trading growth. Let's see what you've accomplished?`,
     tradesLabel: isPt ? `Trades Analisados` : `Trades Analyzed`,
     insightsLabel: isPt ? `Insights de IA` : `AI Insights`,
     creditsLabel: isPt ? `Creditos Usados` : `Credits Used`,
     strategiesLabel: isPt ? `Estrategias Ativas` : `Active Strategies`,
     scoreTitle: isPt ? `TakeZ Score` : `TakeZ Score`,
     scoreTrend: isPt ? `vs mes anterior` : `vs last month`,
-    cta: isPt ? `Ver Meu Dashboard` : `View My Dashboard`,
+    cta: isPt ? `Ver Dashboard Completo` : `View Full Dashboard`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

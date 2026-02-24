@@ -13,17 +13,17 @@ export function cancellationEmailHtml(params: CancellationParams): string {
 
   const t = {
     preheader: isPt
-      ? `Sua assinatura do plano ${params.planName} foi cancelada`
-      : `Your ${params.planName} Plan subscription has been cancelled`,
+      ? `Cancelamento confirmado. Seus dados ficam salvos por 90 dias`
+      : `Cancellation confirmed. Your data is saved for 90 days`,
     heading: isPt
-      ? `Assinatura Cancelada`
-      : `Subscription Cancelled`,
+      ? `Cancelamento Confirmado`
+      : `Cancellation Confirmed`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Confirmamos o cancelamento da sua assinatura do plano <strong style="color:#a855f7;">${params.planName}</strong>. Seu acesso aos recursos premium permanece ativo ate <strong style="color:#e2e8f0;">${params.accessEndDate}</strong>.`
-      : `We confirm the cancellation of your <strong style="color:#a855f7;">${params.planName}</strong> Plan subscription. Your access to premium features remains active until <strong style="color:#e2e8f0;">${params.accessEndDate}</strong>.`,
+      ? `${name}, sua assinatura foi cancelada conforme solicitado. Voce nao sera cobrado novamente e tera acesso ate o fim do periodo ja pago (<strong style="color:#e2e8f0;">${params.accessEndDate}</strong>).`
+      : `${name}, your subscription has been cancelled as requested. You won't be charged again and will have access until the end of your paid period (<strong style="color:#e2e8f0;">${params.accessEndDate}</strong>).`,
     loseTitle: isPt
       ? `Apos essa data, voce perdera acesso a:`
       : `After that date, you will lose access to:`,
@@ -32,11 +32,11 @@ export function cancellationEmailHtml(params: CancellationParams): string {
     lose3: isPt ? `Exportacao em PDF` : `PDF export`,
     lose4: isPt ? `Suporte prioritario` : `Priority support`,
     outro: isPt
-      ? `Se mudar de ideia, voce pode reativar sua assinatura a qualquer momento antes do fim do periodo.`
-      : `If you change your mind, you can reactivate your subscription at any time before the end of your billing period.`,
+      ? `Queremos que saiba: seus dados, trades, insights e estrategias ficam salvos por 90 dias. Se mudar de ideia, e so reativar e tudo volta ao normal.`
+      : `We want you to know: your data, trades, insights and strategies are saved for 90 days. If you change your mind, just reactivate and everything returns to normal.`,
     cta: isPt
-      ? `Reativar Meu Plano`
-      : `Reactivate My Plan`,
+      ? `Reativar Minha Conta`
+      : `Reactivate My Account`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

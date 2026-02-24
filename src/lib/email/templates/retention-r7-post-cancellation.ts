@@ -13,17 +13,17 @@ export function retentionR7PostCancellationHtml(params: RetentionR7Params): stri
 
   const t = {
     preheader: isPt
-      ? `Sua assinatura ${params.planName} foi cancelada — mas voce ainda tem acesso`
-      : `Your ${params.planName} subscription has been cancelled — but you still have access`,
+      ? `Sua conta foi cancelada. Mas seus dados estarao aqui se voce voltar`
+      : `Your account is cancelled. But your data will be here if you return`,
     heading: isPt
-      ? `Sentimos Sua Falta`
-      : `We're Sorry to See You Go`,
+      ? `Ate Logo`
+      : `See You Later`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Confirmamos o cancelamento da sua assinatura <strong style="color:#e2e8f0;">${params.planName}</strong>. Voce ainda pode usar todos os recursos do plano ate <strong style="color:#f59e0b;">${params.accessEndDate}</strong>.`
-      : `We've confirmed the cancellation of your <strong style="color:#e2e8f0;">${params.planName}</strong> subscription. You can still use all plan features until <strong style="color:#f59e0b;">${params.accessEndDate}</strong>.`,
+      ? `${name}, respeitamos sua decisao. Seu cancelamento foi processado e voce nao sera cobrado novamente. Voce ainda pode usar todos os recursos do plano ate <strong style="color:#f59e0b;">${params.accessEndDate}</strong>.`
+      : `${name}, we respect your decision. Your cancellation has been processed and you won't be charged again. You can still use all plan features until <strong style="color:#f59e0b;">${params.accessEndDate}</strong>.`,
     loseTitle: isPt ? `O que voce perde apos essa data:` : `What you'll lose after that date:`,
     lose1: isPt ? `Agentes de IA (Insights, Patterns, Risk, Copilot)` : `AI agents (Insights, Patterns, Risk, Copilot)`,
     lose2: isPt ? `Exportacao PDF e relatorios avancados` : `PDF export and advanced reports`,
@@ -34,18 +34,18 @@ export function retentionR7PostCancellationHtml(params: RetentionR7Params): stri
     keep2: isPt ? `1 conta de trading` : `1 trading account`,
     keep3: isPt ? `10 creditos de IA por mes` : `10 AI credits per month`,
     surveyTitle: isPt
-      ? `Nos ajude a melhorar`
-      : `Help us improve`,
+      ? `Uma ultima coisa`
+      : `One last thing`,
     surveyText: isPt
-      ? `Gostariam de entender por que voce decidiu cancelar. Sua resposta nos ajuda a construir um produto melhor para todos os traders.`
-      : `We'd love to understand why you decided to cancel. Your feedback helps us build a better product for all traders.`,
+      ? `O que poderiamos ter feito melhor? Sua resposta nos ajuda a evoluir. Seus dados ficam salvos por 90 dias — se mudar de ideia, e so voltar e tudo estara como voce deixou.`
+      : `What could we have done better? Your response helps us improve. Your data is saved for 90 days — if you change your mind, just come back and everything will be as you left it.`,
     surveyQ1: isPt ? `O preco nao cabia no meu orcamento` : `The price didn't fit my budget`,
     surveyQ2: isPt ? `Nao estava usando os recursos suficientemente` : `I wasn't using the features enough`,
     surveyQ3: isPt ? `Encontrei uma alternativa melhor` : `I found a better alternative`,
     changeMind: isPt
-      ? `Mudou de ideia? Voce pode reativar seu plano a qualquer momento.`
-      : `Changed your mind? You can reactivate your plan anytime.`,
-    cta: isPt ? `Reativar Meu Plano` : `Reactivate My Plan`,
+      ? `Mudou de ideia? Voce pode reativar seu plano a qualquer momento — trades, insights, estrategias, tudo estara como voce deixou.`
+      : `Changed your mind? You can reactivate your plan anytime — trades, insights, strategies, everything will be as you left it.`,
+    cta: isPt ? `Reativar Minha Conta` : `Reactivate My Account`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

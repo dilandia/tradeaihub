@@ -13,20 +13,20 @@ export function conversionC8SpecialOfferHtml(params: ConversionC8Params): string
 
   const t = {
     preheader: isPt
-      ? `Oferta por tempo limitado — ${discount}% de desconto no plano Pro`
-      : `Limited-time offer — ${discount}% off the Pro plan`,
+      ? `Oferta exclusiva: ${discount}% off no Pro — valida por 48 horas`
+      : `Exclusive offer: ${discount}% off Pro — valid for 48 hours`,
     heading: isPt
-      ? `Oferta Especial — ${discount}% Off Pro`
-      : `Special Offer — ${discount}% Off Pro`,
+      ? `Oferta Exclusiva Para Voce`
+      : `Exclusive Offer For You`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Voce esta no Trade AI Hub ha um mes — e queremos recompensar seu comprometimento. Por tempo limitado, estamos oferecendo <strong style="color:#f59e0b;">${discount}% de desconto</strong> no primeiro mes do plano Pro.`
-      : `You've been on Trade AI Hub for a month — and we want to reward your commitment. For a limited time, we're offering <strong style="color:#f59e0b;">${discount}% off</strong> your first month of the Pro plan.`,
+      ? `${name}, voce esta no Trade AI Hub ha 30 dias e queremos recompensar sua dedicacao. Preparamos uma oferta que so aparece uma vez: <strong style="color:#f59e0b;">${discount}% OFF no Plano Pro</strong>. Use o codigo <strong style="color:#f59e0b;">TRADE${discount}</strong> no checkout.`
+      : `${name}, you've been on Trade AI Hub for 30 days and we want to reward your dedication. We prepared an offer that only appears once: <strong style="color:#f59e0b;">${discount}% OFF the Pro Plan</strong>. Use code <strong style="color:#f59e0b;">TRADE${discount}</strong> at checkout.`,
     urgency: isPt
-      ? `Esta oferta expira em 7 dias`
-      : `This offer expires in 7 days`,
+      ? `Esta oferta expira em 48 horas e nao sera repetida`
+      : `This offer expires in 48 hours and won't be repeated`,
     benefitTitle: isPt ? `Tudo que voce desbloqueia com o Pro:` : `Everything you unlock with Pro:`,
     benefit1: isPt ? `60 creditos de IA por mes (6x mais que o Free)` : `60 AI credits per month (6x more than Free)`,
     benefit2: isPt ? `7 agentes de IA: Insights, Patterns, Risk, Copilot e mais` : `7 AI agents: Insights, Patterns, Risk, Copilot, and more`,
@@ -34,7 +34,7 @@ export function conversionC8SpecialOfferHtml(params: ConversionC8Params): string
     benefit4: isPt ? `Exportacao PDF dos seus relatorios` : `PDF export of your reports`,
     benefit5: isPt ? `Estrategias e tags ilimitadas` : `Unlimited strategies and tags`,
     benefit6: isPt ? `5 contas de trading simultaneas` : `5 simultaneous trading accounts`,
-    cta: isPt ? `Fazer Upgrade Agora — ${discount}% Off` : `Upgrade Now — ${discount}% Off`,
+    cta: isPt ? `Aproveitar Agora — ${discount}% OFF` : `Claim Now — ${discount}% OFF`,
     noWorries: isPt
       ? `Sem compromisso de longo prazo. Cancele a qualquer momento.`
       : `No long-term commitment. Cancel anytime.`,

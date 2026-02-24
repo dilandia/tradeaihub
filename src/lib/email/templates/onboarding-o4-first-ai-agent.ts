@@ -11,35 +11,35 @@ export function onboardingO4FirstAiAgentHtml(params: OnboardingO4Params): string
 
   const t = {
     preheader: isPt
-      ? `Conheca seus agentes de IA — eles analisam seus trades 24/7`
-      : `Meet your AI agents — they analyze your trades 24/7`,
+      ? `Enquanto voce espera, a IA ja identificou 3 padroes nos seus trades`
+      : `While you wait, AI already identified 3 patterns in your trades`,
     heading: isPt
-      ? `Seu Coach de Trading com IA`
-      : `Your AI Trading Coach`,
+      ? `Seu Coach de IA Esta Esperando`
+      : `Your AI Coach Is Waiting`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Voce sabia que tem acesso a agentes de IA especializados em trading? Eles trabalham como seu coach pessoal, analisando cada aspecto dos seus trades.`
-      : `Did you know you have access to AI agents specialized in trading? They work as your personal coach, analyzing every aspect of your trades.`,
+      ? `${name}, a maioria dos traders passa meses tentando identificar seus erros sozinho. Com o Trade AI Hub, a IA faz isso em segundos. Literalmente.`
+      : `${name}, most traders spend months trying to identify their mistakes alone. With Trade AI Hub, AI does it in seconds. Literally.`,
     agentsTitle: isPt
-      ? `Conheca 3 agentes-chave:`
-      : `Meet 3 key agents:`,
+      ? `Como funciona:`
+      : `How it works:`,
     agent1Title: isPt ? `Performance Insights` : `Performance Insights`,
     agent1Desc: isPt
-      ? `Analisa seu win rate, profit factor e identifica seus melhores e piores periodos de trading.`
-      : `Analyzes your win rate, profit factor, and identifies your best and worst trading periods.`,
+      ? `Clique em qualquer agente de IA no sidebar`
+      : `Click any AI agent in the sidebar`,
     agent2Title: isPt ? `Deteccao de Padroes` : `Pattern Detection`,
     agent2Desc: isPt
-      ? `Identifica padroes recorrentes de ganho e perda que voce pode nao ter percebido.`
-      : `Spots recurring winning and losing patterns you might not have noticed.`,
+      ? `Receba analise personalizada baseada nos seus trades reais`
+      : `Get personalized analysis based on your real trades`,
     agent3Title: isPt ? `Copilot Chat` : `Copilot Chat`,
     agent3Desc: isPt
-      ? `Pergunte qualquer coisa sobre seu trading — o copilot conhece todo seu historico.`
-      : `Ask anything about your trading — the copilot knows your entire history.`,
+      ? `Aplique os insights e veja sua performance evoluir`
+      : `Apply the insights and watch your performance improve`,
     cta: isPt
-      ? `Analisar Meu Trading`
-      : `Analyze My Trading`,
+      ? `Experimentar Agora (Gratis)`
+      : `Try It Now (Free)`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

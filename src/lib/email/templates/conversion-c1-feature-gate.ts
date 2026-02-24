@@ -12,32 +12,32 @@ export function conversionC1FeatureGateHtml(params: ConversionC1Params): string 
 
   const t = {
     preheader: isPt
-      ? `Desbloqueie ${params.featureName} com o plano Pro`
-      : `Unlock ${params.featureName} with the Pro plan`,
+      ? `Voce estava quase la. Veja o que traders Pro estao conseguindo`
+      : `You were almost there. See what Pro traders are achieving`,
     heading: isPt
-      ? `Desbloqueie Esta Funcionalidade`
-      : `Unlock This Feature`,
+      ? `Voce Estava Quase La`
+      : `You Were Almost There`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Voce tentou usar <strong style="color:#a855f7;">${params.featureName}</strong> — esta e uma funcionalidade exclusiva do plano Pro.`
-      : `You tried to use <strong style="color:#a855f7;">${params.featureName}</strong> — this is a Pro feature.`,
+      ? `Voce tentou usar <strong style="color:#a855f7;">${params.featureName}</strong> — e isso mostra que voce leva trading a serio. Essa funcionalidade e parte do arsenal que traders Pro usam para tomar decisoes melhores.`
+      : `You tried to use <strong style="color:#a855f7;">${params.featureName}</strong> — and that shows you take trading seriously. This feature is part of the arsenal Pro traders use to make better decisions.`,
     whyTitle: isPt
-      ? `O que o Pro desbloqueia:`
-      : `What Pro unlocks:`,
+      ? `O que voce desbloqueia com o Pro:`
+      : `What you unlock with Pro:`,
     benefit1: isPt
-      ? `7 agentes de IA para analise completa do seu trading`
-      : `7 AI agents for complete trading analysis`,
+      ? `7 agentes de IA que analisam cada angulo do seu trading`
+      : `7 AI agents analyzing every angle of your trading`,
     benefit2: isPt
-      ? `Exportacao PDF dos seus relatorios`
-      : `PDF export of your reports`,
+      ? `Exportacao PDF para revisar offline ou compartilhar`
+      : `PDF export to review offline or share`,
     benefit3: isPt
-      ? `Estrategias e tags ilimitadas para organizar seus trades`
-      : `Unlimited strategies and tags to organize your trades`,
+      ? `Estrategias e tags ilimitadas para rastrear o que funciona`
+      : `Unlimited strategies and tags to track what works`,
     benefit4: isPt
-      ? `5 contas de trading + conexao MetaTrader`
-      : `5 trading accounts + MetaTrader connection`,
+      ? `Ate 5 contas + conexao MetaTrader em tempo real`
+      : `Up to 5 accounts + real-time MetaTrader connection`,
     compareTitle: isPt
       ? `Free vs Pro`
       : `Free vs Pro`,
@@ -57,8 +57,8 @@ export function conversionC1FeatureGateHtml(params: ConversionC1Params): string 
     row4Free: `—`,
     row4Pro: `✓`,
     cta: isPt
-      ? `Fazer Upgrade para Pro`
-      : `Upgrade to Pro`,
+      ? `Desbloquear Agora`
+      : `Unlock Now`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

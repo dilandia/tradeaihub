@@ -11,17 +11,17 @@ export function winbackW4FreeReactivationHtml(params: WinbackW4Params): string {
 
   const t = {
     preheader: isPt
-      ? `Sua conta gratuita ainda esta ativa — seus dados estao seguros`
-      : `Your free account is still active — your data is safe`,
-    heading: isPt ? `Sua Conta Esta Ativa` : `Your Account Is Active`,
+      ? `Sua conta gratuita ainda esta ativa — e tem novidades esperando`
+      : `Your free account is still active — and there are updates waiting`,
+    heading: isPt ? `Sua Conta Ainda Esta Aqui` : `Your Account Is Still Here`,
     greeting: isPt ? `Oi ${name},` : `Hey ${name},`,
     intro: isPt
-      ? `Sua conta gratuita no Trade AI Hub continua ativa e todos os seus dados estao seguros.`
-      : `Your free account on Trade AI Hub is still active and all your data is safe.`,
+      ? `${name}, sua conta no Trade AI Hub continua ativa e seus dados estao salvos. Mas tem muita coisa nova que voce esta perdendo.`
+      : `${name}, your Trade AI Hub account is still active and your data is saved. But there's a lot of new stuff you're missing.`,
     body: isPt
-      ? `Nao precisa se preocupar — nao excluimos dados de contas inativas. Tudo esta exatamente como voce deixou.`
-      : `No need to worry — we don't delete data from inactive accounts. Everything is exactly as you left it.`,
-    discoverTitle: isPt ? `O que outros traders estao descobrindo:` : `What other traders are discovering:`,
+      ? `O melhor de tudo? Voce pode voltar agora mesmo, sem custo nenhum. Importe seus trades mais recentes e veja como seu trading evoluiu nesse periodo.`
+      : `Best of all? You can come back right now, at no cost. Import your latest trades and see how your trading has evolved during this time.`,
+    discoverTitle: isPt ? `O que voce esta perdendo:` : `What you're missing:`,
     discover1: isPt
       ? `Padroes ocultos nos seus trades que afetam seus resultados`
       : `Hidden patterns in your trades that affect your results`,
@@ -31,7 +31,7 @@ export function winbackW4FreeReactivationHtml(params: WinbackW4Params): string {
     discover3: isPt
       ? `Tendencias de melhoria ao longo do tempo`
       : `Improvement trends over time`,
-    cta: isPt ? `Entrar na Minha Conta` : `Log Back In`,
+    cta: isPt ? `Reativar Minha Conta` : `Reactivate My Account`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

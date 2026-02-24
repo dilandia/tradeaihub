@@ -11,13 +11,13 @@ export function winbackW3LastAttemptHtml(params: WinbackW3Params): string {
 
   const t = {
     preheader: isPt
-      ? `Ultima mensagem — seus dados estao seguros e esperando por voce`
-      : `Final check-in — your data is safe and waiting for you`,
-    heading: isPt ? `Ultima Mensagem` : `Final Check-In`,
+      ? `Ultimo aviso: seus dados e insights serao arquivados em breve`
+      : `Final notice: your data and insights will be archived soon`,
+    heading: isPt ? `Uma Ultima Mensagem` : `One Last Message`,
     greeting: isPt ? `Oi ${name},` : `Hey ${name},`,
     intro: isPt
-      ? `Esta e nossa ultima mensagem sobre sua conta. Nao queremos ser inconvenientes, mas queriamos garantir que voce saiba:`
-      : `This is our last message about your account. We don't want to be intrusive, but we wanted to make sure you know:`,
+      ? `${name}, essa e a ultima vez que te escrevemos sobre isso. Voce esta pagando pelo plano Pro mas nao esta usando — e queremos ter certeza de que isso e intencional.`
+      : `${name}, this is the last time we'll write about this. You're paying for the Pro plan but not using it — and we want to make sure this is intentional.`,
     safe1: isPt
       ? `Seus dados estao 100% seguros e protegidos`
       : `Your data is 100% safe and secure`,
@@ -28,12 +28,12 @@ export function winbackW3LastAttemptHtml(params: WinbackW3Params): string {
       ? `Voce pode voltar a qualquer momento`
       : `You can come back anytime`,
     body: isPt
-      ? `Se algo nao atendeu suas expectativas ou se ha algo que possamos melhorar, ficaremos felizes em ouvir. Basta responder este email.`
-      : `If something didn't meet your expectations or there's something we can improve, we'd be happy to hear from you. Just reply to this email.`,
+      ? `Preferimos ser honestos: nao queremos cobrar de voce se voce nao esta usando. Mas se precisar de ajuda para aproveitar melhor a plataforma, estamos aqui.`
+      : `We'd rather be honest: we don't want to charge you if you're not using it. But if you need help getting more from the platform, we're here.`,
     closing: isPt
-      ? `Desejamos tudo de melhor nos seus trades. Estaremos aqui se precisar.`
-      : `We wish you the best in your trading. We'll be here if you need us.`,
-    cta: isPt ? `Voltar ao Trade AI Hub` : `Come Back to Trade AI Hub`,
+      ? `Se voce esta ocupado demais para usar agora, tudo bem. Mas se nao esta tirando valor da plataforma, talvez faca sentido pausar a assinatura e voltar quando tiver tempo.`
+      : `If you're too busy to use it now, that's fine. But if you're not getting value from the platform, it might make sense to pause your subscription and come back when you have time.`,
+    cta: isPt ? `Voltar a Usar` : `Start Using Again`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

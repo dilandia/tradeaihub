@@ -348,8 +348,8 @@ export async function sendCancellationEmail(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Assinatura cancelada — Trade AI Hub"
-      : "Subscription Cancelled — Trade AI Hub"
+      ? "Cancelamento confirmado (seus dados estao salvos)"
+      : "Cancellation confirmed (your data is saved)"
 
     await resend.emails.send({
       from: FROM,
@@ -395,8 +395,8 @@ export async function sendImportCompletedEmail(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Importacao Completa — Trade AI Hub"
-      : "Import Complete — Trade AI Hub"
+      ? `Seus ${params.tradeCount} trades estao prontos para IA`
+      : `Your ${params.tradeCount} trades are ready for AI`
 
     await resend.emails.send({
       from: FROM,
@@ -440,8 +440,8 @@ export async function sendCreditsExhaustedEmail(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Creditos de IA Esgotados — Trade AI Hub"
-      : "AI Credits Exhausted — Trade AI Hub"
+      ? "Seus insights de IA pararam (mas tem solucao)"
+      : "Your AI insights stopped (but there's a fix)"
 
     await resend.emails.send({
       from: FROM,
@@ -490,8 +490,8 @@ export async function sendOnboardingO2Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Importe Seus Trades em 3 Passos Simples — Trade AI Hub"
-      : "Import Your Trades in 3 Easy Steps — Trade AI Hub"
+      ? "Seus trades escondem padroes que voce nao ve"
+      : "Your trades hide patterns you can't see"
 
     await resend.emails.send({
       from: FROM,
@@ -540,8 +540,8 @@ export async function sendOnboardingO3Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Seus Insights de Trading com IA Estao Prontos — Trade AI Hub"
-      : "Your AI Trading Insights Are Ready — Trade AI Hub"
+      ? "7 agentes de IA analisaram seus trades"
+      : "7 AI agents analyzed your trades"
 
     await resend.emails.send({
       from: FROM,
@@ -590,8 +590,8 @@ export async function sendOnboardingO4Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Conheca Seu Coach de Trading com IA — Trade AI Hub"
-      : "Meet Your AI Trading Coach — Trade AI Hub"
+      ? "A IA ja encontrou padroes nos seus dados"
+      : "AI already found patterns in your data"
 
     await resend.emails.send({
       from: FROM,
@@ -640,8 +640,8 @@ export async function sendOnboardingO5Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Rastreie Suas Estrategias Como um Pro — Trade AI Hub"
-      : "Track Your Strategies Like a Pro — Trade AI Hub"
+      ? "A pergunta que todo trader pro se faz"
+      : "The question every pro trader asks"
 
     await resend.emails.send({
       from: FROM,
@@ -696,8 +696,8 @@ export async function sendOnboardingO6Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Seus Primeiros 10 Dias no Trade AI Hub"
-      : "Your First 10 Days with Trade AI Hub"
+      ? "10 dias — veja o que voce conquistou"
+      : "10 days — see what you've achieved"
 
     await resend.emails.send({
       from: FROM,
@@ -793,9 +793,10 @@ export async function sendConversionC1Email(params: {
     })
 
     const isPt = params.locale?.startsWith("pt")
+    const name = params.userName || "Trader"
     const subject = isPt
-      ? `Desbloqueie ${params.featureName} — Trade AI Hub`
-      : `Unlock ${params.featureName} — Trade AI Hub`
+      ? `Voce estava quase la, ${name}`
+      : `You were almost there, ${name}`
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -839,8 +840,8 @@ export async function sendConversionC2Email(params: {
 
     const isPt = params.locale?.startsWith("pt")
     const subject = isPt
-      ? "Voce e um Power User! — Trade AI Hub"
-      : "You're a Power User! — Trade AI Hub"
+      ? "Voce esta no top 10% da plataforma"
+      : "You're in the top 10% of the platform"
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -884,8 +885,8 @@ export async function sendConversionC4Email(params: {
 
     const isPt = params.locale?.startsWith("pt")
     const subject = isPt
-      ? "Sua IA Encontrou Algo Importante — Trade AI Hub"
-      : "Your AI Found Something Important — Trade AI Hub"
+      ? "A IA encontrou algo nos seus trades"
+      : "AI found something in your trades"
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -932,8 +933,8 @@ export async function sendConversionC5Email(params: {
 
     const isPt = params.locale?.startsWith("pt")
     const subject = isPt
-      ? "30 Dias de Insights de Trading — Trade AI Hub"
-      : "30 Days of Trading Insights — Trade AI Hub"
+      ? "30 dias de dados — a IA tem muito a dizer"
+      : "30 days of data — AI has a lot to say"
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -974,8 +975,8 @@ export async function sendConversionC6Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "O Que Seu Plano Free Oferece"
-      : "What Your Free Plan Offers"
+      ? "Duas semanas de progresso (e o que falta)"
+      : "Two weeks of progress (and what's missing)"
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -1016,8 +1017,8 @@ export async function sendConversionC7Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Traders Estao Evoluindo"
-      : "Traders Are Leveling Up"
+      ? "47 traders fizeram upgrade esta semana"
+      : "47 traders upgraded this week"
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -1060,8 +1061,8 @@ export async function sendConversionC8Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Oferta Especial — 20% Off no Plano Pro"
-      : "Special Offer — 20% Off Pro Plan"
+      ? "Oferta unica: 20% off (expira em 48h)"
+      : "One-time offer: 20% off (expires in 48h)"
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -1106,8 +1107,8 @@ export async function sendRetentionR7Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Sentimos Sua Falta"
-      : "We're Sorry to See You Go"
+      ? "Ate logo (seus dados estao salvos) — Trade AI Hub"
+      : "See you later (your data is saved) — Trade AI Hub"
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -1207,8 +1208,8 @@ export async function sendRetentionR1Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Seu Resumo Mensal — Trade AI Hub"
-      : "Your Monthly Summary — Trade AI Hub"
+      ? "Seu mes em numeros (e voce vai gostar)"
+      : "Your month in numbers (and you'll like it)"
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -1252,8 +1253,8 @@ export async function sendRetentionR2Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? `Marco: ${params.milestone} Trades! — Trade AI Hub`
-      : `Milestone: ${params.milestone} Trades! — Trade AI Hub`
+      ? `${params.milestone} trades! Voce esta no clube de elite`
+      : `${params.milestone} trades! You're in the elite club`
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -1297,8 +1298,8 @@ export async function sendRetentionR3Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? `${params.months} Meses com Trade AI Hub!`
-      : `${params.months} Months with Trade AI Hub!`
+      ? `${params.months} meses juntos — sua evolucao e real`
+      : `${params.months} months together — your growth is real`
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -1345,8 +1346,8 @@ export async function sendRetentionR4Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Voce Conhece Esta Funcionalidade? — Trade AI Hub"
-      : "Did You Know About This Feature? — Trade AI Hub"
+      ? "Uma funcionalidade escondida no seu plano"
+      : "A hidden feature in your plan"
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -1387,8 +1388,8 @@ export async function sendRetentionR5Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Seus Trades Estao Esperando — Trade AI Hub"
-      : "Your Trades Are Waiting — Trade AI Hub"
+      ? "Tem novidades esperando por voce"
+      : "There are updates waiting for you"
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -1429,8 +1430,8 @@ export async function sendRetentionR6Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Antes de Ir... — Trade AI Hub"
-      : "Before You Go... — Trade AI Hub"
+      ? "Antes de ir... podemos conversar?"
+      : "Before you go... can we talk?"
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -1471,8 +1472,8 @@ export async function sendWinbackW1Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Sentimos Sua Falta — Trade AI Hub"
-      : "We Miss You — Trade AI Hub"
+      ? "Enquanto voce esteve fora, a IA encontrou algo"
+      : "While you were away, AI found something"
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -1513,8 +1514,8 @@ export async function sendWinbackW2Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Novidades no Trade AI Hub"
-      : "What's New at Trade AI Hub"
+      ? "3 semanas de novidades (e seus trades esperando)"
+      : "3 weeks of updates (and your trades waiting)"
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -1555,8 +1556,8 @@ export async function sendWinbackW3Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Ultima Mensagem — Trade AI Hub"
-      : "Final Check-In — Trade AI Hub"
+      ? "Uma mensagem honesta sobre sua conta"
+      : "An honest message about your account"
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 
@@ -1597,8 +1598,8 @@ export async function sendWinbackW4Email(params: {
     })
 
     const subject = params.locale?.startsWith("pt")
-      ? "Sua Conta Ainda Esta Ativa — Trade AI Hub"
-      : "Your Account Is Still Active — Trade AI Hub"
+      ? "Sua conta gratis ainda esta ativa"
+      : "Your free account is still active"
 
     await resend.emails.send({ from: FROM, to: params.to, subject, html })
 

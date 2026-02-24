@@ -13,26 +13,18 @@ export function retentionR3TimeMilestoneHtml(params: RetentionR3Params): string 
 
   const t = {
     preheader: isPt
-      ? `${months} meses com o Trade AI Hub — obrigado por fazer parte!`
-      : `${months} months with Trade AI Hub — thanks for being part of it!`,
-    heading: isPt ? `Aniversario!` : `Anniversary!`,
+      ? `${months} meses juntos! Sua jornada no trading esta evoluindo`
+      : `${months} months together! Your trading journey is evolving`,
+    heading: isPt ? `${months} Meses de Evolucao` : `${months} Months of Growth`,
     greeting: isPt ? `Parabens, ${name}!` : `Congratulations, ${name}!`,
     anniversary: isPt
       ? `${months} meses com Trade AI Hub`
       : `${months} months with Trade AI Hub`,
     message: isPt
-      ? months >= 12
-        ? `Um ano inteiro analisando seus trades com inteligencia artificial. Voce construiu um habito que poucos traders conseguem manter. Sua disciplina e inspiradora.`
-        : months >= 6
-          ? `Meio ano de analises, insights e evolucao. Traders que revisam seus dados consistentemente por 6 meses tem resultados significativamente melhores.`
-          : `3 meses de dedicacao a analise dos seus trades. O habito esta se formando e os resultados vao aparecer cada vez mais.`
-      : months >= 12
-        ? `A full year analyzing your trades with AI. You've built a habit that few traders can maintain. Your discipline is inspiring.`
-        : months >= 6
-          ? `Six months of analysis, insights, and growth. Traders who consistently review their data for 6 months see significantly better results.`
-          : `3 months dedicated to analyzing your trades. The habit is forming and the results will keep showing.`,
+      ? `${name}, hoje marca ${months} meses desde que voce comecou a usar o Trade AI Hub. Nesse tempo, voce transformou dados em conhecimento e decisoes em evolucao. Os traders mais bem-sucedidos da plataforma tem algo em comum: consistencia. E voce esta provando que tem essa qualidade.`
+      : `${name}, today marks ${months} months since you started using Trade AI Hub. In that time, you've turned data into knowledge and decisions into growth. The most successful traders on the platform have one thing in common: consistency. And you're proving you have that quality.`,
     keepGoing: isPt ? `Continue assim!` : `Keep going!`,
-    cta: isPt ? `Ver Meu Dashboard` : `View My Dashboard`,
+    cta: isPt ? `Continuar Evoluindo` : `Keep Growing`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

@@ -16,17 +16,17 @@ export function conversionC4AhaMomentHtml(params: ConversionC4Params): string {
 
   const t = {
     preheader: isPt
-      ? `Nossa IA detectou algo importante no seu trading`
-      : `Our AI detected something important in your trading`,
+      ? `A IA acabou de detectar algo nos seus trades que voce precisa ver`
+      : `AI just detected something in your trades you need to see`,
     heading: isPt
-      ? `Sua IA Encontrou Algo`
-      : `Your AI Found Something`,
+      ? `A IA Descobriu Algo`
+      : `AI Discovered Something`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Nossa IA detectou <strong style="color:#a855f7;">${insightLabel}</strong> no seu trading. Este tipo de analise pode revelar oportunidades e riscos que voce nao veria sozinho.`
-      : `Our AI detected <strong style="color:#a855f7;">${insightLabel}</strong> in your trading. This kind of analysis can reveal opportunities and risks you wouldn't spot on your own.`,
+      ? `Lembra quando falamos que a IA encontraria coisas que voce nao ve sozinho? Acabou de acontecer. Um dos nossos agentes identificou <strong style="color:#a855f7;">${insightLabel}</strong> nos seus trades. Esse e o tipo de insight que traders profissionais pagam caro para ter. Voce tem acesso agora mesmo.`
+      : `Remember when we said AI would find things you can't see alone? It just happened. One of our agents identified <strong style="color:#a855f7;">${insightLabel}</strong> in your trades. This is the kind of insight professional traders pay a premium for. You have access right now.`,
     deeperTitle: isPt
       ? `Com o Pro, va mais fundo:`
       : `With Pro, go deeper:`,
@@ -53,8 +53,8 @@ export function conversionC4AhaMomentHtml(params: ConversionC4Params): string {
     agent6: isPt ? `Copilot Chat` : `Copilot Chat`,
     agent7: isPt ? `Analise Comparativa` : `Compare Analysis`,
     cta: isPt
-      ? `Obter Analise Mais Profunda`
-      : `Get Deeper Analysis`,
+      ? `Ver Meu Insight`
+      : `See My Insight`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

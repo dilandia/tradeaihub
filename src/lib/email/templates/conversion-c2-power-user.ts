@@ -12,41 +12,41 @@ export function conversionC2PowerUserHtml(params: ConversionC2Params): string {
 
   const t = {
     preheader: isPt
-      ? `Voce usou ${params.agentCount} agentes de IA esta semana — impressionante!`
-      : `You used ${params.agentCount} AI agents this week — impressive!`,
+      ? `Voce usou 3 agentes em uma semana. Imagine com acesso completo`
+      : `You used 3 agents in one week. Imagine with full access`,
     heading: isPt
-      ? `Voce e um Power User!`
-      : `You're a Power User!`,
+      ? `Voce E Um Power User`
+      : `You're a Power User`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Voce usou <strong style="color:#a855f7;">${params.agentCount} agentes de IA</strong> diferentes esta semana — impressionante! Voce esta aproveitando ao maximo a analise de trading com IA.`
-      : `You've used <strong style="color:#a855f7;">${params.agentCount} different AI agents</strong> this week — impressive! You're making the most of AI-powered trading analysis.`,
+      ? `${name}, os numeros nao mentem: voce usou <strong style="color:#a855f7;">${params.agentCount}+ agentes de IA</strong> nos ultimos 7 dias. Isso te coloca no top 10% dos traders mais ativos na plataforma. Voce claramente entende o valor da analise com IA.`
+      : `${name}, numbers don't lie: you've used <strong style="color:#a855f7;">${params.agentCount}+ AI agents</strong> in the last 7 days. That puts you in the top 10% of most active traders. You clearly understand the value of AI analysis.`,
     limitTitle: isPt
-      ? `Mas no plano Free, seus creditos sao limitados...`
-      : `But on the Free plan, your credits are limited...`,
+      ? `Voce esta usando a IA no limite...`
+      : `You're pushing AI to its limits...`,
     limitText: isPt
-      ? `Com esse ritmo de uso, seus creditos podem acabar rapidamente. O plano Pro garante que voce nunca fique sem analise.`
-      : `At this pace, your credits may run out quickly. The Pro plan ensures you never run out of analysis.`,
+      ? `Com esse ritmo, voce merece acesso completo. Sem limites de creditos, sem restricoes. Cada insight conta quando se trata do seu dinheiro.`
+      : `At this pace, you deserve full access. No credit limits, no restrictions. Every insight matters when it's your money on the line.`,
     benefitTitle: isPt
-      ? `Beneficios Pro para Power Users:`
-      : `Pro benefits for Power Users:`,
+      ? `O proximo nivel para Power Users:`
+      : `The next level for Power Users:`,
     benefit1: isPt
-      ? `60 creditos de IA por mes (vs 0 no Free)`
-      : `60 AI credits per month (vs 0 on Free)`,
+      ? `Creditos ilimitados para usar IA todos os dias, sem contar`
+      : `Unlimited credits to use AI every day, no counting`,
     benefit2: isPt
-      ? `Acesso prioritario a todos os 7 agentes de IA`
-      : `Priority access to all 7 AI agents`,
+      ? `Acesso ao Copilot — chat em tempo real com a IA sobre seus trades`
+      : `Access to Copilot — real-time AI chat about your trades`,
     benefit3: isPt
-      ? `Estrategias e tags ilimitadas para rastrear padroes`
-      : `Unlimited strategies and tags to track patterns`,
+      ? `Compare periodos e veja sua evolucao mes a mes`
+      : `Compare periods and see your month-over-month growth`,
     benefit4: isPt
       ? `Exportacao PDF para compartilhar e arquivar analises`
       : `PDF export to share and archive analyses`,
     cta: isPt
-      ? `Fazer Upgrade para Pro`
-      : `Upgrade to Pro`,
+      ? `Virar Pro Agora`
+      : `Go Pro Now`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

@@ -13,20 +13,20 @@ export function retentionR4FeatureDiscoveryHtml(params: RetentionR4Params): stri
 
   const t = {
     preheader: isPt
-      ? `Voce conhece a funcionalidade ${featureName}? Descubra agora!`
-      : `Did you know about ${featureName}? Discover it now!`,
-    heading: isPt ? `Voce Sabia?` : `Did You Know?`,
+      ? `Tem uma funcionalidade escondida no seu plano que voce ainda nao experimentou`
+      : `There's a hidden feature in your plan you haven't tried yet`,
+    heading: isPt ? `Voce Sabia Disso?` : `Did You Know This?`,
     greeting: isPt ? `Oi ${name},` : `Hey ${name},`,
     intro: isPt
-      ? `Muitos traders como voce ainda nao descobriram essa funcionalidade poderosa:`
-      : `Many traders like you haven't discovered this powerful feature yet:`,
+      ? `${name}, depois de analisar como voce usa o Trade AI Hub, percebemos que tem funcionalidades poderosas que voce ainda nao experimentou. Elas podem mudar a forma como voce analisa seus trades.`
+      : `${name}, after analyzing how you use Trade AI Hub, we noticed powerful features you haven't tried yet. They could change how you analyze your trades.`,
     featureLabel: featureName,
     featureDesc: featureDescription,
     howToTitle: isPt ? `Como usar:` : `How to use:`,
     howTo: isPt
       ? `Acesse seu dashboard e navegue ate a funcionalidade. E simples e leva menos de 1 minuto para comecar.`
       : `Go to your dashboard and navigate to the feature. It's simple and takes less than 1 minute to get started.`,
-    cta: isPt ? `Experimentar ${featureName}` : `Try ${featureName}`,
+    cta: isPt ? `Descobrir Agora` : `Discover Now`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

@@ -13,25 +13,25 @@ export function importCompletedEmailHtml(params: ImportCompletedParams): string 
 
   const t = {
     preheader: isPt
-      ? `${params.tradeCount} trades importados de ${params.accountName}`
-      : `${params.tradeCount} trades imported from ${params.accountName}`,
+      ? `${params.tradeCount} trades prontos para a IA analisar. Os padroes ja estao aparecendo`
+      : `${params.tradeCount} trades ready for AI analysis. Patterns are already emerging`,
     heading: isPt
-      ? `Importacao Completa`
-      : `Import Complete`,
+      ? `Importacao Completa!`
+      : `Import Complete!`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Sua importacao foi concluida com sucesso! Aqui esta o resumo:`
-      : `Your import has been completed successfully! Here's the summary:`,
+      ? `Pronto! Seus trades ja estao no sistema e a IA esta processando os dados. Aqui esta o resumo:`
+      : `Done! Your trades are in the system and AI is processing the data. Here's the summary:`,
     labelAccount: isPt ? `Conta` : `Account`,
     labelTrades: isPt ? `Trades importados` : `Trades imported`,
     teaser: isPt
-      ? `Seu dashboard esta pronto com dados atualizados. Acesse agora para explorar suas estatisticas e insights de IA.`
-      : `Your dashboard is ready with fresh data. Head over now to explore your stats and AI insights.`,
+      ? `Seu dashboard esta turbinado com dados frescos. Os agentes de IA ja podem gerar insights personalizados — quanto antes voce acessar, mais rapido descobre padroes escondidos.`
+      : `Your dashboard is loaded with fresh data. AI agents can now generate personalized insights — the sooner you access, the faster you discover hidden patterns.`,
     cta: isPt
-      ? `Ver Meu Dashboard`
-      : `View My Dashboard`,
+      ? `Explorar Meus Dados`
+      : `Explore My Data`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

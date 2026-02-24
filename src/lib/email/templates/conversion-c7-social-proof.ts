@@ -11,27 +11,27 @@ export function conversionC7SocialProofHtml(params: ConversionC7Params): string 
 
   const t = {
     preheader: isPt
-      ? `Veja por que traders estao fazendo upgrade para o Pro`
-      : `See why traders are upgrading to Pro`,
+      ? `Enquanto voce pensa, 47 traders fizeram upgrade esta semana`
+      : `While you think it over, 47 traders upgraded this week`,
     heading: isPt
-      ? `Traders Estao Fazendo Upgrade`
-      : `Traders Are Upgrading`,
+      ? `Outros Traders Ja Decidiram`
+      : `Other Traders Already Decided`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Traders que levam seus resultados a serio estao usando IA para encontrar padroes que passariam despercebidos. Veja o que eles estao dizendo:`
-      : `Traders who are serious about their results are using AI to find patterns they'd otherwise miss. Here's what they're saying:`,
+      ? `${name}, nos ultimos 7 dias, dezenas de traders como voce decidiram investir no seu proprio crescimento com o Trade AI Hub Pro. O que eles descobriram?`
+      : `${name}, in the last 7 days, dozens of traders like you decided to invest in their growth with Trade AI Hub Pro. What did they discover?`,
     stat1: isPt
-      ? `87% dos traders ativos dizem que insights de IA melhoraram seus resultados`
-      : `87% of active traders say AI insights improved their results`,
+      ? `"Finalmente entendi por que perdia dinheiro as quartas-feiras" — Trader Forex, SP`
+      : `"Finally understood why I lost money on Wednesdays" — Forex Trader, NYC`,
     stat2: isPt
-      ? `Traders que fizeram upgrade analisam 3x mais operacoes`
-      : `Traders who upgraded analyze 3x more trades`,
+      ? `"O agente de risco me salvou de um trade que teria sido desastroso" — Day Trader, RJ`
+      : `"The risk agent saved me from a trade that would have been disastrous" — Day Trader, London`,
     stat3: isPt
-      ? `Usuarios Pro descobrem 5x mais padroes em seus trades`
-      : `Pro users discover 5x more patterns in their trades`,
-    whyTitle: isPt ? `Por que traders escolhem o Pro:` : `Why traders choose Pro:`,
+      ? `"Minha taxa de acerto subiu 15% em 2 meses usando os insights" — Swing Trader, MG`
+      : `"My win rate went up 15% in 2 months using the insights" — Swing Trader, Toronto`,
+    whyTitle: isPt ? `Por que eles escolheram o Pro:` : `Why they chose Pro:`,
     why1: isPt
       ? `Insights de IA identificam erros recorrentes automaticamente`
       : `AI insights identify recurring mistakes automatically`,
@@ -44,7 +44,7 @@ export function conversionC7SocialProofHtml(params: ConversionC7Params): string 
     why4: isPt
       ? `Copilot responde suas duvidas de trading com IA`
       : `Copilot answers your trading questions with AI`,
-    cta: isPt ? `Ver Beneficios do Pro` : `See Pro Benefits`,
+    cta: isPt ? `Juntar-se a Eles` : `Join Them`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
       : `Trade AI Hub — AI-Powered Trading Journal`,

@@ -17,17 +17,17 @@ export function conversionC3CreditLimitHtml(params: ConversionC3Params): string 
 
   const t = {
     preheader: isPt
-      ? `${percentUsed}% dos seus creditos de IA foram usados — recarregue agora`
-      : `${percentUsed}% of your AI credits used — top up now`,
+      ? `Seus creditos de IA estao quase no fim. Nao perca o momentum`
+      : `Your AI credits are almost gone. Don't lose momentum`,
     heading: isPt
-      ? `Creditos de IA Acabando`
-      : `AI Credits Running Low`,
+      ? `Alerta de Creditos`
+      : `Credit Alert`,
     greeting: isPt
       ? `Oi ${name},`
       : `Hey ${name},`,
     intro: isPt
-      ? `Voce ja usou <strong style="color:#f59e0b;">${percentUsed}%</strong> dos seus creditos de IA neste periodo. Restam apenas <strong style="color:#f59e0b;">${creditsRemaining}</strong> creditos.`
-      : `You've used <strong style="color:#f59e0b;">${percentUsed}%</strong> of your AI credits this period. Only <strong style="color:#f59e0b;">${creditsRemaining}</strong> credits remaining.`,
+      ? `Voce ja usou a maioria dos seus creditos de IA este mes — sinal de que esta tirando proveito real da plataforma. Mas quando acabar, voce fica sem acesso aos insights que estao fazendo diferenca. Restam apenas <strong style="color:#f59e0b;">${creditsRemaining}</strong> creditos.`
+      : `You've used most of your AI credits this month — a sign you're getting real value. But when they run out, you'll lose access to the insights making a difference. Only <strong style="color:#f59e0b;">${creditsRemaining}</strong> credits remaining.`,
     usageLabel: isPt ? `Uso de Creditos` : `Credit Usage`,
     usedLabel: isPt ? `Usados` : `Used`,
     remainingLabel: isPt ? `Restantes` : `Remaining`,
@@ -73,10 +73,10 @@ export function conversionC3CreditLimitHtml(params: ConversionC3Params): string 
         : `Available immediately after purchase`,
     cta: isPt
       ? isFree
-        ? `Fazer Upgrade para Pro`
+        ? `Garantir Meus Creditos`
         : `Comprar Mais Creditos`
       : isFree
-        ? `Upgrade to Pro`
+        ? `Secure My Credits`
         : `Buy More Credits`,
     footer: isPt
       ? `Trade AI Hub — Diario de Trading com IA`
