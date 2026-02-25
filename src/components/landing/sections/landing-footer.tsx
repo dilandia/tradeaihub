@@ -38,6 +38,7 @@ export function LandingFooter() {
         { labelKey: "landing.footerAbout", href: "/about" },
         { labelKey: "landing.footerContact", href: "/contact" },
         { labelKey: "landing.footerBlog", href: "/blog" },
+        { labelKey: "affiliates.footerLink", href: "/affiliates" },
       ],
     },
     {

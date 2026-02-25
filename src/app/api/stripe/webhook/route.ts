@@ -254,6 +254,81 @@ export async function POST(req: Request) {
           console.error("[stripe/webhook] referral conversion failed:", refErr);
           // Non-blocking — subscription still works
         }
+
+        // Affiliate commission: checkout.session.completed (first subscription or credit purchase)
+        try {
+          const paymentIntentId = typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : session.payment_intent?.id;
+
+          const { data: affRef } = await supabase
+            .from("affiliate_referrals")
+            .select("id, affiliate_id, status")
+            .eq("referred_user_id", userId)
+            .maybeSingle();
+
+          if (affRef) {
+            const { data: affiliate } = await supabase
+              .from("affiliates")
+              .select("id, commission_rate, is_active")
+              .eq("id", affRef.affiliate_id)
+              .single();
+
+            if (affiliate?.is_active) {
+              const paymentAmount = (session.amount_total ?? 0) / 100;
+              const commissionAmount = +(paymentAmount * Number(affiliate.commission_rate)).toFixed(2);
+              const idempotencyKey = paymentIntentId ?? `checkout_${session.id}`;
+
+              const { data: existingComm } = await supabase
+                .from("affiliate_commissions")
+                .select("id")
+                .eq("idempotency_key", idempotencyKey)
+                .maybeSingle();
+
+              if (!existingComm && commissionAmount > 0) {
+                await supabase.from("affiliate_commissions").insert({
+                  affiliate_id: affiliate.id,
+                  referral_id: affRef.id,
+                  stripe_payment_intent_id: paymentIntentId ?? null,
+                  payment_amount: paymentAmount,
+                  commission_rate: affiliate.commission_rate,
+                  commission_amount: commissionAmount,
+                  idempotency_key: idempotencyKey,
+                  status: "pending",
+                });
+
+                await supabase.rpc("affiliate_record_commission", {
+                  p_affiliate_id: affiliate.id,
+                  p_amount: commissionAmount,
+                });
+
+                // Mark referred user as converted if first time
+                if (affRef.status === "registered") {
+                  await supabase
+                    .from("affiliate_referrals")
+                    .update({ status: "converted", converted_at: new Date().toISOString() })
+                    .eq("id", affRef.id);
+
+                  // Increment total_conversions
+                  const { data: currentAff } = await supabase
+                    .from("affiliates")
+                    .select("total_conversions")
+                    .eq("id", affiliate.id)
+                    .single();
+                  if (currentAff) {
+                    await supabase
+                      .from("affiliates")
+                      .update({ total_conversions: (currentAff.total_conversions ?? 0) + 1, updated_at: new Date().toISOString() })
+                      .eq("id", affiliate.id);
+                  }
+                }
+              }
+            }
+          }
+        } catch (affErr) {
+          console.error("[stripe/webhook] affiliate commission (checkout) failed:", affErr);
+          // Non-blocking
+        }
         break;
       }
 
@@ -333,9 +408,71 @@ export async function POST(req: Request) {
         break;
       }
 
-      case "invoice.paid":
-        // Opcional: renovação bem-sucedida — período já atualizado no subscription.updated
+      case "invoice.paid": {
+        // Affiliate commission: recurring renewals only (subscription_cycle)
+        const invoice = event.data.object as Stripe.Invoice;
+
+        // Skip the first invoice — already handled by checkout.session.completed
+        if (invoice.billing_reason === "subscription_create") break;
+        if (invoice.billing_reason !== "subscription_cycle") break;
+
+        try {
+          const parentSub = invoice.parent?.subscription_details?.subscription;
+          const subscriptionId = typeof parentSub === "string" ? parentSub : (parentSub as { id?: string })?.id;
+          if (!subscriptionId) break;
+
+          const sub = await stripe.subscriptions.retrieve(subscriptionId);
+          const userId = sub.metadata?.supabase_user_id;
+          if (!userId) break;
+
+          const { data: affRef } = await supabase
+            .from("affiliate_referrals")
+            .select("id, affiliate_id")
+            .eq("referred_user_id", userId)
+            .maybeSingle();
+
+          if (!affRef) break;
+
+          const { data: affiliate } = await supabase
+            .from("affiliates")
+            .select("id, commission_rate, is_active")
+            .eq("id", affRef.affiliate_id)
+            .single();
+
+          if (!affiliate?.is_active) break;
+
+          const paymentAmount = (invoice.amount_paid ?? 0) / 100;
+          const commissionAmount = +(paymentAmount * Number(affiliate.commission_rate)).toFixed(2);
+          const idempotencyKey = invoice.id as string;
+
+          const { data: existingComm } = await supabase
+            .from("affiliate_commissions")
+            .select("id")
+            .eq("idempotency_key", idempotencyKey)
+            .maybeSingle();
+
+          if (!existingComm && commissionAmount > 0) {
+            await supabase.from("affiliate_commissions").insert({
+              affiliate_id: affiliate.id,
+              referral_id: affRef.id,
+              stripe_invoice_id: invoice.id,
+              payment_amount: paymentAmount,
+              commission_rate: affiliate.commission_rate,
+              commission_amount: commissionAmount,
+              idempotency_key: idempotencyKey,
+              status: "pending",
+            });
+
+            await supabase.rpc("affiliate_record_commission", {
+              p_affiliate_id: affiliate.id,
+              p_amount: commissionAmount,
+            });
+          }
+        } catch (affRenewalErr) {
+          console.error("[stripe/webhook] affiliate commission (renewal) failed:", affRenewalErr);
+        }
         break;
+      }
 
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
@@ -370,6 +507,40 @@ export async function POST(req: Request) {
         } catch (emailErr) {
           console.error("[stripe/webhook] Failed to send payment_failed email:", emailErr);
           // Non-blocking — webhook still returns 200
+        }
+        break;
+      }
+
+      case "charge.refunded": {
+        // Reverse pending affiliate commission on refund
+        const charge = event.data.object as Stripe.Charge;
+        const refundPaymentIntentId = typeof charge.payment_intent === "string"
+          ? charge.payment_intent
+          : (charge.payment_intent as { id?: string })?.id;
+
+        if (!refundPaymentIntentId) break;
+
+        try {
+          const { data: commission } = await supabase
+            .from("affiliate_commissions")
+            .select("id, affiliate_id, commission_amount, status")
+            .eq("stripe_payment_intent_id", refundPaymentIntentId)
+            .eq("status", "pending")
+            .maybeSingle();
+
+          if (commission) {
+            await supabase
+              .from("affiliate_commissions")
+              .update({ status: "refunded" })
+              .eq("id", commission.id);
+
+            await supabase.rpc("affiliate_reverse_commission", {
+              p_affiliate_id: commission.affiliate_id,
+              p_amount: commission.commission_amount,
+            });
+          }
+        } catch (refundErr) {
+          console.error("[stripe/webhook] affiliate refund reversal failed:", refundErr);
         }
         break;
       }
