@@ -1,6 +1,7 @@
 "use client"
 
 import { ArrowLeft, Calendar, Clock } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
 
 import { useLanguage } from "@/contexts/language-context"
@@ -161,7 +162,16 @@ export default function DataDrivenArticlePage() {
             <ArrowLeft className="h-4 w-4" />
             {t("landing.blogLabel")}
           </Link>
-          <div className="mb-6 h-48 sm:h-64 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-pink-500 opacity-80" />
+          <div className="relative mb-6 h-48 sm:h-64 overflow-hidden rounded-2xl">
+            <Image
+              src="/blog/blog-data-driven.png"
+              alt="From Losing to Winning: A Data-Driven Approach"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 768px"
+              priority
+            />
+          </div>
           <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
             <span className="inline-flex items-center gap-1.5">
               <Calendar className="h-4 w-4" />

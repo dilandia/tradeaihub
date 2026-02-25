@@ -1,6 +1,7 @@
 "use client"
 
 import { Clock, ArrowRight, Calendar } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
 
 import { useLanguage } from "@/contexts/language-context"
@@ -18,7 +19,7 @@ const ARTICLES = [
     href: "/blog/5-metrics-every-forex-trader-should-track",
     date: "Feb 20, 2026",
     readTime: 8,
-    gradient: "from-indigo-500 to-blue-500",
+    image: "/blog/blog-metrics.png",
   },
   {
     titleKey: "landing.blogArticle2Title",
@@ -26,7 +27,7 @@ const ARTICLES = [
     href: "/blog/how-ai-is-changing-trading-journaling",
     date: "Feb 18, 2026",
     readTime: 7,
-    gradient: "from-violet-500 to-purple-500",
+    image: "/blog/blog-ai-journal.png",
   },
   {
     titleKey: "landing.blogArticle3Title",
@@ -34,7 +35,7 @@ const ARTICLES = [
     href: "/blog/from-losing-to-winning-data-driven-approach",
     date: "Feb 15, 2026",
     readTime: 9,
-    gradient: "from-fuchsia-500 to-pink-500",
+    image: "/blog/blog-data-driven.png",
   },
 ] as const
 
@@ -61,13 +62,18 @@ export default function BlogPage() {
         <div className="mx-auto max-w-5xl">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {ARTICLES.map(
-              ({ titleKey, descKey, href, date, readTime, gradient }) => (
+              ({ titleKey, descKey, href, date, readTime, image }) => (
                 <Link key={titleKey} href={href} className="group">
                   <LandingGlassCard hover className="overflow-hidden h-full">
-                    {/* Gradient placeholder image */}
-                    <div
-                      className={`h-40 bg-gradient-to-br ${gradient} opacity-80 transition-opacity group-hover:opacity-100`}
-                    />
+                    <div className="relative h-40 overflow-hidden">
+                      <Image
+                        src={image}
+                        alt={t(titleKey)}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      />
+                    </div>
                     <div className="p-5">
                       <div className="mb-3 flex items-center gap-3 text-xs text-gray-500">
                         <span className="inline-flex items-center gap-1">
