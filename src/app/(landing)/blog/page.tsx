@@ -37,6 +37,22 @@ const ARTICLES = [
     readTime: 9,
     image: "/blog/blog-data-driven.png",
   },
+  {
+    titleKey: "landing.blogArticle4Title",
+    descKey: "landing.blogArticle4Desc",
+    href: "/blog/the-psychology-of-successful-trading",
+    date: "Feb 25, 2026",
+    readTime: 10,
+    image: "/blog/blog-trading-psychology.png",
+  },
+  {
+    titleKey: "landing.blogArticle5Title",
+    descKey: "landing.blogArticle5Desc",
+    href: "/blog/position-sizing-explained",
+    date: "Feb 25, 2026",
+    readTime: 8,
+    image: "/blog/blog-position-sizing.png",
+  },
 ] as const
 
 export default function BlogPage() {
