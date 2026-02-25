@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import crypto from "crypto"
 import { createClient } from "@supabase/supabase-js"
 import { Resend } from "resend"
 import { tradingReportEmailHtml } from "@/lib/email/templates/trading-report"
@@ -7,10 +8,16 @@ const CRON_SECRET = process.env.CRON_SECRET
 const FROM =
   process.env.RESEND_FROM_EMAIL || "Trade AI Hub <onboarding@resend.dev>"
 
+function isValidCronSecret(provided: string | null): boolean {
+  if (!CRON_SECRET || !provided) return false
+  const a = Buffer.from(CRON_SECRET)
+  const b = Buffer.from(provided)
+  if (a.length !== b.length) return false
+  return crypto.timingSafeEqual(a, b)
+}
+
 export async function GET(req: NextRequest) {
-  // Validate cron secret
-  const secret = req.headers.get("x-cron-secret")
-  if (!CRON_SECRET || secret !== CRON_SECRET) {
+  if (!isValidCronSecret(req.headers.get("x-cron-secret"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

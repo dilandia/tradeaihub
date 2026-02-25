@@ -76,12 +76,18 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
+  /* API routes with their own auth (cron secrets, webhook signatures) — skip middleware auth */
+  const isSelfAuthApi =
+    path.startsWith("/api/cron/") ||
+    path.startsWith("/api/webhooks/") ||
+    path.startsWith("/api/stripe/webhook");
+
   /* API routes: return 401 JSON instead of redirect (avoids CORS cross-origin) */
-  if (isApiRoute && !user) {
+  if (isApiRoute && !user && !isSelfAuthApi) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!isAuthPage && !isAuthCallback && !user) {
+  if (!isAuthPage && !isAuthCallback && !isSelfAuthApi && !user) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
