@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { getServiceClient } from "@/lib/admin-auth";
 import { StatCard } from "@/components/admin/stat-card";
+import { GuardianScanButton } from "@/components/admin/guardian-scan-button";
 
 interface RlsRow {
   tablename: string;
@@ -310,14 +311,17 @@ export default async function AdminSystemPage() {
               </p>
             </div>
           </div>
-          {guardian?.last_scan?.completed_at && (
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">Last scan</p>
-              <p className="text-sm font-medium text-foreground">
-                {timeAgo(guardian.last_scan.completed_at)}
-              </p>
-            </div>
-          )}
+          <div className="flex items-center gap-4">
+            {guardian?.last_scan?.completed_at && (
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Last scan</p>
+                <p className="text-sm font-medium text-foreground">
+                  {timeAgo(guardian.last_scan.completed_at)}
+                </p>
+              </div>
+            )}
+            <GuardianScanButton />
+          </div>
         </div>
 
         {guardian ? (
