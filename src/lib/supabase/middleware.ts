@@ -39,6 +39,7 @@ export async function updateSession(request: NextRequest) {
     "";
   const host = rawHost.split(":")[0];
   const isAuthPage = path === "/login" || path === "/register" || path === "/forgot-password" || path === "/reset-password";
+  const isAuthCallback = path === "/auth/callback";
 
   /* tradeaihub.com, www: domínio de landing em prod */
   const isProdLandingDomain =
@@ -80,7 +81,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!isAuthPage && !user) {
+  if (!isAuthPage && !isAuthCallback && !user) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

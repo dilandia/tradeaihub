@@ -105,8 +105,8 @@ export function LoginForm({ message }: Props) {
         <CardContent>
           {message && (
             <ErrorAlert
-              severity="info"
-              title="Info"
+              severity={message.toLowerCase().includes("confirm") || message.toLowerCase().includes("confira") || message.toLowerCase().includes("updated successfully") || message.toLowerCase().includes("password updated") ? "info" : "warning"}
+              title={message.toLowerCase().includes("confirm") || message.toLowerCase().includes("confira") || message.toLowerCase().includes("updated") ? "Info" : "Alert"}
               message={message}
               className="mb-4"
             />

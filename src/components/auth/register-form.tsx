@@ -109,7 +109,12 @@ export function RegisterForm({ message, referralCode }: Props) {
 
     try {
       await signUp(formData);
-    } catch (error) {
+    } catch (error: unknown) {
+      // Next.js redirect() throws internally — re-throw so the redirect completes
+      const digest = (error as Record<string, unknown>)?.digest;
+      if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+        throw error;
+      }
       setFormError(error instanceof Error ? error.message : "Registration failed. Please try again.");
       setIsSubmitting(false);
     }

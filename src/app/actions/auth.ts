@@ -3,7 +3,26 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { sendWelcomeEmail } from "@/lib/email/send";
+
+function friendlyAuthError(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes("email rate limit exceeded") || lower.includes("rate_limit")) {
+    return "Too many attempts. Please wait a few minutes and try again.";
+  }
+  if (lower.includes("email not confirmed") || lower.includes("email_not_confirmed")) {
+    return "Please confirm your email first. Check your inbox for the confirmation link.";
+  }
+  if (lower.includes("user already registered") || lower.includes("already_registered")) {
+    return "This email is already registered. Try logging in instead.";
+  }
+  if (lower.includes("invalid login credentials") || lower.includes("invalid_credentials")) {
+    return "Invalid email or password. Please try again.";
+  }
+  if (lower.includes("signups not allowed") || lower.includes("signup_disabled")) {
+    return "New registrations are temporarily disabled. Please try again later.";
+  }
+  return message;
+}
 
 export async function signIn(formData: FormData): Promise<never> {
   const supabase = await createClient();
@@ -18,7 +37,7 @@ export async function signIn(formData: FormData): Promise<never> {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    redirect("/login?message=" + encodeURIComponent(error.message));
+    redirect("/login?message=" + encodeURIComponent(friendlyAuthError(error.message)));
   }
 
   revalidatePath("/", "layout");
@@ -45,20 +64,15 @@ export async function signUp(formData: FormData): Promise<never> {
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: metadata },
+    options: {
+      data: metadata,
+      emailRedirectTo: `${APP_URL}/auth/callback`,
+    },
   });
 
   if (error) {
-    redirect("/register?message=" + encodeURIComponent(error.message));
+    redirect("/register?message=" + encodeURIComponent(friendlyAuthError(error.message)));
   }
-
-  // Fire-and-forget welcome email (don't block registration flow)
-  sendWelcomeEmail({
-    to: email,
-    userName: fullName || undefined,
-  }).catch((err) => {
-    console.error("[Auth] Welcome email failed:", err);
-  });
 
   revalidatePath("/", "layout");
   redirect("/login?message=" + encodeURIComponent("Confira seu email para confirmar a conta."));
