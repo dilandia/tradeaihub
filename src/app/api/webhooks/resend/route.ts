@@ -1,7 +1,64 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import crypto from "crypto"
 
 const RESEND_WEBHOOK_SECRET = process.env.RESEND_WEBHOOK_SECRET
+const TIMESTAMP_TOLERANCE_SECONDS = 300 // 5 minutes
+
+/**
+ * Verify Svix webhook signature (used by Resend).
+ * Algorithm: HMAC-SHA256 over "{svix-id}.{svix-timestamp}.{body}" with base64-decoded secret.
+ */
+function verifySvixSignature(
+  rawBody: string,
+  headers: {
+    svixId: string | null
+    svixTimestamp: string | null
+    svixSignature: string | null
+  },
+  secret: string
+): boolean {
+  const { svixId, svixTimestamp, svixSignature } = headers
+
+  if (!svixId || !svixTimestamp || !svixSignature) return false
+
+  // Check timestamp freshness
+  const ts = parseInt(svixTimestamp, 10)
+  if (isNaN(ts)) return false
+  const now = Math.floor(Date.now() / 1000)
+  if (Math.abs(now - ts) > TIMESTAMP_TOLERANCE_SECONDS) return false
+
+  // Decode secret (strip "whsec_" prefix if present)
+  const secretBytes = Buffer.from(
+    secret.startsWith("whsec_") ? secret.slice(6) : secret,
+    "base64"
+  )
+
+  // Create signed content
+  const signedContent = `${svixId}.${svixTimestamp}.${rawBody}`
+  const expectedSig = crypto
+    .createHmac("sha256", secretBytes)
+    .update(signedContent)
+    .digest("base64")
+
+  // Svix signature header can contain multiple signatures: "v1,<sig1> v1,<sig2>"
+  const signatures = svixSignature.split(" ")
+  for (const sig of signatures) {
+    const [version, value] = sig.split(",", 2)
+    if (version !== "v1" || !value) continue
+    try {
+      const sigBuf = Buffer.from(value, "base64")
+      const expectedBuf = Buffer.from(expectedSig, "base64")
+      if (sigBuf.length === expectedBuf.length && crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+        return true
+      }
+    } catch {
+      continue
+    }
+  }
+
+  return false
+}
 
 /**
  * Resend webhook handler for email open/click tracking.
@@ -14,17 +71,23 @@ const RESEND_WEBHOOK_SECRET = process.env.RESEND_WEBHOOK_SECRET
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    const rawBody = await req.text()
 
-    // Validate webhook (Resend uses svix for signing)
-    // For now, validate via shared secret header
+    // Verify Svix signature if secret is configured
     if (RESEND_WEBHOOK_SECRET) {
-      const signature = req.headers.get("svix-signature")
-      if (!signature) {
-        return NextResponse.json({ error: "Missing signature" }, { status: 401 })
+      const isValid = verifySvixSignature(rawBody, {
+        svixId: req.headers.get("svix-id"),
+        svixTimestamp: req.headers.get("svix-timestamp"),
+        svixSignature: req.headers.get("svix-signature"),
+      }, RESEND_WEBHOOK_SECRET)
+
+      if (!isValid) {
+        console.warn("[Resend Webhook] Invalid signature — rejecting request")
+        return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
       }
-      // TODO: Implement full svix signature verification when needed
     }
+
+    const body = JSON.parse(rawBody)
 
     const { type, data } = body
 

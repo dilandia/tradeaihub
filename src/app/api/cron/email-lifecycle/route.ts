@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import crypto from "crypto"
 import { processOnboardingEmails } from "@/lib/email/sequences/onboarding"
 import { processConversionEmails } from "@/lib/email/sequences/conversion"
 import { processRetentionEmails } from "@/lib/email/sequences/retention"
@@ -6,9 +7,16 @@ import { processWinbackEmails } from "@/lib/email/sequences/winback"
 
 const CRON_SECRET = process.env.CRON_SECRET
 
+function isValidCronSecret(provided: string | null): boolean {
+  if (!CRON_SECRET || !provided) return false
+  const a = Buffer.from(CRON_SECRET)
+  const b = Buffer.from(provided)
+  if (a.length !== b.length) return false
+  return crypto.timingSafeEqual(a, b)
+}
+
 export async function GET(req: NextRequest) {
-  const secret = req.headers.get("x-cron-secret")
-  if (!CRON_SECRET || secret !== CRON_SECRET) {
+  if (!isValidCronSecret(req.headers.get("x-cron-secret"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
