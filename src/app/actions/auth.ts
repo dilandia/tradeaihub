@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { generateConfirmationLink } from "@/lib/supabase/admin";
+import { sendEmailConfirmationEmail } from "@/lib/email/send";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.tradeaihub.com";
 
@@ -149,15 +151,22 @@ export async function resendConfirmationEmail(
     return { success: false, error: "Email is required." };
   }
 
-  const supabase = await createClient();
+  try {
+    // Generate a fresh confirmation link via Supabase Admin API
+    const confirmLink = await generateConfirmationLink(email);
+    if (!confirmLink) {
+      // Always return success for security (don't reveal if email exists)
+      return { success: true };
+    }
 
-  await supabase.auth.resend({
-    type: "signup",
-    email,
-    options: {
-      emailRedirectTo: `${APP_URL}/auth/callback`,
-    },
-  });
+    // Send via Resend with the custom template
+    await sendEmailConfirmationEmail({
+      to: email,
+      confirmLink,
+    });
+  } catch (err) {
+    console.error("[resendConfirmationEmail] Error:", err);
+  }
 
   // Always return success for security (don't reveal if email exists)
   return { success: true };
