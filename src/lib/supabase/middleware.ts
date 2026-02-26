@@ -112,6 +112,16 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  /* Admin route protection: must be authenticated admin */
+  if (path.startsWith("/admin") && user) {
+    const isAdmin =
+      user.app_metadata?.role === "admin" ||
+      user.app_metadata?.role === "super_admin";
+    if (!isAdmin) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+  }
+
   /* app.tradeaihub.com: rota raiz com usuário logado → dashboard */
   if (path === "/" && user) {
     return NextResponse.redirect(new URL("/dashboard", request.url));

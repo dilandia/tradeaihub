@@ -23,7 +23,7 @@ CREATE TABLE public.affiliates (
   affiliate_code text NOT NULL UNIQUE,   -- e.g. "TRADER-MIKE-A3F2"
 
   -- Commission config (per-affiliate, allows custom rates)
-  commission_rate numeric(5,4) NOT NULL DEFAULT 0.2000,  -- 20% default
+  commission_rate numeric(5,4) NOT NULL DEFAULT 0.1500,  -- 15% default (Trade AI Hub standard)
   commission_type text NOT NULL DEFAULT 'recurring'
     CHECK (commission_type IN ('one_time', 'recurring')),
 
