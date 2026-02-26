@@ -69,7 +69,7 @@ export async function updateSession(request: NextRequest) {
 
   /* Rotas públicas da landing (não requerem auth) */
   const landingPublicPaths = ["/", "/about", "/contact", "/blog", "/privacy", "/terms", "/affiliates"];
-  const isLandingPublic = landingPublicPaths.includes(path) || path.startsWith("/blog/");
+  const isLandingPublic = landingPublicPaths.includes(path) || path.startsWith("/blog/") || path === "/robots.txt" || path === "/sitemap.xml";
 
   /* Rotas de API nunca devem ser redirecionadas (evita CORS cross-origin) */
   const isApiRoute = path.startsWith("/api/");
