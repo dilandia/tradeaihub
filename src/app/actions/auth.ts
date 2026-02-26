@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getEmailConfirmationCallbackUrl } from "@/lib/supabase/admin";
-import { sendEmailConfirmationEmail } from "@/lib/email/send";
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.tradeaihub.com";
 
 function friendlyAuthError(message: string): string {
   const lower = message.toLowerCase();
@@ -63,36 +63,19 @@ export async function signUp(formData: FormData): Promise<never> {
     metadata.referral_code = referralCode;
   }
 
-  // Create user in Supabase (will attempt to send confirmation email via Supabase SMTP)
+  // Create user in Supabase
+  // Supabase will send the confirmation email automatically
   const { error, data } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: metadata,
-      // Keep emailRedirectTo so Supabase can generate the confirmation link
-      // However, Supabase SMTP is unreliable, so we'll send via Resend too
       emailRedirectTo: `${APP_URL}/auth/callback`,
     },
   });
 
   if (error) {
     redirect("/register?message=" + encodeURIComponent(friendlyAuthError(error.message)));
-  }
-
-  // Send confirmation reminder email via Resend (more reliable than Supabase SMTP)
-  if (data?.user?.email) {
-    const confirmUrl = getEmailConfirmationCallbackUrl();
-
-    await sendEmailConfirmationEmail({
-      to: data.user.email,
-      confirmLink: confirmUrl,
-      userName: fullName,
-      locale: "pt-BR", // Could detect from request headers
-    }).catch((err) => {
-      console.error("[Auth] Failed to send confirmation email via Resend:", err);
-      // Don't block signup if Resend email fails to send
-      // User will receive the Supabase confirmation email instead
-    });
   }
 
   revalidatePath("/", "layout");
@@ -103,8 +86,6 @@ export async function signUp(formData: FormData): Promise<never> {
       )
   );
 }
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.tradeaihub.com";
 
 export async function requestPasswordReset(formData: FormData): Promise<{ success: boolean }> {
   const email = formData.get("email") as string;
