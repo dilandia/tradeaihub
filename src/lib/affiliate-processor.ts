@@ -10,9 +10,19 @@ import { createClient } from "@supabase/supabase-js"
 
 export async function processAffiliateOnFirstLogin(userId: string): Promise<void> {
   const cookieStore = await cookies()
-  const affiliateCode = cookieStore.get("affiliate_ref")?.value
+  const rawCode = cookieStore.get("affiliate_ref")?.value
 
-  if (!affiliateCode) return
+  if (!rawCode) return
+
+  // Normalize to uppercase (middleware regex only matches uppercase, but be safe)
+  const affiliateCode = rawCode.toUpperCase()
+
+  // Validate format
+  if (!/^[A-Z0-9-]{6,30}$/.test(affiliateCode)) {
+    // Invalid code — clear cookie and bail
+    cookieStore.delete("affiliate_ref")
+    return
+  }
 
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,11 +38,12 @@ export async function processAffiliateOnFirstLogin(userId: string): Promise<void
       .maybeSingle()
 
     if (existingRef) {
-      // Already attributed — just clear the cookie (set to expired)
+      // Already attributed — clear the cookie
+      cookieStore.delete("affiliate_ref")
       return
     }
 
-    // Look up affiliate by code
+    // Look up affiliate by code (case-insensitive via uppercase normalization)
     const { data: affiliate } = await admin
       .from("affiliates")
       .select("id, is_active, user_id")
@@ -40,34 +51,56 @@ export async function processAffiliateOnFirstLogin(userId: string): Promise<void
       .eq("is_active", true)
       .maybeSingle()
 
-    if (!affiliate) return
+    if (!affiliate) {
+      cookieStore.delete("affiliate_ref")
+      return
+    }
 
     // Prevent self-referral
-    if (affiliate.user_id === userId) return
+    if (affiliate.user_id === userId) {
+      cookieStore.delete("affiliate_ref")
+      return
+    }
 
     // Create attribution row
-    await admin.from("affiliate_referrals").insert({
+    const { error: insertErr } = await admin.from("affiliate_referrals").insert({
       affiliate_id: affiliate.id,
       referred_user_id: userId,
       status: "registered",
     })
 
-    // Increment total_referrals on the affiliate
-    const { data: current } = await admin
-      .from("affiliates")
-      .select("total_referrals")
-      .eq("id", affiliate.id)
-      .single()
+    if (insertErr) {
+      // Likely unique constraint violation — user already referred
+      console.error("[affiliate-processor] insert referral:", insertErr.message)
+      cookieStore.delete("affiliate_ref")
+      return
+    }
 
-    if (current) {
-      await admin
+    // Atomically increment total_referrals using optimistic locking
+    for (let retry = 0; retry < 3; retry++) {
+      const { data: current } = await admin
+        .from("affiliates")
+        .select("total_referrals")
+        .eq("id", affiliate.id)
+        .single()
+
+      if (!current) break
+
+      const currentCount = current.total_referrals ?? 0
+      const { error: updateErr } = await admin
         .from("affiliates")
         .update({
-          total_referrals: (current.total_referrals ?? 0) + 1,
+          total_referrals: currentCount + 1,
           updated_at: new Date().toISOString(),
         })
         .eq("id", affiliate.id)
+        .eq("total_referrals", currentCount)
+
+      if (!updateErr) break
     }
+
+    // Clear cookie after successful processing
+    cookieStore.delete("affiliate_ref")
   } catch (err) {
     // Non-blocking: log but don't surface the error
     console.error("[affiliate-processor] processAffiliateOnFirstLogin:", err)

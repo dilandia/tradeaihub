@@ -3,17 +3,19 @@ import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
   // ── Affiliate tracking: ?aff=CODE sets a 30-day httpOnly cookie ──────────
-  const affiliateCode = request.nextUrl.searchParams.get("aff");
+  const rawAffCode = request.nextUrl.searchParams.get("aff");
+  const affiliateCode = rawAffCode?.toUpperCase();
   if (affiliateCode && /^[A-Z0-9-]{6,30}$/.test(affiliateCode)) {
     const cleanUrl = new URL(request.nextUrl);
     cleanUrl.searchParams.delete("aff");
     const redirectResponse = NextResponse.redirect(cleanUrl);
+    const isProd = request.nextUrl.hostname.includes("tradeaihub.com");
     redirectResponse.cookies.set("affiliate_ref", affiliateCode, {
       httpOnly: true,
-      secure: true,
+      secure: isProd,
       sameSite: "lax",
       path: "/",
-      domain: ".tradeaihub.com",
+      ...(isProd ? { domain: ".tradeaihub.com" } : {}),
       maxAge: 30 * 24 * 60 * 60, // 30 days
     });
     return redirectResponse;

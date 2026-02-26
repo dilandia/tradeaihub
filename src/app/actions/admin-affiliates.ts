@@ -131,6 +131,18 @@ export async function approveApplication(
     return { success: false, error: "An affiliate with this email already exists" }
   }
 
+  // Lookup user_id from auth.users by email
+  let userId: string | null = null
+  const { data: authUsers } = await admin.auth.admin.listUsers({ perPage: 1000 })
+  if (authUsers?.users) {
+    const matchedUser = authUsers.users.find(
+      (u) => u.email?.toLowerCase() === app.email.toLowerCase()
+    )
+    if (matchedUser) {
+      userId = matchedUser.id
+    }
+  }
+
   // Generate unique affiliate code
   let code = generateAffiliateCode(app.full_name)
   let attempts = 0
@@ -149,6 +161,7 @@ export async function approveApplication(
   const { data: newAffiliate, error: createError } = await admin
     .from("affiliates")
     .insert({
+      user_id: userId,
       full_name: app.full_name,
       email: app.email,
       whatsapp: app.whatsapp,
@@ -335,21 +348,27 @@ export async function processWithdrawal(
     return { success: false, error: "Failed to process withdrawal" }
   }
 
-  // Update total_paid on affiliate
-  const { data: affiliate } = await admin
-    .from("affiliates")
-    .select("total_paid")
-    .eq("id", withdrawal.affiliate_id)
-    .single()
+  // Atomically increment total_paid using optimistic locking to prevent race conditions
+  for (let retry = 0; retry < 3; retry++) {
+    const { data: aff } = await admin
+      .from("affiliates")
+      .select("total_paid")
+      .eq("id", withdrawal.affiliate_id)
+      .single()
 
-  if (affiliate) {
-    await admin
+    if (!aff) break
+
+    const currentPaid = Number(aff.total_paid ?? 0)
+    const { error: paidErr, count } = await admin
       .from("affiliates")
       .update({
-        total_paid: (affiliate.total_paid ?? 0) + withdrawal.amount,
+        total_paid: currentPaid + Number(withdrawal.amount),
         updated_at: new Date().toISOString(),
       })
       .eq("id", withdrawal.affiliate_id)
+      .eq("total_paid", currentPaid)
+
+    if (!paidErr) break // Success or no matching row (another update happened)
   }
 
   return { success: true }

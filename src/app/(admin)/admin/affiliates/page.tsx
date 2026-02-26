@@ -40,7 +40,11 @@ export default async function AdminAffiliatesPage() {
       </div>
 
       {/* ── KPI Cards ── */}
-      {stats && (
+      {!stats ? (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
+          <p className="text-sm text-red-400">Failed to load statistics. Please refresh the page.</p>
+        </div>
+      ) : (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard
             title="Total Applications"
