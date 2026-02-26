@@ -36,6 +36,7 @@ import { onboardingO3DiscoverInsightsHtml } from "@/lib/email/templates/onboardi
 import { onboardingO4FirstAiAgentHtml } from "@/lib/email/templates/onboarding-o4-first-ai-agent"
 import { onboardingO5StrategiesHtml } from "@/lib/email/templates/onboarding-o5-strategies"
 import { onboardingO6WeekSummaryHtml } from "@/lib/email/templates/onboarding-o6-week-summary"
+import { guardianAlertEmailHtml } from "@/lib/email/templates/guardian-alert"
 import { canSendEmail, recordSend } from "@/lib/email/scheduler"
 
 /**
@@ -1651,6 +1652,76 @@ export async function sendWinbackW4Email(params: {
     return { success: true }
   } catch (error) {
     console.error("[Email] Failed to send W4 email:", error)
+    return {
+      success: false,
+      error: `Failed to send: ${error instanceof Error ? error.message : "Unknown"}`,
+    }
+  }
+}
+
+// ============================================================
+// GUARDIAN SECURITY ALERT
+// ============================================================
+
+export async function sendGuardianAlertEmail(params: {
+  to: string
+  scanType: string
+  verdict: string
+  totalChecks: number
+  totalEvents: number
+  criticalCount: number
+  highCount: number
+  mediumCount: number
+  lowCount: number
+  autoFixesApplied: number
+  modulesRun: string[]
+  events: Array<{
+    severity: string
+    module: string
+    check_name: string
+    description: string
+    auto_action_taken?: string
+  }>
+  aiAssessment?: string
+  durationMs: number
+}): Promise<EmailResult> {
+  const resend = getResendClient()
+  if (!resend) {
+    console.warn("[Email] RESEND_API_KEY not configured — skipping guardian alert")
+    return { success: false, error: "Email not configured" }
+  }
+
+  try {
+    const statusEmoji = params.criticalCount > 0 ? "🔴" : params.highCount > 0 ? "🟡" : "🟢"
+    const statusText = params.criticalCount > 0 ? "AMEACAS DETECTADAS" : params.highCount > 0 ? "ALERTAS" : "TUDO LIMPO"
+
+    const html = guardianAlertEmailHtml({
+      scanType: params.scanType,
+      verdict: params.verdict,
+      totalChecks: params.totalChecks,
+      totalEvents: params.totalEvents,
+      criticalCount: params.criticalCount,
+      highCount: params.highCount,
+      mediumCount: params.mediumCount,
+      lowCount: params.lowCount,
+      autoFixesApplied: params.autoFixesApplied,
+      modulesRun: params.modulesRun,
+      events: params.events,
+      aiAssessment: params.aiAssessment ?? undefined,
+      durationMs: params.durationMs,
+    })
+
+    await resend.emails.send({
+      from: FROM,
+      to: params.to,
+      subject: `${statusEmoji} Sentinel: ${statusText} | ${params.totalEvents} eventos | ${params.autoFixesApplied} fixes`,
+      html,
+    })
+
+    console.log(`[Email] Guardian alert sent to ${params.to}`)
+    return { success: true }
+  } catch (error) {
+    console.error("[Email] Failed to send guardian alert:", error)
     return {
       success: false,
       error: `Failed to send: ${error instanceof Error ? error.message : "Unknown"}`,

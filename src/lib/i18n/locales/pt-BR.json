@@ -934,7 +934,16 @@
     "registering": "Criando conta...",
     "noAccount": "Não tem conta?",
     "hasAccount": "Já tem conta?",
-    "signUp": "Cadastre-se"
+    "signUp": "Cadastre-se",
+    "emailAlreadyRegistered": "Este email j\u00e1 est\u00e1 cadastrado.",
+    "resendConfirmationHint": "Se voc\u00ea n\u00e3o confirmou seu email, clique abaixo para reenviar o link de confirma\u00e7\u00e3o.",
+    "resendConfirmation": "Reenviar email de confirma\u00e7\u00e3o",
+    "resendSending": "Enviando...",
+    "resendAgain": "Reenviar novamente",
+    "resendSuccess": "Email reenviado! Verifique sua caixa de entrada e a pasta de spam.",
+    "resendLimitReached": "Ainda n\u00e3o recebeu?",
+    "contactSupport": "Entre em contato com o suporte",
+    "tryAnotherEmail": "ou tente cadastrar com outro email."
   },
   "settings": {
     "title": "Configurações",
