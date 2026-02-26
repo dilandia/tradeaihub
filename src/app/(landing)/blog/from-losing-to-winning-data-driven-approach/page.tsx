@@ -11,6 +11,7 @@ import { LandingSectionWrapper } from "@/components/landing/shared/landing-secti
 import { LandingGlassCard } from "@/components/landing/shared/landing-glass-card"
 import { LandingGradientButton } from "@/components/landing/shared/landing-gradient-button"
 import { LandingFooter } from "@/components/landing/sections/landing-footer"
+import { BlogArticleJsonLd } from "@/components/landing/shared/blog-article-jsonld"
 
 const content = {
   en: {
@@ -312,6 +313,48 @@ export default function DataDrivenArticlePage() {
         </div>
       </LandingSectionWrapper>
 
+      {/* Related Articles */}
+      <LandingSectionWrapper className="px-4 pb-24 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="text-2xl font-bold text-white mb-6">
+            {locale === "pt-BR" ? "Artigos Relacionados" : "Related Articles"}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Link href="/blog/5-metrics-every-forex-trader-should-track" className="group">
+              <LandingGlassCard hover className="p-5 h-full">
+                <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-indigo-300 transition-colors">
+                  {t("landing.blogArticle1Title")}
+                </h3>
+                <p className="text-xs text-gray-500">{locale === "pt-BR" ? "8 min de leitura" : "8 min read"}</p>
+              </LandingGlassCard>
+            </Link>
+            <Link href="/blog/how-ai-is-changing-trading-journaling" className="group">
+              <LandingGlassCard hover className="p-5 h-full">
+                <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-indigo-300 transition-colors">
+                  {t("landing.blogArticle2Title")}
+                </h3>
+                <p className="text-xs text-gray-500">{locale === "pt-BR" ? "7 min de leitura" : "7 min read"}</p>
+              </LandingGlassCard>
+            </Link>
+            <Link href="/blog/the-psychology-of-successful-trading" className="group">
+              <LandingGlassCard hover className="p-5 h-full">
+                <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-indigo-300 transition-colors">
+                  {t("landing.blogArticle4Title")}
+                </h3>
+                <p className="text-xs text-gray-500">{locale === "pt-BR" ? "10 min de leitura" : "10 min read"}</p>
+              </LandingGlassCard>
+            </Link>
+          </div>
+        </div>
+      </LandingSectionWrapper>
+
+      <BlogArticleJsonLd
+        title="From Losing to Winning: A Data-Driven Approach to Trading"
+        description="Learn how to transform your trading with data analysis. Track your metrics, identify patterns, and build a sustainable edge in forex markets."
+        slug="from-losing-to-winning-data-driven-approach"
+        datePublished="2026-02-15"
+        image="/blog/blog-data-driven.png"
+      />
       <LandingFooter />
     </div>
   )

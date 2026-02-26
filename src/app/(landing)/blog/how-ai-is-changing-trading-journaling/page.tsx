@@ -11,6 +11,7 @@ import { LandingSectionWrapper } from "@/components/landing/shared/landing-secti
 import { LandingGlassCard } from "@/components/landing/shared/landing-glass-card"
 import { LandingGradientButton } from "@/components/landing/shared/landing-gradient-button"
 import { LandingFooter } from "@/components/landing/sections/landing-footer"
+import { BlogArticleJsonLd } from "@/components/landing/shared/blog-article-jsonld"
 
 const content = {
   en: {
@@ -258,7 +259,7 @@ export default function AiJournalingArticlePage() {
       </LandingSectionWrapper>
 
       {/* CTA */}
-      <LandingSectionWrapper className="px-4 pb-24 sm:px-6 lg:px-8">
+      <LandingSectionWrapper className="px-4 pb-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl">
           <div className="rounded-2xl bg-gradient-to-r from-violet-500/10 to-purple-500/10 border border-violet-500/20 p-8 sm:p-12 text-center">
             <h2 className="text-2xl font-bold text-white mb-3">
@@ -274,6 +275,48 @@ export default function AiJournalingArticlePage() {
         </div>
       </LandingSectionWrapper>
 
+      {/* Related Articles */}
+      <LandingSectionWrapper className="px-4 pb-24 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="text-2xl font-bold text-white mb-6">
+            {locale === "pt-BR" ? "Artigos Relacionados" : "Related Articles"}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Link href="/blog/5-metrics-every-forex-trader-should-track" className="group">
+              <LandingGlassCard hover className="p-5 h-full">
+                <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-indigo-300 transition-colors">
+                  {t("landing.blogArticle1Title")}
+                </h3>
+                <p className="text-xs text-gray-500">{locale === "pt-BR" ? "8 min de leitura" : "8 min read"}</p>
+              </LandingGlassCard>
+            </Link>
+            <Link href="/blog/the-psychology-of-successful-trading" className="group">
+              <LandingGlassCard hover className="p-5 h-full">
+                <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-indigo-300 transition-colors">
+                  {t("landing.blogArticle4Title")}
+                </h3>
+                <p className="text-xs text-gray-500">{locale === "pt-BR" ? "10 min de leitura" : "10 min read"}</p>
+              </LandingGlassCard>
+            </Link>
+            <Link href="/blog/from-losing-to-winning-data-driven-approach" className="group">
+              <LandingGlassCard hover className="p-5 h-full">
+                <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-indigo-300 transition-colors">
+                  {t("landing.blogArticle3Title")}
+                </h3>
+                <p className="text-xs text-gray-500">{locale === "pt-BR" ? "9 min de leitura" : "9 min read"}</p>
+              </LandingGlassCard>
+            </Link>
+          </div>
+        </div>
+      </LandingSectionWrapper>
+
+      <BlogArticleJsonLd
+        title="How AI is Changing Trading Journaling"
+        description="Learn how artificial intelligence is transforming trading journals with pattern recognition, behavioral analysis, automated insights, and AI copilot features."
+        slug="how-ai-is-changing-trading-journaling"
+        datePublished="2026-02-18"
+        image="/blog/blog-ai-journal.png"
+      />
       <LandingFooter />
     </div>
   )

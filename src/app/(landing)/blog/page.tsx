@@ -1,6 +1,7 @@
 "use client"
 
-import { Clock, ArrowRight, Calendar } from "lucide-react"
+import { useState } from "react"
+import { Clock, ArrowRight, Calendar, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -56,7 +57,44 @@ const ARTICLES = [
 ] as const
 
 export default function BlogPage() {
-  const { t } = useLanguage()
+  const { t, locale } = useLanguage()
+  const [email, setEmail] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState("")
+
+  const handleSubscribe = async () => {
+    setError("")
+    setSuccess(false)
+
+    const trimmed = email.trim()
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setError(locale === "pt-BR" ? "Email invalido." : "Invalid email address.")
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await fetch("/api/blog/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed, locale }),
+      })
+
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string }
+        setError(data.error || (locale === "pt-BR" ? "Erro ao inscrever." : "Failed to subscribe."))
+        return
+      }
+
+      setSuccess(true)
+      setEmail("")
+    } catch {
+      setError(locale === "pt-BR" ? "Erro de conexao. Tente novamente." : "Connection error. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#121212]">
@@ -65,6 +103,7 @@ export default function BlogPage() {
       {/* Hero */}
       <LandingSectionWrapper className="px-4 pb-16 pt-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl text-center">
+          <h1 className="sr-only">Trade AI Hub Blog — Trading Tips, Forex Strategies & AI Analytics</h1>
           <LandingSectionHeader
             label={t("landing.blogLabel")}
             title={t("landing.blogHeroTitle")}
@@ -131,16 +170,48 @@ export default function BlogPage() {
               {t("landing.blogComingSoonDesc")}
             </p>
 
-            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-              <input
-                type="email"
-                className="w-full max-w-xs rounded-xl border border-white/[0.1] bg-white/[0.05] px-4 py-3 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50"
-                placeholder={t("landing.blogEmailPlaceholder")}
-              />
-              <LandingGradientButton>
-                {t("landing.blogSubscribe")}
-              </LandingGradientButton>
-            </div>
+            {success ? (
+              <div className="flex items-center justify-center gap-2 text-green-400">
+                <CheckCircle className="h-5 w-5" />
+                <span className="text-sm font-medium">
+                  {locale === "pt-BR"
+                    ? "Inscrito com sucesso! Obrigado."
+                    : "Subscribed successfully! Thank you."}
+                </span>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value)
+                      if (error) setError("")
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSubscribe()
+                    }}
+                    disabled={loading}
+                    className="w-full max-w-xs rounded-xl border border-white/[0.1] bg-white/[0.05] px-4 py-3 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 disabled:opacity-50"
+                    placeholder={t("landing.blogEmailPlaceholder")}
+                  />
+                  <LandingGradientButton onClick={handleSubscribe}>
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      t("landing.blogSubscribe")
+                    )}
+                  </LandingGradientButton>
+                </div>
+                {error && (
+                  <div className="mt-3 flex items-center justify-center gap-1.5 text-red-400">
+                    <AlertCircle className="h-4 w-4" />
+                    <span className="text-xs">{error}</span>
+                  </div>
+                )}
+              </>
+            )}
           </LandingGlassCard>
         </div>
       </LandingSectionWrapper>
