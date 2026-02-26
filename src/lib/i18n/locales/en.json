@@ -941,6 +941,7 @@
     "passwordUpdated": "Password updated successfully! Please log in.",
     "passwordsDoNotMatch": "Passwords do not match",
     "signingIn": "Signing in...",
+    "registering": "Registering...",
     "noAccount": "Don't have an account?",
     "hasAccount": "Already have an account?",
     "signUp": "Sign up"

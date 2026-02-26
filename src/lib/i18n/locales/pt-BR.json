@@ -930,6 +930,7 @@
     "passwordUpdated": "Senha atualizada com sucesso! Faça login.",
     "passwordsDoNotMatch": "As senhas não coincidem",
     "signingIn": "Entrando...",
+    "registering": "Criando conta...",
     "noAccount": "Não tem conta?",
     "hasAccount": "Já tem conta?",
     "signUp": "Cadastre-se"
