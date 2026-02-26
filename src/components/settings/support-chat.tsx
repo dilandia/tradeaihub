@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLanguage } from "@/contexts/language-context";
-import { Send, Bot, User, Loader2 } from "lucide-react";
+import { Send, Bot, User, Loader2, Ticket } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Message = {
@@ -17,6 +17,7 @@ export function SupportChat() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [chatLimited, setChatLimited] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -72,6 +73,10 @@ export function SupportChat() {
 
         const newConvId = res.headers.get("X-Conversation-Id");
         if (newConvId) setConversationId(newConvId);
+
+        if (res.headers.get("X-Chat-Limited") === "true") {
+          setChatLimited(true);
+        }
 
         const reader = res.body?.getReader();
         const decoder = new TextDecoder();
@@ -184,41 +189,58 @@ export function SupportChat() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
+      {/* Input / Ticket CTA */}
       <div className="border-t border-border p-3">
-        <div className="flex gap-2">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={t("support.chatPlaceholder")}
-            rows={1}
-            disabled={streaming}
-            className={cn(
-              "flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2",
-              "text-sm text-foreground placeholder:text-muted-foreground",
-              "transition-colors focus:border-score focus:outline-none focus:ring-1 focus:ring-score",
-              "disabled:opacity-50"
-            )}
-          />
+        {chatLimited ? (
           <button
             type="button"
-            onClick={() => sendMessage(input)}
-            disabled={!input.trim() || streaming}
+            onClick={() => {
+              // Emit custom event so parent (SupportSection) can switch to ticket panel
+              window.dispatchEvent(new CustomEvent("support:open-ticket"));
+            }}
             className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-              "bg-score text-white transition-colors hover:bg-score/90",
-              "disabled:cursor-not-allowed disabled:opacity-50"
+              "flex w-full items-center justify-center gap-2 rounded-lg py-2.5",
+              "bg-score text-white text-sm font-medium transition-colors hover:bg-score/90"
             )}
           >
-            {streaming ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+            <Ticket className="h-4 w-4" />
+            {t("support.openTicketCta")}
           </button>
-        </div>
+        ) : (
+          <div className="flex gap-2">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={t("support.chatPlaceholder")}
+              rows={1}
+              disabled={streaming}
+              className={cn(
+                "flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2",
+                "text-sm text-foreground placeholder:text-muted-foreground",
+                "transition-colors focus:border-score focus:outline-none focus:ring-1 focus:ring-score",
+                "disabled:opacity-50"
+              )}
+            />
+            <button
+              type="button"
+              onClick={() => sendMessage(input)}
+              disabled={!input.trim() || streaming}
+              className={cn(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                "bg-score text-white transition-colors hover:bg-score/90",
+                "disabled:cursor-not-allowed disabled:opacity-50"
+              )}
+            >
+              {streaming ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

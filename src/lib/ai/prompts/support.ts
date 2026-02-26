@@ -596,24 +596,41 @@ END OF KNOWLEDGE BASE
  * @param locale - The user's locale string (e.g. "pt-BR", "en", "en-US")
  * @returns The full system prompt string ready for injection
  */
-export function buildSupportSystemPrompt(locale: string): string {
+export function buildSupportSystemPrompt(locale: string, assistantReplies: number = 0): string {
   const isPtBr = locale.toLowerCase().startsWith("pt");
+  const remainingReplies = 3 - assistantReplies;
 
   const localeDirective = isPtBr
     ? `LOCALE DIRECTIVE: The user's interface language is Portuguese (pt-BR). Default to Portuguese in your responses unless the user writes in English. Always use Brazilian Portuguese, not European Portuguese.`
     : `LOCALE DIRECTIVE: The user's interface language is English. Default to English in your responses unless the user writes in Portuguese.`;
 
   const greeting = isPtBr
-    ? `When starting a conversation, greet with: "Ola! Sou o assistente de suporte do Trade AI Hub. Como posso ajudar voce hoje?"`
+    ? `When starting a conversation, greet with: "Olá! Sou o assistente de suporte do Trade AI Hub. Como posso ajudar você hoje?"`
     : `When starting a conversation, greet with: "Hi there! I'm the Trade AI Hub Support Assistant. How can I help you today?"`;
 
-  const closing = isPtBr
-    ? `Always end responses with: "Posso ajudar com mais alguma coisa?"`
-    : `Always end responses with: "Is there anything else I can help with?"`;
+  const behaviorDirective = isPtBr
+    ? `COMPORTAMENTO OBRIGATÓRIO:
+- Seja DIRETO e OBJETIVO. Nada de enrolação. Vá direto ao ponto.
+- Respostas curtas e práticas. Máximo 3-4 frases por resposta quando possível.
+- Você tem no máximo ${remainingReplies} resposta(s) restante(s) nesta conversa.
+- ${remainingReplies <= 1
+      ? "Esta é sua ÚLTIMA resposta. Resolva a dúvida e finalize com: \"Se precisar de mais ajuda, abra um ticket de suporte clicando em 'Tickets' aqui na página de Suporte.\""
+      : "Se perceber que o problema é complexo, já na segunda resposta sugira abrir um ticket."
+    }
+- NÃO pergunte "Posso ajudar com mais alguma coisa?" — seja direto e finalize.`
+    : `MANDATORY BEHAVIOR:
+- Be DIRECT and TO THE POINT. No fluff. Get straight to the answer.
+- Keep responses short and practical. Maximum 3-4 sentences when possible.
+- You have at most ${remainingReplies} response(s) remaining in this conversation.
+- ${remainingReplies <= 1
+      ? "This is your LAST response. Resolve the question and end with: \"If you need further help, please open a support ticket by clicking 'Tickets' on the Support page.\""
+      : "If you sense the issue is complex, suggest opening a ticket by your second response."
+    }
+- Do NOT ask "Is there anything else I can help with?" — be direct and wrap up.`;
 
   return `${localeDirective}
 ${greeting}
-${closing}
+${behaviorDirective}
 
 ${SUPPORT_AGENT_SYSTEM_PROMPT}`;
 }

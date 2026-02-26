@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/contexts/language-context";
 import { MessageCircle, Ticket, BookOpen } from "lucide-react";
@@ -14,6 +14,15 @@ export function SupportSection() {
   const { t } = useLanguage();
   const router = useRouter();
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
+
+  // Listen for chat → ticket redirect event
+  useEffect(() => {
+    function handleOpenTicket() {
+      setActivePanel("ticket");
+    }
+    window.addEventListener("support:open-ticket", handleOpenTicket);
+    return () => window.removeEventListener("support:open-ticket", handleOpenTicket);
+  }, []);
 
   function handleCardClick(panel: ActivePanel) {
     setActivePanel((prev) => (prev === panel ? null : panel));
