@@ -110,7 +110,7 @@ export async function signUpWithResult(formData: FormData): Promise<SignUpResult
     metadata.referral_code = referralCode;
   }
 
-  const { error } = await supabase.auth.signUp({
+  const { error, data } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -118,6 +118,16 @@ export async function signUpWithResult(formData: FormData): Promise<SignUpResult
       emailRedirectTo: `${APP_URL}/auth/callback`,
     },
   });
+
+  // Supabase with "Confirm email" + obfuscation returns fake success
+  // when email already exists: no error, but user has no identities
+  if (!error && data?.user && (data.user.identities?.length ?? 0) === 0) {
+    return {
+      success: false,
+      error: "",
+      code: "EMAIL_ALREADY_REGISTERED",
+    };
+  }
 
   if (error) {
     const lower = error.message.toLowerCase();
