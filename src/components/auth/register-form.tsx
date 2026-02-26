@@ -151,6 +151,13 @@ export function RegisterForm({ message, referralCode }: Props) {
         return;
       }
 
+      // Handle rate limit — show translated message
+      if (result.code === "RATE_LIMIT") {
+        setFormError(t("auth.rateLimitExceeded"));
+        setIsSubmitting(false);
+        return;
+      }
+
       // Handle other errors
       setFormError(result.error);
       setIsSubmitting(false);

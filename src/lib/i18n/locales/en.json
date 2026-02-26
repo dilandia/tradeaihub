@@ -954,7 +954,8 @@
     "resendSuccess": "Email sent! Check your inbox and spam folder.",
     "resendLimitReached": "Still not receiving it?",
     "contactSupport": "Contact support",
-    "tryAnotherEmail": "or try signing up with a different email."
+    "tryAnotherEmail": "or try signing up with a different email.",
+    "rateLimitExceeded": "Too many attempts. Please wait a few minutes and try again."
   },
   "settings": {
     "title": "Settings",

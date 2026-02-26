@@ -119,12 +119,23 @@ export async function signUpWithResult(formData: FormData): Promise<SignUpResult
 
   if (error) {
     const lower = error.message.toLowerCase();
+    const code = (error as { code?: string }).code?.toLowerCase() ?? "";
     const isAlreadyRegistered =
-      lower.includes("user already registered") || lower.includes("already_registered");
+      lower.includes("user already registered") ||
+      lower.includes("already_registered") ||
+      code === "user_already_exists";
+    const isRateLimit =
+      lower.includes("email rate limit exceeded") ||
+      lower.includes("rate_limit") ||
+      code === "over_email_send_rate_limit";
     return {
       success: false,
       error: friendlyAuthError(error.message),
-      code: isAlreadyRegistered ? "EMAIL_ALREADY_REGISTERED" : undefined,
+      code: isAlreadyRegistered
+        ? "EMAIL_ALREADY_REGISTERED"
+        : isRateLimit
+          ? "RATE_LIMIT"
+          : undefined,
     };
   }
 
