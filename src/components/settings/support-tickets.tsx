@@ -1,0 +1,523 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useLanguage } from "@/contexts/language-context";
+import {
+  createTicket,
+  getUserTickets,
+  getTicketDetail,
+  cancelTicket,
+} from "@/app/actions/support-tickets";
+import { toast } from "sonner";
+import {
+  ArrowLeft,
+  Bug,
+  Lightbulb,
+  CreditCard,
+  UserCircle,
+  HelpCircle,
+  Loader2,
+  Ticket,
+  Clock,
+  XCircle,
+  ChevronRight,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type TicketRow = {
+  id: string;
+  ticket_number: number;
+  subject: string;
+  category: string;
+  priority: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type TicketDetail = TicketRow & {
+  description: string;
+  replies: { id: string; content: string; is_admin: boolean; created_at: string }[];
+};
+
+type View = "form" | "list" | "detail";
+
+const CATEGORIES = [
+  { value: "bug", icon: Bug, tKey: "support.ticketCategoryBug" },
+  { value: "feature", icon: Lightbulb, tKey: "support.ticketCategoryFeature" },
+  { value: "billing", icon: CreditCard, tKey: "support.ticketCategoryBilling" },
+  { value: "account", icon: UserCircle, tKey: "support.ticketCategoryAccount" },
+  { value: "other", icon: HelpCircle, tKey: "support.ticketCategoryOther" },
+] as const;
+
+const STATUS_STYLES: Record<string, string> = {
+  open: "bg-yellow-500/10 text-yellow-500",
+  in_progress: "bg-blue-500/10 text-blue-500",
+  resolved: "bg-green-500/10 text-green-500",
+  closed: "bg-muted text-muted-foreground",
+};
+
+const PRIORITY_STYLES: Record<string, string> = {
+  low: "bg-muted text-muted-foreground",
+  medium: "bg-yellow-500/10 text-yellow-500",
+  high: "bg-red-500/10 text-red-500",
+};
+
+const CATEGORY_ICONS: Record<string, typeof Bug> = {
+  bug: Bug,
+  feature: Lightbulb,
+  billing: CreditCard,
+  account: UserCircle,
+  other: HelpCircle,
+};
+
+export function SupportTickets() {
+  const { t } = useLanguage();
+  const [view, setView] = useState<View>("form");
+  const [tickets, setTickets] = useState<TicketRow[]>([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<TicketDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  // Form state
+  const [subject, setSubject] = useState("");
+  const [category, setCategory] = useState<string>("bug");
+  const [priority, setPriority] = useState<string>("medium");
+  const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const loadTickets = useCallback(async () => {
+    setLoadingTickets(true);
+    const data = await getUserTickets();
+    setTickets(data as TicketRow[]);
+    setLoadingTickets(false);
+  }, []);
+
+  useEffect(() => {
+    loadTickets();
+  }, [loadTickets]);
+
+  const handleSubmit = async () => {
+    if (subject.trim().length < 1 || description.trim().length < 20) return;
+
+    setSubmitting(true);
+    try {
+      const result = await createTicket({
+        subject: subject.trim(),
+        category: category as "bug" | "feature" | "billing" | "account" | "other",
+        priority: priority as "low" | "medium" | "high",
+        description: description.trim(),
+      });
+
+      if (result.success) {
+        toast.success(t("support.ticketSuccess"));
+        setSubject("");
+        setCategory("bug");
+        setPriority("medium");
+        setDescription("");
+        setView("list");
+        loadTickets();
+      } else {
+        toast.error(result.error ?? t("support.ticketError"));
+      }
+    } catch {
+      toast.error(t("support.ticketError"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleViewTicket = async (ticketId: string) => {
+    setLoadingDetail(true);
+    setView("detail");
+    const detail = await getTicketDetail(ticketId);
+    setSelectedTicket(detail as TicketDetail | null);
+    setLoadingDetail(false);
+  };
+
+  const handleCancelTicket = async () => {
+    if (!selectedTicket) return;
+    setCancelling(true);
+    try {
+      const result = await cancelTicket(selectedTicket.id);
+      if (result.success) {
+        toast.success(t("support.ticketCancelled"));
+        setView("list");
+        setSelectedTicket(null);
+        loadTickets();
+      } else {
+        toast.error(result.error ?? t("support.ticketError"));
+      }
+    } catch {
+      toast.error(t("support.ticketError"));
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const statusLabel = (status: string) => {
+    const map: Record<string, string> = {
+      open: t("support.ticketStatusOpen"),
+      in_progress: t("support.ticketStatusInProgress"),
+      resolved: t("support.ticketStatusResolved"),
+      closed: t("support.ticketStatusClosed"),
+    };
+    return map[status] ?? status;
+  };
+
+  const categoryLabel = (cat: string) => {
+    const map: Record<string, string> = {
+      bug: t("support.ticketCategoryBug"),
+      feature: t("support.ticketCategoryFeature"),
+      billing: t("support.ticketCategoryBilling"),
+      account: t("support.ticketCategoryAccount"),
+      other: t("support.ticketCategoryOther"),
+    };
+    return map[cat] ?? cat;
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      {/* Tab bar (hidden in detail view) */}
+      {view !== "detail" && (
+        <div className="flex border-b border-border">
+          <button
+            type="button"
+            onClick={() => setView("form")}
+            className={cn(
+              "flex-1 px-4 py-3 text-sm font-medium transition-colors",
+              view === "form"
+                ? "border-b-2 border-score text-score"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t("support.createTicket")}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setView("list");
+              loadTickets();
+            }}
+            className={cn(
+              "flex-1 px-4 py-3 text-sm font-medium transition-colors",
+              view === "list"
+                ? "border-b-2 border-score text-score"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t("support.ticketsTitle")} {tickets.length > 0 && `(${tickets.length})`}
+          </button>
+        </div>
+      )}
+
+      <div className="p-4">
+        {/* ─── FORM VIEW ─── */}
+        {view === "form" && (
+          <div className="space-y-4">
+            {/* Subject */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                {t("support.ticketSubject")} <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder={t("support.ticketSubjectPlaceholder")}
+                maxLength={200}
+                className={cn(
+                  "w-full rounded-lg border border-border bg-background px-3 py-2",
+                  "text-sm text-foreground placeholder:text-muted-foreground",
+                  "transition-colors focus:border-score focus:outline-none focus:ring-1 focus:ring-score"
+                )}
+              />
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                {t("support.ticketCategory")}
+              </label>
+              <div className="grid grid-cols-5 gap-2">
+                {CATEGORIES.map(({ value, icon: Icon, tKey }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setCategory(value)}
+                    className={cn(
+                      "flex flex-col items-center gap-1 rounded-lg border px-2 py-2.5 text-[10px] transition-all sm:text-xs",
+                      category === value
+                        ? "border-score bg-score/10 text-score"
+                        : "border-border text-muted-foreground hover:border-muted-foreground"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span className="text-center leading-tight">{t(tKey)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Priority */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                {t("support.ticketPriority")}
+              </label>
+              <div className="flex gap-2">
+                {(["low", "medium", "high"] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPriority(p)}
+                    className={cn(
+                      "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all",
+                      priority === p
+                        ? "border-score bg-score/10 text-score"
+                        : "border-border text-muted-foreground hover:border-muted-foreground"
+                    )}
+                  >
+                    {t(`support.ticketPriority${p.charAt(0).toUpperCase() + p.slice(1)}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                {t("support.ticketDescription")} <span className="text-red-400">*</span>
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder={t("support.ticketDescriptionPlaceholder")}
+                rows={5}
+                className={cn(
+                  "w-full resize-none rounded-lg border border-border bg-background px-3 py-2",
+                  "text-sm text-foreground placeholder:text-muted-foreground",
+                  "transition-colors focus:border-score focus:outline-none focus:ring-1 focus:ring-score"
+                )}
+              />
+              {description.length > 0 && description.trim().length < 20 && (
+                <p className="mt-1 text-xs text-red-400">
+                  {t("support.ticketDescriptionMin")}
+                </p>
+              )}
+            </div>
+
+            {/* Submit */}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting || subject.trim().length < 1 || description.trim().length < 20}
+              className={cn(
+                "w-full rounded-lg bg-score px-4 py-2.5 text-sm font-medium text-white",
+                "transition-colors hover:bg-score/90",
+                "disabled:cursor-not-allowed disabled:opacity-50"
+              )}
+            >
+              {submitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t("support.ticketSubmitting")}
+                </span>
+              ) : (
+                t("support.ticketSubmit")
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* ─── LIST VIEW ─── */}
+        {view === "list" && (
+          <div className="space-y-3">
+            {loadingTickets ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : tickets.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-8 text-center">
+                <Ticket className="h-8 w-8 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">{t("support.ticketsEmpty")}</p>
+              </div>
+            ) : (
+              tickets.map((ticket) => (
+                <button
+                  key={ticket.id}
+                  type="button"
+                  onClick={() => handleViewTicket(ticket.id)}
+                  className="flex w-full items-start gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:bg-muted/30"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/50">
+                    <Ticket className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">#{ticket.ticket_number}</span>
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                          STATUS_STYLES[ticket.status] ?? STATUS_STYLES.open
+                        )}
+                      >
+                        {statusLabel(ticket.status)}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 truncate text-sm font-medium text-foreground">
+                      {ticket.subject}
+                    </p>
+                    <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      {new Date(ticket.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <ChevronRight className="mt-2 h-4 w-4 shrink-0 text-muted-foreground/50" />
+                </button>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* ─── DETAIL VIEW ─── */}
+        {view === "detail" && (
+          <div className="space-y-4">
+            {/* Back button */}
+            <button
+              type="button"
+              onClick={() => {
+                setView("list");
+                setSelectedTicket(null);
+              }}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {t("support.ticketBack")}
+            </button>
+
+            {loadingDetail ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : selectedTicket ? (
+              <>
+                {/* Ticket header */}
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs text-muted-foreground">
+                          #{selectedTicket.ticket_number}
+                        </span>
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                            STATUS_STYLES[selectedTicket.status] ?? STATUS_STYLES.open
+                          )}
+                        >
+                          {statusLabel(selectedTicket.status)}
+                        </span>
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                            PRIORITY_STYLES[selectedTicket.priority] ?? PRIORITY_STYLES.medium
+                          )}
+                        >
+                          {t(`support.ticketPriority${selectedTicket.priority.charAt(0).toUpperCase() + selectedTicket.priority.slice(1)}`)}
+                        </span>
+                      </div>
+                      <h3 className="text-base font-semibold text-foreground">
+                        {selectedTicket.subject}
+                      </h3>
+                    </div>
+                    {(() => {
+                      const CatIcon = CATEGORY_ICONS[selectedTicket.category] ?? HelpCircle;
+                      return (
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/50">
+                            <CatIcon className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <span className="text-[10px] text-muted-foreground">
+                            {categoryLabel(selectedTicket.category)}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {new Date(selectedTicket.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="rounded-lg border border-border bg-muted/10 p-4">
+                  <p className="whitespace-pre-wrap text-sm text-foreground">
+                    {selectedTicket.description}
+                  </p>
+                </div>
+
+                {/* Replies */}
+                {selectedTicket.replies.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-foreground">
+                      {t("support.ticketReplies")}
+                    </h4>
+                    {selectedTicket.replies.map((reply) => (
+                      <div
+                        key={reply.id}
+                        className={cn(
+                          "rounded-lg border p-3",
+                          reply.is_admin
+                            ? "border-score/20 bg-score/5"
+                            : "border-border bg-muted/10"
+                        )}
+                      >
+                        <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="font-medium">
+                            {reply.is_admin ? "Support Team" : t("support.ticketYou")}
+                          </span>
+                          <span>{new Date(reply.created_at).toLocaleString()}</span>
+                        </div>
+                        <p className="whitespace-pre-wrap text-sm text-foreground">
+                          {reply.content}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Cancel button (only for open/in_progress tickets) */}
+                {(selectedTicket.status === "open" || selectedTicket.status === "in_progress") && (
+                  <button
+                    type="button"
+                    onClick={handleCancelTicket}
+                    disabled={cancelling}
+                    className={cn(
+                      "flex items-center justify-center gap-2 rounded-lg border border-loss/20 px-4 py-2 text-sm font-medium text-loss/80",
+                      "transition-colors hover:bg-loss/5",
+                      "disabled:cursor-not-allowed disabled:opacity-50"
+                    )}
+                  >
+                    {cancelling ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <XCircle className="h-4 w-4" />
+                    )}
+                    {t("support.ticketCancel")}
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t("support.ticketNotFound")}</p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

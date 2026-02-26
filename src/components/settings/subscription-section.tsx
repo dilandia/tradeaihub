@@ -14,8 +14,10 @@ import {
   Star,
   Infinity,
   ArrowUpRight,
+  ArrowDownRight,
   Sparkles,
   Shield,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -128,7 +130,10 @@ export function SubscriptionSection({ currentPlan, memberSince }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [billingInterval, setBillingInterval] = useState<"monthly" | "annual">("monthly");
+  const [downgradeWarning, setDowngradeWarning] = useState<string | null>(null);
   const plan = PLANS.find((p) => p.id === currentPlan) ?? PLANS[0];
+
+  const PLAN_ORDER: Record<string, number> = { free: 0, pro: 1, elite: 2 };
 
   useEffect(() => {
     const success = searchParams.get("success");
@@ -157,6 +162,17 @@ export function SubscriptionSection({ currentPlan, memberSince }: Props) {
       else console.error("Checkout error:", data.error);
     } catch (err) {
       console.error("Checkout error:", err);
+    }
+  };
+
+  const handleDowngrade = async () => {
+    // Downgrade redirects to Stripe Portal where user can cancel/change
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = await res.json();
+      if (data.url) window.open(data.url, "_blank");
+    } catch (err) {
+      console.error("Portal error:", err);
     }
   };
 
@@ -321,28 +337,85 @@ export function SubscriptionSection({ currentPlan, memberSince }: Props) {
                   })}
                 </ul>
 
-                <button
-                  type="button"
-                  disabled={isCurrent}
-                  onClick={() => handleUpgrade(p.id)}
-                  className={cn(
-                    "w-full rounded-lg py-2.5 text-sm font-medium transition-all",
-                    isCurrent
-                      ? "cursor-not-allowed bg-muted text-muted-foreground"
-                      : p.popular
-                        ? "bg-score text-white shadow-sm hover:bg-score/90"
-                        : "border border-border text-foreground hover:bg-muted"
-                  )}
-                >
-                  {isCurrent ? (
-                    t("plans.currentPlan")
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5">
-                      {t("plans.upgrade")}
-                      <ArrowUpRight className="h-3.5 w-3.5" />
-                    </span>
-                  )}
-                </button>
+                {(() => {
+                  const currentOrder = PLAN_ORDER[currentPlan] ?? 0;
+                  const targetOrder = PLAN_ORDER[p.id] ?? 0;
+                  const isUpgrade = targetOrder > currentOrder;
+                  const isDowngrade = targetOrder < currentOrder;
+
+                  if (isCurrent) {
+                    return (
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full cursor-not-allowed rounded-lg bg-muted py-2.5 text-sm font-medium text-muted-foreground"
+                      >
+                        {t("billing.currentPlan")}
+                      </button>
+                    );
+                  }
+
+                  if (isUpgrade) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => handleUpgrade(p.id)}
+                        className={cn(
+                          "w-full rounded-lg py-2.5 text-sm font-medium transition-all",
+                          p.popular
+                            ? "bg-score text-white shadow-sm hover:bg-score/90"
+                            : "border border-border text-foreground hover:bg-muted"
+                        )}
+                      >
+                        <span className="inline-flex items-center gap-1.5">
+                          {t("billing.upgrade")}
+                          <ArrowUpRight className="h-3.5 w-3.5" />
+                        </span>
+                      </button>
+                    );
+                  }
+
+                  if (isDowngrade) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDowngradeWarning(p.id);
+                          setTimeout(() => setDowngradeWarning(null), 5000);
+                        }}
+                        className="w-full rounded-lg border border-loss/20 py-2.5 text-sm font-medium text-loss/80 transition-all hover:bg-loss/5"
+                      >
+                        <span className="inline-flex items-center gap-1.5">
+                          {t("billing.downgrade")}
+                          <ArrowDownRight className="h-3.5 w-3.5" />
+                        </span>
+                      </button>
+                    );
+                  }
+
+                  return null;
+                })()}
+
+                {/* Downgrade Warning */}
+                {downgradeWarning === p.id && (
+                  <div className="mt-2 rounded-lg border border-loss/20 bg-loss/5 p-3">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-loss" />
+                      <div className="space-y-2">
+                        <p className="text-xs text-loss/80">
+                          {t("billing.downgradeWarning")}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleDowngrade}
+                          className="rounded-md bg-loss/10 px-3 py-1.5 text-xs font-medium text-loss transition-colors hover:bg-loss/20"
+                        >
+                          {t("billing.confirmDowngrade")}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           );
