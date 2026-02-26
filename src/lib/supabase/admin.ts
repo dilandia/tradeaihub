@@ -18,3 +18,14 @@ export function createAdminClient(): SupabaseClient {
   adminClient = createClient(url, key);
   return adminClient;
 }
+
+/**
+ * Returns the standard callback URL.
+ * When Supabase sends the confirmation email, it includes the correct link.
+ * We'll use Resend to send a reminder email with the callback URL.
+ */
+export function getEmailConfirmationCallbackUrl(): string {
+  return `${
+    process.env.NEXT_PUBLIC_APP_URL || "https://app.tradeaihub.com"
+  }/auth/callback`;
+}
