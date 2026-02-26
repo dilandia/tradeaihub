@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getEmailConfirmationCallbackUrl } from "@/lib/supabase/admin";
+import { generateConfirmationLink } from "@/lib/supabase/admin";
 import { sendEmailConfirmationEmail } from "@/lib/email/send";
 
 function friendlyAuthError(message: string): string {
@@ -63,15 +63,13 @@ export async function signUp(formData: FormData): Promise<never> {
     metadata.referral_code = referralCode;
   }
 
-  // Create user in Supabase (will attempt to send confirmation email via Supabase SMTP)
+  // Create user in Supabase
   const { error, data } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: metadata,
-      // Keep emailRedirectTo so Supabase can generate the confirmation link
-      // However, Supabase SMTP is unreliable, so we'll send via Resend too
-      emailRedirectTo: `${APP_URL}/auth/callback`,
+      // Don't set emailRedirectTo here - we'll send via Resend with proper link
     },
   });
 
@@ -79,20 +77,29 @@ export async function signUp(formData: FormData): Promise<never> {
     redirect("/register?message=" + encodeURIComponent(friendlyAuthError(error.message)));
   }
 
-  // Send confirmation reminder email via Resend (more reliable than Supabase SMTP)
+  // Send confirmation email via Resend with proper verification link
   if (data?.user?.email) {
-    const confirmUrl = getEmailConfirmationCallbackUrl();
+    try {
+      // Generate the confirmation link using Supabase Admin API (includes verification code)
+      const confirmLink = await generateConfirmationLink(data.user.email);
 
-    await sendEmailConfirmationEmail({
-      to: data.user.email,
-      confirmLink: confirmUrl,
-      userName: fullName,
-      locale: "pt-BR", // Could detect from request headers
-    }).catch((err) => {
-      console.error("[Auth] Failed to send confirmation email via Resend:", err);
-      // Don't block signup if Resend email fails to send
-      // User will receive the Supabase confirmation email instead
-    });
+      if (confirmLink) {
+        await sendEmailConfirmationEmail({
+          to: data.user.email,
+          confirmLink,
+          userName: fullName,
+          locale: "pt-BR", // Could detect from request headers
+        }).catch((err) => {
+          console.error("[Auth] Failed to send confirmation email via Resend:", err);
+          // Don't block signup if Resend email fails to send
+        });
+      } else {
+        console.warn("[Auth] Failed to generate confirmation link for", data.user.email);
+      }
+    } catch (err) {
+      console.error("[Auth] Error generating confirmation link:", err);
+      // Don't block signup if link generation fails
+    }
   }
 
   revalidatePath("/", "layout");
