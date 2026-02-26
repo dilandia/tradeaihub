@@ -3,10 +3,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SubscriptionSection } from "@/components/settings/subscription-section";
 import { CreditsSection } from "@/components/settings/credits-section";
+import { BillingInfoCard } from "@/components/settings/billing-info-card";
 import { getUserPlan } from "@/lib/plan";
 
 export const metadata: Metadata = {
-  title: "Assinatura – TakeZ",
+  title: "Subscription – Trade AI Hub",
 };
 
 export default async function SubscriptionPage() {
@@ -21,12 +22,7 @@ export default async function SubscriptionPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
-      <div className="mb-6">
-        <h2 className="text-xl font-bold text-foreground">Assinatura</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Gerencie seu plano e desbloqueie funcionalidades avançadas.
-        </p>
-      </div>
+      <BillingInfoCard currentPlan={currentPlan} memberSince={memberSince} />
       <SubscriptionSection
         currentPlan={currentPlan}
         memberSince={memberSince}

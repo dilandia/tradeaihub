@@ -11,6 +11,7 @@ import {
   Settings2,
   Tags,
   Upload,
+  LifeBuoy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/language-context";
@@ -34,6 +35,10 @@ const GENERAL_NAV: NavItem[] = [
   { href: "/settings/trade-settings", labelKey: "settings.tradeSettings", icon: Settings2 },
   { href: "/settings/tags", labelKey: "settings.tags", icon: Tags },
   { href: "/settings/import-history", labelKey: "settings.importHistory", icon: Upload },
+];
+
+const SUPPORT_NAV: NavItem[] = [
+  { href: "/settings/support", labelKey: "settings.support", icon: LifeBuoy },
 ];
 
 function NavGroup({ titleKey, items, t }: { titleKey: string; items: NavItem[]; t: (k: string) => string }) {
@@ -90,6 +95,7 @@ export function SettingsSidebar() {
       <aside className="hidden w-56 shrink-0 border-r border-border p-4 lg:block">
         <NavGroup titleKey="settings.user" items={USER_NAV} t={t} />
         <NavGroup titleKey="settings.general" items={GENERAL_NAV} t={t} />
+        <NavGroup titleKey="settings.supportSection" items={SUPPORT_NAV} t={t} />
       </aside>
     </>
   );
@@ -97,7 +103,7 @@ export function SettingsSidebar() {
 
 function MobileNav({ t }: { t: (k: string) => string }) {
   const pathname = usePathname();
-  const allItems = [...USER_NAV, ...GENERAL_NAV];
+  const allItems = [...USER_NAV, ...GENERAL_NAV, ...SUPPORT_NAV];
 
   return (
     <nav className="grid grid-cols-4 gap-1">
