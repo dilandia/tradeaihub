@@ -13,6 +13,7 @@ import {
   Settings,
   Shield,
   ArrowLeft,
+  Share2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/admin/ai-credits", label: "AI Credits", icon: Zap },
   { href: "/admin/emails", label: "Emails", icon: Mail },
   { href: "/admin/feedback", label: "Feedback", icon: MessageSquare },
+  { href: "/admin/affiliates", label: "Affiliates", icon: Share2 },
   { href: "/admin/referrals", label: "Referrals", icon: Gift },
   { href: "/admin/system", label: "System", icon: Settings },
 ];

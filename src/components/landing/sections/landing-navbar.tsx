@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { key: "landing.navFeatures", href: "#features" },
   { key: "landing.navPricing", href: "#pricing" },
   { key: "landing.navFaq", href: "#faq" },
+  { key: "landing.navAffiliates", href: "/affiliates" },
 ] as const
 
 export function LandingNavbar() {
