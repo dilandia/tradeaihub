@@ -379,6 +379,190 @@ export async function rejectWithdrawal(
   return { success: true }
 }
 
+// ─── Detail Page Actions ────────────────────────────────────────────────────
+
+export interface AffiliateBalanceAdjustment {
+  id: string
+  admin_id: string
+  type: "credit" | "debit"
+  field: "total_earned" | "total_paid"
+  amount: number
+  balance_before: number
+  balance_after: number
+  reason: string
+  created_at: string
+}
+
+export interface AffiliateCommission {
+  id: string
+  affiliate_id: string
+  referral_id: string | null
+  amount: number
+  type: string
+  status: string
+  created_at: string
+}
+
+export interface AffiliateDetail {
+  affiliate: AffiliateRecord
+  application: AffiliateApplication | null
+  commissions: AffiliateCommission[]
+  withdrawals: AffiliateWithdrawal[]
+  adjustments: AffiliateBalanceAdjustment[]
+}
+
+export async function getAffiliateDetail(
+  id: string
+): Promise<AffiliateDetail | null> {
+  await verifyAdmin()
+  const admin = getAdmin()
+
+  const { data: affiliate, error } = await admin
+    .from("affiliates")
+    .select("*")
+    .eq("id", id)
+    .single()
+
+  if (error || !affiliate) return null
+
+  const [appResult, commResult, wdResult, adjResult] = await Promise.all([
+    admin
+      .from("affiliate_applications")
+      .select("*")
+      .eq("affiliate_id", id)
+      .maybeSingle(),
+    admin
+      .from("affiliate_commissions")
+      .select("*")
+      .eq("affiliate_id", id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    admin
+      .from("affiliate_withdrawals")
+      .select("*")
+      .eq("affiliate_id", id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    admin
+      .from("affiliate_balance_adjustments")
+      .select("*")
+      .eq("affiliate_id", id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ])
+
+  return {
+    affiliate: affiliate as AffiliateRecord,
+    application: (appResult.data as AffiliateApplication) ?? null,
+    commissions: (commResult.data ?? []) as AffiliateCommission[],
+    withdrawals: (wdResult.data ?? []) as AffiliateWithdrawal[],
+    adjustments: (adjResult.data ?? []) as AffiliateBalanceAdjustment[],
+  }
+}
+
+export async function updateAffiliateCode(
+  affiliateId: string,
+  newCode: string
+): Promise<{ success: boolean; error?: string }> {
+  await verifyAdmin()
+  const admin = getAdmin()
+
+  const trimmed = newCode.trim().toUpperCase()
+
+  if (!/^[A-Z0-9-]{4,32}$/.test(trimmed)) {
+    return {
+      success: false,
+      error: "Code must be 4-32 characters, only A-Z, 0-9, and hyphens",
+    }
+  }
+
+  // Check uniqueness
+  const { data: existing } = await admin
+    .from("affiliates")
+    .select("id")
+    .eq("affiliate_code", trimmed)
+    .neq("id", affiliateId)
+    .maybeSingle()
+
+  if (existing) {
+    return { success: false, error: "This code is already in use" }
+  }
+
+  const { error } = await admin
+    .from("affiliates")
+    .update({ affiliate_code: trimmed, updated_at: new Date().toISOString() })
+    .eq("id", affiliateId)
+
+  if (error) {
+    return { success: false, error: "Failed to update code" }
+  }
+
+  return { success: true }
+}
+
+export async function adjustAffiliateBalance(
+  affiliateId: string,
+  field: "total_earned" | "total_paid",
+  type: "credit" | "debit",
+  amount: number,
+  reason: string
+): Promise<{ success: boolean; error?: string }> {
+  const user = await verifyAdmin()
+  const admin = getAdmin()
+
+  if (amount <= 0 || amount > 999999.99) {
+    return { success: false, error: "Amount must be between 0.01 and 999,999.99" }
+  }
+
+  if (!reason || reason.trim().length < 5) {
+    return { success: false, error: "Reason must be at least 5 characters" }
+  }
+
+  const { data: affiliate, error: fetchError } = await admin
+    .from("affiliates")
+    .select("total_earned, total_paid")
+    .eq("id", affiliateId)
+    .single()
+
+  if (fetchError || !affiliate) {
+    return { success: false, error: "Affiliate not found" }
+  }
+
+  const currentValue = Number(affiliate[field]) || 0
+  const delta = type === "credit" ? amount : -amount
+  const newValue = Math.max(0, currentValue + delta)
+
+  // Update the affiliate balance
+  const { error: updateError } = await admin
+    .from("affiliates")
+    .update({ [field]: newValue, updated_at: new Date().toISOString() })
+    .eq("id", affiliateId)
+
+  if (updateError) {
+    return { success: false, error: "Failed to update balance" }
+  }
+
+  // Record the adjustment in audit trail
+  const { error: auditError } = await admin
+    .from("affiliate_balance_adjustments")
+    .insert({
+      affiliate_id: affiliateId,
+      admin_id: user.id,
+      type,
+      field,
+      amount,
+      balance_before: currentValue,
+      balance_after: newValue,
+      reason: reason.trim(),
+    })
+
+  if (auditError) {
+    console.error("[admin-affiliates] audit trail error:", auditError)
+  }
+
+  return { success: true }
+}
+
 export async function getAffiliateStats() {
   await verifyAdmin()
   const admin = getAdmin()
