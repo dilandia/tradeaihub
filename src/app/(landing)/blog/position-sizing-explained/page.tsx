@@ -154,7 +154,7 @@ export default function PositionSizingArticlePage() {
 
       <LandingSectionWrapper className="px-4 pb-8 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
-          <div className="relative h-80 overflow-hidden rounded-2xl mb-8">
+          <div className="relative h-48 sm:h-64 md:h-80 overflow-hidden rounded-2xl mb-8">
             <Image
               src="/blog/blog-position-sizing.png"
               alt="Position Sizing"
