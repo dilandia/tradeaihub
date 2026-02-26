@@ -37,6 +37,8 @@ import { onboardingO4FirstAiAgentHtml } from "@/lib/email/templates/onboarding-o
 import { onboardingO5StrategiesHtml } from "@/lib/email/templates/onboarding-o5-strategies"
 import { onboardingO6WeekSummaryHtml } from "@/lib/email/templates/onboarding-o6-week-summary"
 import { guardianAlertEmailHtml } from "@/lib/email/templates/guardian-alert"
+import { affiliateApprovedEmailHtml } from "@/lib/email/templates/affiliate-approved"
+import { affiliateRejectedEmailHtml } from "@/lib/email/templates/affiliate-rejected"
 import { canSendEmail, recordSend } from "@/lib/email/scheduler"
 
 /**
@@ -1722,6 +1724,84 @@ export async function sendGuardianAlertEmail(params: {
     return { success: true }
   } catch (error) {
     console.error("[Email] Failed to send guardian alert:", error)
+    return {
+      success: false,
+      error: `Failed to send: ${error instanceof Error ? error.message : "Unknown"}`,
+    }
+  }
+}
+
+export async function sendAffiliateApprovedEmail(params: {
+  to: string
+  affiliateName?: string
+  affiliateCode: string
+  commissionRate: number
+  locale?: string
+}): Promise<EmailResult> {
+  const resend = getResendClient()
+  if (!resend) return { success: false, error: "Email not configured" }
+
+  try {
+    const html = affiliateApprovedEmailHtml({
+      affiliateName: params.affiliateName,
+      affiliateCode: params.affiliateCode,
+      commissionRate: params.commissionRate,
+      locale: params.locale,
+    })
+
+    const subject = params.locale?.startsWith("pt")
+      ? "Voce foi aprovado como afiliado do Trade AI Hub!"
+      : "You've been approved as a Trade AI Hub affiliate!"
+
+    await resend.emails.send({
+      from: FROM,
+      to: params.to,
+      subject,
+      html,
+    })
+
+    console.log(`[Email] Affiliate approved email sent to ${params.to}`)
+    return { success: true }
+  } catch (error) {
+    console.error("[Email] Failed to send affiliate approved email:", error)
+    return {
+      success: false,
+      error: `Failed to send: ${error instanceof Error ? error.message : "Unknown"}`,
+    }
+  }
+}
+
+export async function sendAffiliateRejectedEmail(params: {
+  to: string
+  applicantName?: string
+  reason?: string
+  locale?: string
+}): Promise<EmailResult> {
+  const resend = getResendClient()
+  if (!resend) return { success: false, error: "Email not configured" }
+
+  try {
+    const html = affiliateRejectedEmailHtml({
+      applicantName: params.applicantName,
+      reason: params.reason,
+      locale: params.locale,
+    })
+
+    const subject = params.locale?.startsWith("pt")
+      ? "Atualizacao sobre sua aplicacao ao programa de afiliados"
+      : "Update on your affiliate program application"
+
+    await resend.emails.send({
+      from: FROM,
+      to: params.to,
+      subject,
+      html,
+    })
+
+    console.log(`[Email] Affiliate rejected email sent to ${params.to}`)
+    return { success: true }
+  } catch (error) {
+    console.error("[Email] Failed to send affiliate rejected email:", error)
     return {
       success: false,
       error: `Failed to send: ${error instanceof Error ? error.message : "Unknown"}`,

@@ -25,6 +25,7 @@ import {
 } from "lucide-react"
 import type { AffiliateDashboardData } from "@/app/actions/affiliates"
 import { updatePayoutInfo, requestWithdrawal } from "@/app/actions/affiliates"
+import { useLanguage } from "@/contexts/language-context"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -36,15 +37,15 @@ interface Props {
 // ─── Not an affiliate CTA ─────────────────────────────────────────────────────
 
 function NotAffiliateCta() {
+  const { t } = useLanguage()
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center text-center px-4">
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-500/20 mb-6">
         <DollarSign className="h-8 w-8 text-indigo-400" />
       </div>
-      <h1 className="text-2xl font-bold text-foreground mb-3">Affiliate Partner Program</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-3">{t("affiliateDashboard.notAffiliate")}</h1>
       <p className="text-muted-foreground max-w-md mb-8">
-        Earn recurring commissions by promoting TakeZ Plan to your audience.
-        Apply to become an affiliate partner and get paid every month.
+        {t("affiliateDashboard.notAffiliateDesc")}
       </p>
       <a
         href="/affiliates"
@@ -53,7 +54,7 @@ function NotAffiliateCta() {
         className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3 text-sm font-semibold text-white hover:opacity-90 transition-all"
       >
         <ExternalLink className="h-4 w-4" />
-        Learn More & Apply
+        {t("affiliateDashboard.learnApply")}
       </a>
     </div>
   )
@@ -85,23 +86,39 @@ function StatCard({ title, value, subtitle, icon: Icon, highlight }: {
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; className: string }> = {
-    registered: { label: "Registered", className: "bg-blue-500/20 text-blue-400" },
-    converted: { label: "Converted", className: "bg-emerald-500/20 text-emerald-400" },
-    churned: { label: "Churned", className: "bg-red-500/20 text-red-400" },
-    pending: { label: "Pending", className: "bg-amber-500/20 text-amber-400" },
-    approved: { label: "Approved", className: "bg-emerald-500/20 text-emerald-400" },
-    paid: { label: "Paid", className: "bg-indigo-500/20 text-indigo-400" },
-    refunded: { label: "Refunded", className: "bg-red-500/20 text-red-400" },
-    cancelled: { label: "Cancelled", className: "bg-gray-500/20 text-gray-400" },
-    completed: { label: "Completed", className: "bg-emerald-500/20 text-emerald-400" },
-    rejected: { label: "Rejected", className: "bg-red-500/20 text-red-400" },
-    processing: { label: "Processing", className: "bg-blue-500/20 text-blue-400" },
+  const { t } = useLanguage()
+  const statusKeyMap: Record<string, string> = {
+    registered: "statusRegistered",
+    converted: "statusConverted",
+    churned: "statusChurned",
+    pending: "statusPending",
+    approved: "statusApproved",
+    paid: "statusPaid",
+    refunded: "statusRefunded",
+    cancelled: "statusCancelled",
+    completed: "statusCompleted",
+    rejected: "statusRejected",
+    processing: "statusProcessing",
   }
-  const config = map[status] ?? { label: status, className: "bg-muted text-muted-foreground" }
+  const classMap: Record<string, string> = {
+    registered: "bg-blue-500/20 text-blue-400",
+    converted: "bg-emerald-500/20 text-emerald-400",
+    churned: "bg-red-500/20 text-red-400",
+    pending: "bg-amber-500/20 text-amber-400",
+    approved: "bg-emerald-500/20 text-emerald-400",
+    paid: "bg-indigo-500/20 text-indigo-400",
+    refunded: "bg-red-500/20 text-red-400",
+    cancelled: "bg-gray-500/20 text-gray-400",
+    completed: "bg-emerald-500/20 text-emerald-400",
+    rejected: "bg-red-500/20 text-red-400",
+    processing: "bg-blue-500/20 text-blue-400",
+  }
+  const key = statusKeyMap[status]
+  const label = key ? t(`affiliateDashboard.${key}`) : status
+  const className = classMap[status] ?? "bg-muted text-muted-foreground"
   return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${config.className}`}>
-      {config.label}
+    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${className}`}>
+      {label}
     </span>
   )
 }
@@ -109,6 +126,7 @@ function StatusBadge({ status }: { status: string }) {
 // ─── Payout Settings ─────────────────────────────────────────────────────────
 
 function PayoutSettings({ wallet, network }: { wallet: string | null; network: string | null }) {
+  const { t } = useLanguage()
   const router = useRouter()
   const [form, setForm] = useState({ wallet: wallet ?? "", network: network ?? "" })
   const [loading, setLoading] = useState(false)
@@ -136,13 +154,13 @@ function PayoutSettings({ wallet, network }: { wallet: string | null; network: s
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-muted-foreground mb-1.5">
-            Crypto Wallet Address
+            {t("affiliateDashboard.wallet")}
           </label>
           <input
             type="text"
             value={form.wallet}
             onChange={(e) => setForm((f) => ({ ...f, wallet: e.target.value }))}
-            placeholder="Your wallet address"
+            placeholder={t("affiliateDashboard.walletPlaceholder")}
             className="w-full rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-indigo-500"
           />
         </div>
@@ -169,7 +187,7 @@ function PayoutSettings({ wallet, network }: { wallet: string | null; network: s
         className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <Check className="h-4 w-4" /> : null}
-        {saved ? "Saved!" : "Save Payout Info"}
+        {saved ? t("affiliateDashboard.saved") : t("affiliateDashboard.savePayout")}
       </button>
     </div>
   )
@@ -178,6 +196,7 @@ function PayoutSettings({ wallet, network }: { wallet: string | null; network: s
 // ─── Withdrawal Request ───────────────────────────────────────────────────────
 
 function WithdrawalRequest({ availableBalance }: { availableBalance: number }) {
+  const { t } = useLanguage()
   const router = useRouter()
   const [amount, setAmount] = useState("")
   const [loading, setLoading] = useState(false)
@@ -187,7 +206,7 @@ function WithdrawalRequest({ availableBalance }: { availableBalance: number }) {
   async function handleRequest() {
     const val = parseFloat(amount)
     if (isNaN(val) || val < 50) {
-      setError("Minimum withdrawal is $50")
+      setError(t("affiliateDashboard.minWithdrawal"))
       return
     }
     setLoading(true)
@@ -206,8 +225,8 @@ function WithdrawalRequest({ availableBalance }: { availableBalance: number }) {
   if (availableBalance < 50) {
     return (
       <p className="text-sm text-muted-foreground">
-        You need at least <span className="font-semibold text-foreground">$50.00</span> available balance to request a withdrawal.
-        Current balance: <span className="font-semibold text-foreground">${availableBalance.toFixed(2)}</span>
+        {t("affiliateDashboard.minWithdrawal")} —{" "}
+        {t("affiliateDashboard.availableBalance")}: <span className="font-semibold text-foreground">${availableBalance.toFixed(2)}</span>
       </p>
     )
   }
@@ -217,7 +236,7 @@ function WithdrawalRequest({ availableBalance }: { availableBalance: number }) {
       {success && (
         <div className="flex items-center gap-2 text-sm text-emerald-400">
           <CheckCircle2 className="h-4 w-4" />
-          Withdrawal request submitted! We&apos;ll process it within 7 days.
+          {t("affiliateDashboard.requestWithdrawal")} ✓
         </div>
       )}
       <div className="flex items-center gap-3">
@@ -240,12 +259,12 @@ function WithdrawalRequest({ availableBalance }: { availableBalance: number }) {
           className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
-          Request Withdrawal
+          {t("affiliateDashboard.requestWithdrawal")}
         </button>
       </div>
       {error && <p className="text-sm text-red-400">{error}</p>}
       <p className="text-xs text-muted-foreground">
-        Available: <span className="font-semibold text-foreground">${availableBalance.toFixed(2)}</span>
+        {t("affiliateDashboard.availableBalance")}: <span className="font-semibold text-foreground">${availableBalance.toFixed(2)}</span>
       </p>
     </div>
   )
@@ -335,6 +354,7 @@ function QuickStat({ label, value }: { label: string; value: string }) {
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
+  const { t } = useLanguage()
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<"overview" | "referrals" | "commissions" | "withdrawals" | "settings">("overview")
 
@@ -352,29 +372,29 @@ export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
   }
 
   const tabs = [
-    { id: "overview" as const, label: "Overview" },
-    { id: "referrals" as const, label: "Referrals" },
-    { id: "commissions" as const, label: "Commissions" },
-    { id: "withdrawals" as const, label: "Withdrawals" },
-    { id: "settings" as const, label: "Settings" },
+    { id: "overview" as const, label: t("affiliateDashboard.tabOverview") },
+    { id: "referrals" as const, label: t("affiliateDashboard.tabReferrals") },
+    { id: "commissions" as const, label: t("affiliateDashboard.tabCommissions") },
+    { id: "withdrawals" as const, label: t("affiliateDashboard.tabWithdrawals") },
+    { id: "settings" as const, label: t("affiliateDashboard.tabSettings") },
   ]
 
   return (
     <div className="space-y-6 px-4 py-6 md:px-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Affiliate Dashboard</h1>
+        <h1 className="text-2xl font-bold text-foreground">{t("affiliateDashboard.title")}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Commission rate: <span className="font-semibold text-foreground">{(affiliate.commissionRate * 100).toFixed(0)}%</span> recurring
+          {t("affiliateDashboard.commissionRate")} <span className="font-semibold text-foreground">{(affiliate.commissionRate * 100).toFixed(0)}%</span> {t("affiliateDashboard.recurring")}
           {!affiliate.isActive && (
-            <span className="ml-2 rounded-full bg-red-500/20 px-2 py-0.5 text-xs text-red-400">Inactive</span>
+            <span className="ml-2 rounded-full bg-red-500/20 px-2 py-0.5 text-xs text-red-400">{t("affiliateDashboard.inactive")}</span>
           )}
         </p>
       </div>
 
       {/* Affiliate link */}
       <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-4">
-        <p className="text-xs font-medium text-muted-foreground mb-2">Your Affiliate Link</p>
+        <p className="text-xs font-medium text-muted-foreground mb-2">{t("affiliateDashboard.yourLink")}</p>
         <div className="flex items-center gap-2">
           <code className="flex-1 truncate rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
             {affiliateLink}
@@ -384,7 +404,7 @@ export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
             className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:border-indigo-500 transition-colors"
           >
             {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-            {copied ? "Copied!" : "Copy"}
+            {copied ? t("affiliateDashboard.copied") : t("affiliateDashboard.copy")}
           </button>
         </div>
       </div>
@@ -458,34 +478,34 @@ export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
             {/* ── Stat Cards Row ── */}
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               <StatCard
-                title="Total Referrals"
+                title={t("affiliateDashboard.totalReferrals")}
                 value={String(stats.totalReferrals)}
-                subtitle={`${conversionRate}% conversion rate`}
+                subtitle={`${conversionRate}% ${t("affiliateDashboard.conversionRate").toLowerCase()}`}
                 icon={Users}
               />
               <StatCard
-                title="Total Earned"
+                title={t("affiliateDashboard.totalEarned")}
                 value={`$${stats.totalEarned.toFixed(2)}`}
-                subtitle={`$${stats.totalPaid.toFixed(2)} paid out`}
+                subtitle={`$${stats.totalPaid.toFixed(2)} ${t("affiliateDashboard.totalPaidOut").toLowerCase()}`}
                 icon={TrendingUp}
               />
               <StatCard
-                title="Available Balance"
+                title={t("affiliateDashboard.availableBalance")}
                 value={`$${stats.availableBalance.toFixed(2)}`}
-                subtitle={stats.availableBalance >= 50 ? "Ready to withdraw" : "Min $50 to withdraw"}
+                subtitle={stats.availableBalance >= 50 ? t("affiliateDashboard.readyToWithdraw") : t("affiliateDashboard.minToWithdraw")}
                 icon={Wallet}
                 highlight={stats.availableBalance >= 50}
               />
               <StatCard
-                title="Pending Commissions"
+                title={t("affiliateDashboard.pendingCommissions")}
                 value={`$${stats.pendingCommissions.toFixed(2)}`}
-                subtitle="Awaiting approval"
+                subtitle={t("affiliateDashboard.awaitingApproval")}
                 icon={Clock}
               />
             </div>
 
             {/* ── Share Your Link ── */}
-            <OverviewSection title="Share Your Affiliate Link" icon={Share2}>
+            <OverviewSection title={t("affiliateDashboard.shareTitle")} icon={Share2}>
               <div className="flex items-center gap-2 mb-4">
                 <div className="flex-1 flex items-center gap-2 rounded-lg bg-muted/50 border border-border px-3 py-2.5">
                   <Link2 className="h-4 w-4 text-indigo-400 shrink-0" />
@@ -496,24 +516,23 @@ export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
                   className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors shrink-0"
                 >
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  {copied ? "Copied!" : "Copy Link"}
+                  {copied ? t("affiliateDashboard.copied") : t("affiliateDashboard.copyLink")}
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Share this link with your audience. Anyone who signs up through it will be tracked as your referral,
-                and you earn <span className="font-semibold text-foreground">{(affiliate.commissionRate * 100).toFixed(0)}%</span> recurring commission on their payments.
+                {t("affiliateDashboard.shareDesc")} <span className="font-semibold text-foreground">{(affiliate.commissionRate * 100).toFixed(0)}%</span> {t("affiliateDashboard.shareRecurring")}
               </p>
             </OverviewSection>
 
             {/* ── Charts Row ── */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <OverviewSection title="Referrals (Last 7 Days)" icon={BarChart3}>
-                <MiniBarChart data={referralChartData} label="New referrals per day" />
+              <OverviewSection title={t("affiliateDashboard.referralsChart")} icon={BarChart3}>
+                <MiniBarChart data={referralChartData} label={t("affiliateDashboard.referralsPerDay")} />
               </OverviewSection>
-              <OverviewSection title="Commissions (Last 7 Days)" icon={DollarSign}>
+              <OverviewSection title={t("affiliateDashboard.commissionsChart")} icon={DollarSign}>
                 <MiniBarChart
                   data={commissionChartData.map((d) => ({ ...d, value: d.value }))}
-                  label="Commission earned per day ($)"
+                  label={t("affiliateDashboard.commissionsPerDay")}
                 />
               </OverviewSection>
             </div>
@@ -521,34 +540,34 @@ export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
             {/* ── Quick Stats + Payout Summary Row ── */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {/* Quick Stats */}
-              <OverviewSection title="Quick Stats" icon={Percent}>
+              <OverviewSection title={t("affiliateDashboard.quickStats")} icon={Percent}>
                 <div>
-                  <QuickStat label="Conversion Rate" value={`${conversionRate}%`} />
-                  <QuickStat label="Avg. Commission per Referral" value={`$${avgCommission}`} />
-                  <QuickStat label="Commission Rate" value={`${(affiliate.commissionRate * 100).toFixed(0)}% recurring`} />
-                  <QuickStat label="Total Conversions" value={String(stats.totalConversions)} />
-                  <QuickStat label="Total Referrals" value={String(stats.totalReferrals)} />
+                  <QuickStat label={t("affiliateDashboard.conversionRate")} value={`${conversionRate}%`} />
+                  <QuickStat label={t("affiliateDashboard.avgCommission")} value={`$${avgCommission}`} />
+                  <QuickStat label={t("affiliateDashboard.commissionRateLabel")} value={`${(affiliate.commissionRate * 100).toFixed(0)}% ${t("affiliateDashboard.recurring")}`} />
+                  <QuickStat label={t("affiliateDashboard.totalConversions")} value={String(stats.totalConversions)} />
+                  <QuickStat label={t("affiliateDashboard.totalReferrals")} value={String(stats.totalReferrals)} />
                 </div>
               </OverviewSection>
 
               {/* Payout Summary */}
-              <OverviewSection title="Payout Summary" icon={CreditCard}>
+              <OverviewSection title={t("affiliateDashboard.payoutSummary")} icon={CreditCard}>
                 <div>
-                  <QuickStat label="Available Balance" value={`$${stats.availableBalance.toFixed(2)}`} />
-                  <QuickStat label="Total Paid Out" value={`$${stats.totalPaid.toFixed(2)}`} />
-                  <QuickStat label="Pending Commissions" value={`$${stats.pendingCommissions.toFixed(2)}`} />
+                  <QuickStat label={t("affiliateDashboard.availableBalance")} value={`$${stats.availableBalance.toFixed(2)}`} />
+                  <QuickStat label={t("affiliateDashboard.totalPaidOut")} value={`$${stats.totalPaid.toFixed(2)}`} />
+                  <QuickStat label={t("affiliateDashboard.pendingCommissions")} value={`$${stats.pendingCommissions.toFixed(2)}`} />
                   <QuickStat
-                    label="Wallet"
+                    label={t("affiliateDashboard.wallet")}
                     value={affiliate.cryptoWallet
                       ? `${affiliate.cryptoWallet.slice(0, 6)}...${affiliate.cryptoWallet.slice(-4)}`
-                      : "Not set"
+                      : t("affiliateDashboard.notSet")
                     }
                   />
                   <QuickStat
-                    label="Last Payout"
+                    label={t("affiliateDashboard.lastPayout")}
                     value={lastPayout
-                      ? `$${lastPayout.amount.toFixed(2)} on ${new Date(lastPayout.createdAt).toLocaleDateString()}`
-                      : "No payouts yet"
+                      ? `$${lastPayout.amount.toFixed(2)} — ${new Date(lastPayout.createdAt).toLocaleDateString()}`
+                      : t("affiliateDashboard.noPayoutsYet")
                     }
                   />
                 </div>
@@ -556,15 +575,15 @@ export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
             </div>
 
             {/* ── Recent Activity Feed ── */}
-            <OverviewSection title="Recent Activity" icon={Activity}>
+            <OverviewSection title={t("affiliateDashboard.recentActivity")} icon={Activity}>
               {recentActivities.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">
-                  No activity yet. Share your affiliate link to get started!
+                  {t("affiliateDashboard.noActivityYet")}
                 </p>
               ) : (
                 <div className="divide-y divide-border">
                   {recentActivities.map((activity, i) => {
-                    const dateStr = new Date(activity.date).toLocaleDateString("en-US", {
+                    const dateStr = new Date(activity.date).toLocaleDateString(undefined, {
                       month: "short",
                       day: "numeric",
                     })
@@ -575,8 +594,8 @@ export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
                           key={`ref-${i}`}
                           icon={UserPlus}
                           iconColor="bg-blue-500/20 text-blue-400"
-                          title="New Referral"
-                          subtitle={`Status: ${r.status.charAt(0).toUpperCase() + r.status.slice(1)}`}
+                          title={t("affiliateDashboard.newReferral")}
+                          subtitle={`${t("affiliateDashboard.status")}: ${r.status.charAt(0).toUpperCase() + r.status.slice(1)}`}
                           date={dateStr}
                         />
                       )
@@ -588,8 +607,8 @@ export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
                           key={`com-${i}`}
                           icon={DollarSign}
                           iconColor="bg-emerald-500/20 text-emerald-400"
-                          title="Commission Earned"
-                          subtitle={`Status: ${c.status.charAt(0).toUpperCase() + c.status.slice(1)}`}
+                          title={t("affiliateDashboard.commissionEarned")}
+                          subtitle={`${t("affiliateDashboard.status")}: ${c.status.charAt(0).toUpperCase() + c.status.slice(1)}`}
                           date={dateStr}
                           amount={`+$${c.commissionAmount.toFixed(2)}`}
                         />
@@ -602,8 +621,8 @@ export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
                         key={`wth-${i}`}
                         icon={ArrowDownToLine}
                         iconColor="bg-amber-500/20 text-amber-400"
-                        title="Withdrawal"
-                        subtitle={`Status: ${w.status.charAt(0).toUpperCase() + w.status.slice(1)}`}
+                        title={t("affiliateDashboard.withdrawal")}
+                        subtitle={`${t("affiliateDashboard.status")}: ${w.status.charAt(0).toUpperCase() + w.status.slice(1)}`}
                         date={dateStr}
                         amount={`-$${w.amount.toFixed(2)}`}
                       />
@@ -621,16 +640,16 @@ export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           {recentReferrals.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              No referrals yet. Share your affiliate link to get started!
+              {t("affiliateDashboard.noReferrals")}
             </div>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">#</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Date</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Converted At</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("affiliateDashboard.date")}</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">{t("affiliateDashboard.status")}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("affiliateDashboard.statusConverted")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -659,16 +678,16 @@ export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           {recentCommissions.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              No commissions yet. Commissions are generated when your referrals subscribe.
+              {t("affiliateDashboard.noCommissions")}
             </div>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("affiliateDashboard.date")}</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Payment</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Commission</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">Status</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">{t("affiliateDashboard.tabCommissions")}</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">{t("affiliateDashboard.status")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -698,22 +717,22 @@ export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
       {activeTab === "withdrawals" && (
         <div className="space-y-6">
           <div className="rounded-xl border border-border bg-card p-6">
-            <h3 className="font-semibold text-foreground mb-4">Request Withdrawal</h3>
+            <h3 className="font-semibold text-foreground mb-4">{t("affiliateDashboard.requestWithdrawal")}</h3>
             <WithdrawalRequest availableBalance={stats.availableBalance} />
           </div>
 
           {withdrawals.length > 0 && (
             <div className="rounded-xl border border-border bg-card overflow-hidden">
               <div className="px-4 py-3 border-b border-border">
-                <h3 className="font-medium text-foreground text-sm">Withdrawal History</h3>
+                <h3 className="font-medium text-foreground text-sm">{t("affiliateDashboard.withdrawalHistory")}</h3>
               </div>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Date</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Amount</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{t("affiliateDashboard.date")}</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">{t("affiliateDashboard.amount")}</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Network</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">Status</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">{t("affiliateDashboard.status")}</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">TX Hash</th>
                   </tr>
                 </thead>
@@ -745,9 +764,9 @@ export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
       {/* Tab: Settings */}
       {activeTab === "settings" && (
         <div className="rounded-xl border border-border bg-card p-6">
-          <h3 className="font-semibold text-foreground mb-1">Payout Settings</h3>
+          <h3 className="font-semibold text-foreground mb-1">{t("affiliateDashboard.payoutSettings")}</h3>
           <p className="text-sm text-muted-foreground mb-6">
-            Set your crypto wallet to receive payouts. Minimum payout is $50.
+            {t("affiliateDashboard.minWithdrawal")}
           </p>
           <PayoutSettings wallet={affiliate.cryptoWallet} network={affiliate.cryptoNetwork} />
         </div>

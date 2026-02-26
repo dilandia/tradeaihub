@@ -2,6 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js"
 import { verifyAdmin } from "@/lib/admin-auth"
+import { sendAffiliateApprovedEmail, sendAffiliateRejectedEmail } from "@/lib/email/send"
 
 function getAdmin() {
   return createClient(
@@ -190,6 +191,14 @@ export async function approveApplication(
     return { success: false, error: "Failed to update application status" }
   }
 
+  // Send approval email (non-blocking)
+  sendAffiliateApprovedEmail({
+    to: app.email,
+    affiliateName: app.full_name,
+    affiliateCode: code,
+    commissionRate: commissionRate,
+  }).catch((e) => console.error("[admin-affiliates] approval email error:", e))
+
   return { success: true }
 }
 
@@ -199,6 +208,13 @@ export async function rejectApplication(
 ): Promise<{ success: boolean; error?: string }> {
   await verifyAdmin()
   const admin = getAdmin()
+
+  // Get application info for email
+  const { data: app } = await admin
+    .from("affiliate_applications")
+    .select("full_name, email")
+    .eq("id", applicationId)
+    .single()
 
   const { error } = await admin
     .from("affiliate_applications")
@@ -211,6 +227,15 @@ export async function rejectApplication(
 
   if (error) {
     return { success: false, error: "Failed to reject application" }
+  }
+
+  // Send rejection email (non-blocking)
+  if (app?.email) {
+    sendAffiliateRejectedEmail({
+      to: app.email,
+      applicantName: app.full_name,
+      reason: reason || undefined,
+    }).catch((e) => console.error("[admin-affiliates] rejection email error:", e))
   }
 
   return { success: true }
