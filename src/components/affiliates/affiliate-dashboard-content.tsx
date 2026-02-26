@@ -360,7 +360,7 @@ export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 py-6 md:px-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Affiliate Dashboard</h1>
