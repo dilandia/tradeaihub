@@ -175,7 +175,7 @@ export default function PsychologyArticlePage() {
       {/* Content */}
       <LandingSectionWrapper className="px-4 pb-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
-          <div className="prose prose-invert max-w-none">
+          <div className="max-w-none">
             <p className="text-lg text-gray-300 mb-6 leading-relaxed">
               {content.intro1}
             </p>
