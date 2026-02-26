@@ -131,6 +131,17 @@ export async function approveApplication(
     return { success: false, error: "An affiliate with this email already exists" }
   }
 
+  // Lookup user_id by email via profiles table (O(1) indexed query, scales to any user count)
+  let userId: string | null = null
+  const { data: matchedProfile } = await admin
+    .from("profiles")
+    .select("id")
+    .ilike("email", app.email.trim())
+    .maybeSingle()
+  if (matchedProfile) {
+    userId = matchedProfile.id
+  }
+
   // Generate unique affiliate code
   let code = generateAffiliateCode(app.full_name)
   let attempts = 0
@@ -149,6 +160,7 @@ export async function approveApplication(
   const { data: newAffiliate, error: createError } = await admin
     .from("affiliates")
     .insert({
+      user_id: userId,
       full_name: app.full_name,
       email: app.email,
       whatsapp: app.whatsapp,
@@ -335,21 +347,27 @@ export async function processWithdrawal(
     return { success: false, error: "Failed to process withdrawal" }
   }
 
-  // Update total_paid on affiliate
-  const { data: affiliate } = await admin
-    .from("affiliates")
-    .select("total_paid")
-    .eq("id", withdrawal.affiliate_id)
-    .single()
+  // Atomically increment total_paid using optimistic locking to prevent race conditions
+  for (let retry = 0; retry < 3; retry++) {
+    const { data: aff } = await admin
+      .from("affiliates")
+      .select("total_paid")
+      .eq("id", withdrawal.affiliate_id)
+      .single()
 
-  if (affiliate) {
-    await admin
+    if (!aff) break
+
+    const currentPaid = Number(aff.total_paid ?? 0)
+    const { error: paidErr, count } = await admin
       .from("affiliates")
       .update({
-        total_paid: (affiliate.total_paid ?? 0) + withdrawal.amount,
+        total_paid: currentPaid + Number(withdrawal.amount),
         updated_at: new Date().toISOString(),
       })
       .eq("id", withdrawal.affiliate_id)
+      .eq("total_paid", currentPaid)
+
+    if (!paidErr && count && count > 0) break // Success: row was updated
   }
 
   return { success: true }

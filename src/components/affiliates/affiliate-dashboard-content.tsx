@@ -14,6 +14,14 @@ import {
   XCircle,
   ExternalLink,
   Loader2,
+  Activity,
+  BarChart3,
+  Percent,
+  Share2,
+  Link2,
+  CreditCard,
+  UserPlus,
+  ArrowDownToLine,
 } from "lucide-react"
 import type { AffiliateDashboardData } from "@/app/actions/affiliates"
 import { updatePayoutInfo, requestWithdrawal } from "@/app/actions/affiliates"
@@ -243,6 +251,87 @@ function WithdrawalRequest({ availableBalance }: { availableBalance: number }) {
   )
 }
 
+// ─── Overview: Mini Bar Chart ────────────────────────────────────────────────
+
+function MiniBarChart({ data, label }: { data: { day: string; value: number }[]; label: string }) {
+  const maxVal = Math.max(...data.map((d) => d.value), 1)
+  return (
+    <div>
+      <p className="text-xs font-medium text-muted-foreground mb-3">{label}</p>
+      <div className="flex items-end gap-2 h-28">
+        {data.map((d) => (
+          <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
+            <span className="text-[10px] font-medium text-muted-foreground">
+              {d.value > 0 ? d.value : ""}
+            </span>
+            <div
+              className="w-full rounded-t-sm bg-indigo-500/70 transition-all duration-300 min-h-[2px]"
+              style={{ height: `${Math.max((d.value / maxVal) * 100, 2)}%` }}
+            />
+            <span className="text-[10px] text-muted-foreground">{d.day}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Overview: Activity Feed Item ────────────────────────────────────────────
+
+function ActivityItem({ icon: Icon, iconColor, title, subtitle, date, amount }: {
+  icon: React.ElementType
+  iconColor: string
+  title: string
+  subtitle: string
+  date: string
+  amount?: string
+}) {
+  return (
+    <div className="flex items-start gap-3 py-3">
+      <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconColor}`}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground">{title}</p>
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
+      </div>
+      <div className="text-right shrink-0">
+        {amount && <p className="text-sm font-semibold text-emerald-400">{amount}</p>}
+        <p className="text-xs text-muted-foreground">{date}</p>
+      </div>
+    </div>
+  )
+}
+
+// ─── Overview: Section Wrapper ───────────────────────────────────────────────
+
+function OverviewSection({ title, icon: Icon, children }: {
+  title: string
+  icon: React.ElementType
+  children: React.ReactNode
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Icon className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+// ─── Overview: Quick Stat Row ────────────────────────────────────────────────
+
+function QuickStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm font-semibold text-foreground">{value}</span>
+    </div>
+  )
+}
+
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
@@ -271,7 +360,7 @@ export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 py-6 md:px-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Affiliate Dashboard</h1>
@@ -318,29 +407,214 @@ export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
       </div>
 
       {/* Tab: Overview */}
-      {activeTab === "overview" && (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-          <StatCard
-            title="Total Referrals"
-            value={String(stats.totalReferrals)}
-            subtitle={`${stats.totalConversions} converted`}
-            icon={Users}
-          />
-          <StatCard
-            title="Total Earned"
-            value={`$${stats.totalEarned.toFixed(2)}`}
-            subtitle={`$${stats.totalPaid.toFixed(2)} paid out`}
-            icon={TrendingUp}
-          />
-          <StatCard
-            title="Available Balance"
-            value={`$${stats.availableBalance.toFixed(2)}`}
-            subtitle={`$${stats.pendingCommissions.toFixed(2)} pending`}
-            icon={DollarSign}
-            highlight={stats.availableBalance >= 50}
-          />
-        </div>
-      )}
+      {activeTab === "overview" && (() => {
+        // Compute conversion rate
+        const conversionRate = stats.totalReferrals > 0
+          ? ((stats.totalConversions / stats.totalReferrals) * 100).toFixed(1)
+          : "0.0"
+        // Average commission per referral
+        const avgCommission = stats.totalConversions > 0
+          ? (stats.totalEarned / stats.totalConversions).toFixed(2)
+          : "0.00"
+
+        // Build last 7 days chart data
+        const now = new Date()
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(now)
+          d.setDate(d.getDate() - (6 - i))
+          return d
+        })
+        const dayLabels = last7Days.map((d) => d.toLocaleDateString("en-US", { weekday: "short" }).slice(0, 3))
+
+        const referralsByDay = last7Days.map((day) => {
+          const dayStr = day.toISOString().split("T")[0]
+          return recentReferrals.filter((r) => r.createdAt.startsWith(dayStr)).length
+        })
+        const commissionsByDay = last7Days.map((day) => {
+          const dayStr = day.toISOString().split("T")[0]
+          return recentCommissions
+            .filter((c) => c.createdAt.startsWith(dayStr))
+            .reduce((sum, c) => sum + c.commissionAmount, 0)
+        })
+
+        const referralChartData = dayLabels.map((day, i) => ({ day, value: referralsByDay[i] }))
+        const commissionChartData = dayLabels.map((day, i) => ({ day, value: Math.round(commissionsByDay[i] * 100) / 100 }))
+
+        // Build recent activity feed (last 5 combined)
+        type ActivityEntry = { type: "referral" | "commission" | "withdrawal"; date: string; data: Record<string, unknown> }
+        const allActivities: ActivityEntry[] = [
+          ...recentReferrals.map((r) => ({ type: "referral" as const, date: r.createdAt, data: r as unknown as Record<string, unknown> })),
+          ...recentCommissions.map((c) => ({ type: "commission" as const, date: c.createdAt, data: c as unknown as Record<string, unknown> })),
+          ...withdrawals.map((w) => ({ type: "withdrawal" as const, date: w.createdAt, data: w as unknown as Record<string, unknown> })),
+        ]
+        allActivities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        const recentActivities = allActivities.slice(0, 5)
+
+        // Last completed withdrawal
+        const lastPayout = withdrawals.find((w) => w.status === "completed")
+
+        return (
+          <div className="space-y-6">
+            {/* ── Stat Cards Row ── */}
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <StatCard
+                title="Total Referrals"
+                value={String(stats.totalReferrals)}
+                subtitle={`${conversionRate}% conversion rate`}
+                icon={Users}
+              />
+              <StatCard
+                title="Total Earned"
+                value={`$${stats.totalEarned.toFixed(2)}`}
+                subtitle={`$${stats.totalPaid.toFixed(2)} paid out`}
+                icon={TrendingUp}
+              />
+              <StatCard
+                title="Available Balance"
+                value={`$${stats.availableBalance.toFixed(2)}`}
+                subtitle={stats.availableBalance >= 50 ? "Ready to withdraw" : "Min $50 to withdraw"}
+                icon={Wallet}
+                highlight={stats.availableBalance >= 50}
+              />
+              <StatCard
+                title="Pending Commissions"
+                value={`$${stats.pendingCommissions.toFixed(2)}`}
+                subtitle="Awaiting approval"
+                icon={Clock}
+              />
+            </div>
+
+            {/* ── Share Your Link ── */}
+            <OverviewSection title="Share Your Affiliate Link" icon={Share2}>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex-1 flex items-center gap-2 rounded-lg bg-muted/50 border border-border px-3 py-2.5">
+                  <Link2 className="h-4 w-4 text-indigo-400 shrink-0" />
+                  <code className="flex-1 truncate text-sm text-foreground">{affiliateLink}</code>
+                </div>
+                <button
+                  onClick={copyLink}
+                  className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors shrink-0"
+                >
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copied ? "Copied!" : "Copy Link"}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Share this link with your audience. Anyone who signs up through it will be tracked as your referral,
+                and you earn <span className="font-semibold text-foreground">{(affiliate.commissionRate * 100).toFixed(0)}%</span> recurring commission on their payments.
+              </p>
+            </OverviewSection>
+
+            {/* ── Charts Row ── */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <OverviewSection title="Referrals (Last 7 Days)" icon={BarChart3}>
+                <MiniBarChart data={referralChartData} label="New referrals per day" />
+              </OverviewSection>
+              <OverviewSection title="Commissions (Last 7 Days)" icon={DollarSign}>
+                <MiniBarChart
+                  data={commissionChartData.map((d) => ({ ...d, value: d.value }))}
+                  label="Commission earned per day ($)"
+                />
+              </OverviewSection>
+            </div>
+
+            {/* ── Quick Stats + Payout Summary Row ── */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {/* Quick Stats */}
+              <OverviewSection title="Quick Stats" icon={Percent}>
+                <div>
+                  <QuickStat label="Conversion Rate" value={`${conversionRate}%`} />
+                  <QuickStat label="Avg. Commission per Referral" value={`$${avgCommission}`} />
+                  <QuickStat label="Commission Rate" value={`${(affiliate.commissionRate * 100).toFixed(0)}% recurring`} />
+                  <QuickStat label="Total Conversions" value={String(stats.totalConversions)} />
+                  <QuickStat label="Total Referrals" value={String(stats.totalReferrals)} />
+                </div>
+              </OverviewSection>
+
+              {/* Payout Summary */}
+              <OverviewSection title="Payout Summary" icon={CreditCard}>
+                <div>
+                  <QuickStat label="Available Balance" value={`$${stats.availableBalance.toFixed(2)}`} />
+                  <QuickStat label="Total Paid Out" value={`$${stats.totalPaid.toFixed(2)}`} />
+                  <QuickStat label="Pending Commissions" value={`$${stats.pendingCommissions.toFixed(2)}`} />
+                  <QuickStat
+                    label="Wallet"
+                    value={affiliate.cryptoWallet
+                      ? `${affiliate.cryptoWallet.slice(0, 6)}...${affiliate.cryptoWallet.slice(-4)}`
+                      : "Not set"
+                    }
+                  />
+                  <QuickStat
+                    label="Last Payout"
+                    value={lastPayout
+                      ? `$${lastPayout.amount.toFixed(2)} on ${new Date(lastPayout.createdAt).toLocaleDateString()}`
+                      : "No payouts yet"
+                    }
+                  />
+                </div>
+              </OverviewSection>
+            </div>
+
+            {/* ── Recent Activity Feed ── */}
+            <OverviewSection title="Recent Activity" icon={Activity}>
+              {recentActivities.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  No activity yet. Share your affiliate link to get started!
+                </p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {recentActivities.map((activity, i) => {
+                    const dateStr = new Date(activity.date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })
+                    if (activity.type === "referral") {
+                      const r = activity.data as { status: string }
+                      return (
+                        <ActivityItem
+                          key={`ref-${i}`}
+                          icon={UserPlus}
+                          iconColor="bg-blue-500/20 text-blue-400"
+                          title="New Referral"
+                          subtitle={`Status: ${r.status.charAt(0).toUpperCase() + r.status.slice(1)}`}
+                          date={dateStr}
+                        />
+                      )
+                    }
+                    if (activity.type === "commission") {
+                      const c = activity.data as { commissionAmount: number; status: string }
+                      return (
+                        <ActivityItem
+                          key={`com-${i}`}
+                          icon={DollarSign}
+                          iconColor="bg-emerald-500/20 text-emerald-400"
+                          title="Commission Earned"
+                          subtitle={`Status: ${c.status.charAt(0).toUpperCase() + c.status.slice(1)}`}
+                          date={dateStr}
+                          amount={`+$${c.commissionAmount.toFixed(2)}`}
+                        />
+                      )
+                    }
+                    // withdrawal
+                    const w = activity.data as { amount: number; status: string }
+                    return (
+                      <ActivityItem
+                        key={`wth-${i}`}
+                        icon={ArrowDownToLine}
+                        iconColor="bg-amber-500/20 text-amber-400"
+                        title="Withdrawal"
+                        subtitle={`Status: ${w.status.charAt(0).toUpperCase() + w.status.slice(1)}`}
+                        date={dateStr}
+                        amount={`-$${w.amount.toFixed(2)}`}
+                      />
+                    )
+                  })}
+                </div>
+              )}
+            </OverviewSection>
+          </div>
+        )
+      })()}
 
       {/* Tab: Referrals */}
       {activeTab === "referrals" && (

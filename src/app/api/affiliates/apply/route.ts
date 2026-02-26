@@ -43,7 +43,7 @@ setInterval(() => {
 const applySchema = z.object({
   fullName: z.string().min(2).max(100).trim(),
   email: z.string().email().max(255).trim().toLowerCase(),
-  whatsapp: z.string().max(30).optional().nullable(),
+  whatsapp: z.string().min(5, "WhatsApp must be at least 5 characters").max(30).trim(),
   primarySocial: z.string().min(1).max(50),
   socialUrl: z.string().url().max(500).optional().nullable().or(z.literal("")),
   audienceSize: z.string().max(20).optional().nullable(),
@@ -121,7 +121,14 @@ export async function POST(req: Request) {
   })
 
   if (insertError) {
-    console.error("[affiliates/apply] Insert error:", insertError)
+    // Handle unique constraint violation (race condition on duplicate email)
+    if (insertError.code === "23505") {
+      return NextResponse.json(
+        { error: "An application with this email already exists." },
+        { status: 409 }
+      )
+    }
+    console.error("[affiliates/apply] Insert error:", { code: insertError.code, message: insertError.message })
     return NextResponse.json({ error: "Failed to submit application. Please try again." }, { status: 500 })
   }
 

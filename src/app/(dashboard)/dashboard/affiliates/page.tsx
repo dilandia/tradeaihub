@@ -7,10 +7,13 @@ export const metadata: Metadata = {
 }
 
 export default async function AffiliateDashboardPage() {
-  const [status, dashboard] = await Promise.all([
+  const [statusResult, dashboardResult] = await Promise.allSettled([
     getAffiliateStatus(),
     getAffiliateDashboard(),
   ])
+
+  const status = statusResult.status === "fulfilled" ? statusResult.value : null
+  const dashboard = dashboardResult.status === "fulfilled" ? dashboardResult.value : null
 
   return (
     <AffiliateDashboardContent

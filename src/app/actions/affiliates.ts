@@ -127,8 +127,10 @@ export async function getAffiliateDashboard(): Promise<AffiliateDashboardData | 
     0
   )
 
-  const availableBalance =
+  const availableBalance = Math.max(
+    0,
     Number(affiliate.total_earned) - Number(affiliate.total_paid) - pendingWithdrawalsTotal
+  )
 
   // Recent referrals (last 20)
   const { data: referrals } = await admin

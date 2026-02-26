@@ -119,7 +119,7 @@ export function AffiliateActionsClient({
             Approve
           </button>
           <button
-            onClick={() => setShowReject((v) => !v)}
+            onClick={() => { setShowReject((v) => !v); setError(""); setRejectReason(""); }}
             disabled={!!loading}
             className={`${btnClass} bg-red-500/20 text-red-400 hover:bg-red-500/30`}
           >
@@ -155,7 +155,7 @@ export function AffiliateActionsClient({
         {error && <p className="text-xs text-red-400">{error}</p>}
         <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={() => setShowProcess((v) => !v)}
+            onClick={() => { setShowProcess((v) => !v); setError(""); setTxHash(""); }}
             disabled={!!loading}
             className={`${btnClass} bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30`}
           >
@@ -163,7 +163,7 @@ export function AffiliateActionsClient({
             Mark as Paid
           </button>
           <button
-            onClick={() => setShowReject((v) => !v)}
+            onClick={() => { setShowReject((v) => !v); setError(""); setRejectReason(""); }}
             disabled={!!loading}
             className={`${btnClass} bg-red-500/20 text-red-400 hover:bg-red-500/30`}
           >
