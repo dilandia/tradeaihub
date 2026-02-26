@@ -9,6 +9,7 @@ import {
   BadgeCheck,
   BadgeX,
 } from "lucide-react"
+import Link from "next/link"
 import { verifyAdmin } from "@/lib/admin-auth"
 import { StatCard } from "@/components/admin/stat-card"
 import {
@@ -193,7 +194,9 @@ export default async function AdminAffiliatesPage() {
                 {affiliates.map((aff) => (
                   <tr key={aff.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-foreground">{aff.full_name}</p>
+                      <Link href={`/admin/affiliates/${aff.id}`} className="font-medium text-foreground hover:text-indigo-400 transition-colors">
+                        {aff.full_name}
+                      </Link>
                       <p className="text-xs text-muted-foreground">{aff.email}</p>
                     </td>
                     <td className="px-4 py-3">

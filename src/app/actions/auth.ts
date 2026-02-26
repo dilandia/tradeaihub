@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.tradeaihub.com";
+import { generateConfirmationLink } from "@/lib/supabase/admin";
+import { sendEmailConfirmationEmail } from "@/lib/email/send";
 
 function friendlyAuthError(message: string): string {
   const lower = message.toLowerCase();
@@ -64,18 +64,42 @@ export async function signUp(formData: FormData): Promise<never> {
   }
 
   // Create user in Supabase
-  // Supabase will send the confirmation email automatically
   const { error, data } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: metadata,
-      emailRedirectTo: `${APP_URL}/auth/callback`,
+      // Don't set emailRedirectTo here - we'll send via Resend with proper link
     },
   });
 
   if (error) {
     redirect("/register?message=" + encodeURIComponent(friendlyAuthError(error.message)));
+  }
+
+  // Send confirmation email via Resend with proper verification link
+  if (data?.user?.email) {
+    try {
+      // Generate the confirmation link using Supabase Admin API (includes verification code)
+      const confirmLink = await generateConfirmationLink(data.user.email);
+
+      if (confirmLink) {
+        await sendEmailConfirmationEmail({
+          to: data.user.email,
+          confirmLink,
+          userName: fullName,
+          locale: "pt-BR", // Could detect from request headers
+        }).catch((err) => {
+          console.error("[Auth] Failed to send confirmation email via Resend:", err);
+          // Don't block signup if Resend email fails to send
+        });
+      } else {
+        console.warn("[Auth] Failed to generate confirmation link for", data.user.email);
+      }
+    } catch (err) {
+      console.error("[Auth] Error generating confirmation link:", err);
+      // Don't block signup if link generation fails
+    }
   }
 
   revalidatePath("/", "layout");
@@ -86,6 +110,8 @@ export async function signUp(formData: FormData): Promise<never> {
       )
   );
 }
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.tradeaihub.com";
 
 export async function requestPasswordReset(formData: FormData): Promise<{ success: boolean }> {
   const email = formData.get("email") as string;
