@@ -1,18 +1,19 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Blog",
+  title: "Trading Blog: Forex Tips, AI Analytics & Performance Insights",
   description:
-    "Trading insights, forex strategies, and AI analytics tips from Trade AI Hub. Stay updated with the latest in trading performance optimization.",
+    "Trading insights, forex strategies, and AI analytics tips from Trade AI Hub. Learn how to track metrics, manage risk, and optimize your trading performance.",
   openGraph: {
-    title: "Blog",
+    title: "Trading Blog — Forex Tips & AI Analytics | Trade AI Hub",
     description:
-      "Trading insights, forex strategies, and AI analytics tips from Trade AI Hub. Stay updated with the latest in trading performance optimization.",
+      "Trading insights, forex strategies, and AI analytics tips. Learn how to track metrics, manage risk, and optimize your trading performance.",
   },
   twitter: {
-    title: "Blog",
+    card: "summary_large_image",
+    title: "Trading Blog — Forex Tips & AI Analytics | Trade AI Hub",
     description:
-      "Trading insights, forex strategies, and AI analytics tips from Trade AI Hub. Stay updated with the latest in trading performance optimization.",
+      "Trading insights, forex strategies, and AI analytics tips from Trade AI Hub.",
   },
   alternates: {
     canonical: "https://tradeaihub.com/blog",

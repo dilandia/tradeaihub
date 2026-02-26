@@ -11,6 +11,7 @@ import { LandingSectionWrapper } from "@/components/landing/shared/landing-secti
 import { LandingGlassCard } from "@/components/landing/shared/landing-glass-card"
 import { LandingGradientButton } from "@/components/landing/shared/landing-gradient-button"
 import { LandingFooter } from "@/components/landing/sections/landing-footer"
+import { BlogArticleJsonLd } from "@/components/landing/shared/blog-article-jsonld"
 
 export default function PsychologyArticlePage() {
   const { t, locale } = useLanguage()
@@ -310,6 +311,48 @@ export default function PsychologyArticlePage() {
         </div>
       </LandingSectionWrapper>
 
+      {/* Related Articles */}
+      <LandingSectionWrapper className="px-4 pb-24 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="text-2xl font-bold text-white mb-6">
+            {isPt ? "Artigos Relacionados" : "Related Articles"}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Link href="/blog/position-sizing-explained" className="group">
+              <LandingGlassCard hover className="p-5 h-full">
+                <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-indigo-300 transition-colors">
+                  {t("landing.blogArticle5Title")}
+                </h3>
+                <p className="text-xs text-gray-500">{isPt ? "8 min de leitura" : "8 min read"}</p>
+              </LandingGlassCard>
+            </Link>
+            <Link href="/blog/from-losing-to-winning-data-driven-approach" className="group">
+              <LandingGlassCard hover className="p-5 h-full">
+                <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-indigo-300 transition-colors">
+                  {t("landing.blogArticle3Title")}
+                </h3>
+                <p className="text-xs text-gray-500">{isPt ? "9 min de leitura" : "9 min read"}</p>
+              </LandingGlassCard>
+            </Link>
+            <Link href="/blog/how-ai-is-changing-trading-journaling" className="group">
+              <LandingGlassCard hover className="p-5 h-full">
+                <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-indigo-300 transition-colors">
+                  {t("landing.blogArticle2Title")}
+                </h3>
+                <p className="text-xs text-gray-500">{isPt ? "7 min de leitura" : "7 min read"}</p>
+              </LandingGlassCard>
+            </Link>
+          </div>
+        </div>
+      </LandingSectionWrapper>
+
+      <BlogArticleJsonLd
+        title="The Psychology of Successful Trading"
+        description="Learn how to overcome fear, greed, and emotional pitfalls in forex trading. Master trading psychology with practical frameworks for consistent profitability."
+        slug="the-psychology-of-successful-trading"
+        datePublished="2026-02-25"
+        image="/blog/blog-trading-psychology.png"
+      />
       <LandingFooter />
     </div>
   )
