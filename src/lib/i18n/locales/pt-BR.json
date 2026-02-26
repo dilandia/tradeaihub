@@ -942,7 +942,8 @@
     "resendSuccess": "Email reenviado! Verifique sua caixa de entrada e a pasta de spam.",
     "resendLimitReached": "Ainda n\u00e3o recebeu?",
     "contactSupport": "Entre em contato com o suporte",
-    "tryAnotherEmail": "ou tente cadastrar com outro email."
+    "tryAnotherEmail": "ou tente cadastrar com outro email.",
+    "rateLimitExceeded": "Muitas tentativas. Aguarde alguns minutos e tente novamente."
   },
   "settings": {
     "title": "Configurações",
