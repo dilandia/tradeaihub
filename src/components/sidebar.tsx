@@ -18,6 +18,7 @@ import {
   Crown,
   MessageCircle,
   Gift,
+  DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -48,6 +49,7 @@ const highlightNavItems: Array<{
   { href: "/ai-hub", labelKey: "nav.aiHub", icon: Sparkles, style: "ai", badge: { text: "Pro", color: "amber" } },
   { href: "/ai-copilot", labelKey: "nav.aiCopilot", icon: MessageCircle, style: "ai", badge: { text: "Elite", color: "amber" } },
   { href: "/referrals", labelKey: "nav.referrals", icon: Gift, style: "referral", badge: { text: "+20", color: "emerald" } },
+  { href: "/dashboard/affiliates", labelKey: "nav.affiliates", icon: DollarSign, style: "referral" as const },
 ];
 
 /* Rodapé do menu — Importar, Configurações e Sair */

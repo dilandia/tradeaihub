@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/i18n/date-utils";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { PlanHydrator } from "@/components/plan-hydrator";
 import { processReferralOnFirstLogin } from "@/lib/referral-processor";
+import { processAffiliateOnFirstLogin } from "@/lib/affiliate-processor";
 import { createClient } from "@/lib/supabase/server";
 import { getPlanInfo } from "@/lib/plan";
 
@@ -33,6 +34,13 @@ export default async function DashboardLayout({
   processReferralOnFirstLogin().catch(() => {
     /* silent — referral is non-critical */
   });
+
+  // Fire-and-forget: process affiliate_ref cookie on first login
+  if (user?.id) {
+    processAffiliateOnFirstLogin(user.id).catch(() => {
+      /* silent — affiliate attribution is non-critical */
+    });
+  }
 
   const accounts = tradingAccounts.map((a) => ({
     id: a.id,

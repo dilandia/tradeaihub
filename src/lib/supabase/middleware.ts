@@ -2,6 +2,24 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
+  // ── Affiliate tracking: ?aff=CODE sets a 30-day httpOnly cookie ──────────
+  const affiliateCode = request.nextUrl.searchParams.get("aff");
+  if (affiliateCode && /^[A-Z0-9-]{6,30}$/.test(affiliateCode)) {
+    const cleanUrl = new URL(request.nextUrl);
+    cleanUrl.searchParams.delete("aff");
+    const redirectResponse = NextResponse.redirect(cleanUrl);
+    redirectResponse.cookies.set("affiliate_ref", affiliateCode, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      domain: ".tradeaihub.com",
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+    });
+    return redirectResponse;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   let response = NextResponse.next({
     request: { headers: request.headers },
   });
@@ -48,7 +66,7 @@ export async function updateSession(request: NextRequest) {
   const isLocalhost = host === "localhost" || host === "127.0.0.1";
 
   /* Rotas públicas da landing (não requerem auth) */
-  const landingPublicPaths = ["/", "/about", "/contact", "/blog", "/privacy", "/terms"];
+  const landingPublicPaths = ["/", "/about", "/contact", "/blog", "/privacy", "/terms", "/affiliates"];
   const isLandingPublic = landingPublicPaths.includes(path) || path.startsWith("/blog/");
 
   /* Rotas de API nunca devem ser redirecionadas (evita CORS cross-origin) */
@@ -80,7 +98,8 @@ export async function updateSession(request: NextRequest) {
   const isSelfAuthApi =
     path.startsWith("/api/cron/") ||
     path.startsWith("/api/webhooks/") ||
-    path.startsWith("/api/stripe/webhook");
+    path.startsWith("/api/stripe/webhook") ||
+    path === "/api/affiliates/apply"; // public: no auth needed for applications
 
   /* API routes: return 401 JSON instead of redirect (avoids CORS cross-origin) */
   if (isApiRoute && !user && !isSelfAuthApi) {
