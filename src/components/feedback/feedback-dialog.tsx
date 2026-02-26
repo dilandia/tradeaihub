@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Star, Bug, Lightbulb, Sparkles, HelpCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
@@ -28,6 +29,11 @@ export function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const resetForm = useCallback(() => {
     setType("improvement");
@@ -70,7 +76,9 @@ export function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
     }
   }, [type, rating, message, t, handleClose]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <>
@@ -83,18 +91,21 @@ export function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
             className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm"
           />
 
-          {/* Dialog */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.2 }}
-            className={cn(
-              "fixed left-1/2 top-1/2 z-[111] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2",
-              "max-h-[calc(100vh-2rem)] overflow-y-auto",
-              "rounded-xl border border-border bg-card p-4 shadow-xl sm:p-6"
-            )}
+          {/* Centering wrapper — flexbox avoids transform conflicts with Framer Motion */}
+          <div
+            className="fixed inset-0 z-[111] flex items-center justify-center p-4 pointer-events-none"
           >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2 }}
+              className={cn(
+                "w-full max-w-md pointer-events-auto",
+                "max-h-[calc(100dvh-2rem)] overflow-y-auto",
+                "rounded-xl border border-border bg-card p-4 shadow-xl sm:p-6"
+              )}
+            >
             {/* Header */}
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-foreground">
@@ -226,9 +237,11 @@ export function FeedbackDialog({ open, onClose }: FeedbackDialogProps) {
                 </motion.div>
               )}
             </AnimatePresence>
-          </motion.div>
+            </motion.div>
+          </div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
