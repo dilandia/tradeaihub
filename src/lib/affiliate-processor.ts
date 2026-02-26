@@ -87,7 +87,7 @@ export async function processAffiliateOnFirstLogin(userId: string): Promise<void
       if (!current) break
 
       const currentCount = current.total_referrals ?? 0
-      const { error: updateErr } = await admin
+      const { error: updateErr, count } = await admin
         .from("affiliates")
         .update({
           total_referrals: currentCount + 1,
@@ -96,7 +96,7 @@ export async function processAffiliateOnFirstLogin(userId: string): Promise<void
         .eq("id", affiliate.id)
         .eq("total_referrals", currentCount)
 
-      if (!updateErr) break
+      if (!updateErr && count && count > 0) break
     }
 
     // Clear cookie after successful processing

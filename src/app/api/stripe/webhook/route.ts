@@ -309,18 +309,10 @@ export async function POST(req: Request) {
                     .update({ status: "converted", converted_at: new Date().toISOString() })
                     .eq("id", affRef.id);
 
-                  // Increment total_conversions
-                  const { data: currentAff } = await supabase
-                    .from("affiliates")
-                    .select("total_conversions")
-                    .eq("id", affiliate.id)
-                    .single();
-                  if (currentAff) {
-                    await supabase
-                      .from("affiliates")
-                      .update({ total_conversions: (currentAff.total_conversions ?? 0) + 1, updated_at: new Date().toISOString() })
-                      .eq("id", affiliate.id);
-                  }
+                  // Atomically increment total_conversions via RPC
+                  await supabase.rpc("affiliate_increment_conversions", {
+                    p_affiliate_id: affiliate.id,
+                  });
                 }
               }
             }

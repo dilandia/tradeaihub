@@ -131,16 +131,15 @@ export async function approveApplication(
     return { success: false, error: "An affiliate with this email already exists" }
   }
 
-  // Lookup user_id from auth.users by email
+  // Lookup user_id by email via profiles table (O(1) indexed query, scales to any user count)
   let userId: string | null = null
-  const { data: authUsers } = await admin.auth.admin.listUsers({ perPage: 1000 })
-  if (authUsers?.users) {
-    const matchedUser = authUsers.users.find(
-      (u) => u.email?.toLowerCase() === app.email.toLowerCase()
-    )
-    if (matchedUser) {
-      userId = matchedUser.id
-    }
+  const { data: matchedProfile } = await admin
+    .from("profiles")
+    .select("id")
+    .ilike("email", app.email.trim())
+    .maybeSingle()
+  if (matchedProfile) {
+    userId = matchedProfile.id
   }
 
   // Generate unique affiliate code
@@ -368,7 +367,7 @@ export async function processWithdrawal(
       .eq("id", withdrawal.affiliate_id)
       .eq("total_paid", currentPaid)
 
-    if (!paidErr) break // Success or no matching row (another update happened)
+    if (!paidErr && count && count > 0) break // Success: row was updated
   }
 
   return { success: true }

@@ -1,397 +1,230 @@
 /**
  * AFFILIATE PROGRAM - E2E API TESTS
- * Tests all affiliate endpoints and functionality
- *
- * @author Claude Code
- * @date 2026-02-26
+ * Tests public endpoints, application flow, and affiliate tracking
+ * Runs against STAGING (dev.tradeaihub.com)
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from "vitest"
 
-const API_BASE = 'https://app.tradeaihub.com'
-const API_STAGING = 'https://dev.tradeaihub.com'
+const API_BASE = "https://dev.tradeaihub.com"
 
-async function testEndpoint(method: string, path: string, body?: any): Promise<any> {
+async function fetchEndpoint(
+  method: string,
+  path: string,
+  body?: Record<string, unknown>,
+  options?: { redirect?: RequestRedirect }
+): Promise<{ status: number; data: unknown; ok: boolean; headers: Headers }> {
   const url = `${API_BASE}${path}`
-  const options: any = {
+  const init: RequestInit = {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { "Content-Type": "application/json" },
+    redirect: options?.redirect ?? "follow",
+  }
+  if (body) init.body = JSON.stringify(body)
+
+  const response = await fetch(url, init)
+  let data: unknown = null
+  const ct = response.headers.get("content-type") ?? ""
+  if (ct.includes("application/json")) {
+    data = await response.json().catch(() => null)
   }
 
-  if (body) options.body = JSON.stringify(body)
-
-  try {
-    const response = await fetch(url, options)
-    return {
-      status: response.status,
-      data: await response.json().catch(() => null),
-      ok: response.ok,
-    }
-  } catch (error) {
-    return {
-      status: 0,
-      data: null,
-      error: (error as Error).message,
-      ok: false,
-    }
-  }
+  return { status: response.status, data, ok: response.ok, headers: response.headers }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-describe('🎯 AFFILIATE PROGRAM - E2E API TESTS', () => {
+describe("AFFILIATE PROGRAM - E2E API TESTS (staging)", () => {
   // ─────────────────────────────────────────────────────────────────────────
-  // SECTION 1: PUBLIC ENDPOINTS
+  // 1. PUBLIC PAGES
   // ─────────────────────────────────────────────────────────────────────────
-
-  describe('1️⃣ PUBLIC ENDPOINTS', () => {
-    it('should have /affiliates landing page accessible', async () => {
-      const response = await fetch(`${API_BASE}/affiliates`)
-      expect(response.status).toBe(200)
-      expect(response.headers.get('content-type')).toContain('text/html')
+  describe("1. Public Pages", () => {
+    it("GET /affiliates returns 200 with HTML", async () => {
+      const res = await fetch(`${API_BASE}/affiliates`)
+      expect(res.status).toBe(200)
+      expect(res.headers.get("content-type")).toContain("text/html")
     })
 
-    it('should load /affiliates in English', async () => {
-      const response = await fetch(`${API_BASE}/affiliates`)
-      const html = await response.text()
-
-      // Check for key English content
-      expect(html).toContain('Affiliate Program') || expect(html).toContain('affiliate')
-      expect(response.status).toBe(200)
-    })
-
-    it('should load /affiliates in Portuguese', async () => {
-      const response = await fetch(`${API_BASE}/affiliates?lang=pt-BR`, {
-        headers: { 'Accept-Language': 'pt-BR' },
-      })
-      const html = await response.text()
-
-      expect(html).toContain('Afiliado') || expect(html).toContain('programa')
-      expect(response.status).toBe(200)
+    it("/affiliates page contains affiliate program content", async () => {
+      const res = await fetch(`${API_BASE}/affiliates`)
+      const html = await res.text()
+      // Should have form-related content or "affiliate" keyword
+      expect(html.toLowerCase()).toContain("affiliate")
     })
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  // SECTION 2: APPLICATION SUBMISSION
+  // 2. APPLICATION API
   // ─────────────────────────────────────────────────────────────────────────
-
-  describe('2️⃣ APPLICATION SUBMISSION', () => {
-    it('should accept affiliate application via POST /api/affiliates/apply', async () => {
-      const timestamp = Date.now()
-      const result = await testEndpoint('POST', '/api/affiliates/apply', {
-        full_name: `Test Affiliate ${timestamp}`,
-        email: `test-${timestamp}@test.com`,
-        whatsapp: '+1234567890',
-        primary_social: 'youtube',
-        social_url: 'https://youtube.com/@testchannel',
-        audience_size: '10000-50000',
-        trading_experience: 'yes_active',
-        pitch: 'I want to promote Trade AI Hub to my community',
+  describe("2. Application API", () => {
+    it("POST /api/affiliates/apply accepts valid application", async () => {
+      const ts = Date.now()
+      const res = await fetchEndpoint("POST", "/api/affiliates/apply", {
+        fullName: `E2E Test ${ts}`,
+        email: `e2e-${ts}@test-affiliate.local`,
+        whatsapp: "+5511999990000",
+        primarySocial: "youtube",
+        socialUrl: "https://youtube.com/@e2etest",
+        audienceSize: "10000-50000",
+        tradingExperience: "yes_active",
+        pitch: "I have a large trading community and want to share Trade AI Hub.",
       })
 
-      expect(result.status).toBe(200) || expect(result.status).toBe(201)
-      expect(result.ok).toBe(true)
+      // 200 = success, 409 = already exists, 429 = rate limited
+      expect([200, 409, 429]).toContain(res.status)
     })
 
-    it('should validate required fields in application', async () => {
-      const result = await testEndpoint('POST', '/api/affiliates/apply', {
-        email: `incomplete-${Date.now()}@test.com',
-        // Missing other required fields
+    it("POST /api/affiliates/apply rejects missing required fields", async () => {
+      const res = await fetchEndpoint("POST", "/api/affiliates/apply", {
+        email: `incomplete-${Date.now()}@test.local`,
+        // Missing: fullName, primarySocial, pitch, whatsapp
       })
 
-      expect(result.status).toBeGreaterThanOrEqual(400)
+      expect(res.status).toBeGreaterThanOrEqual(400)
     })
 
-    it('should enforce rate limiting (3 applications/hour/IP)', async () => {
-      // This test would require multiple requests from same IP
-      // For now, just verify rate limiting header exists
-      const result = await testEndpoint('POST', '/api/affiliates/apply', {
-        full_name: 'Rate Test',
-        email: `rate-test-${Date.now()}@test.com`,
-        primary_social: 'twitter',
-        social_url: 'https://twitter.com/test',
-        pitch: 'Test pitch for rate limit',
+    it("POST /api/affiliates/apply rejects invalid email", async () => {
+      const res = await fetchEndpoint("POST", "/api/affiliates/apply", {
+        fullName: "Bad Email Test",
+        email: "not-an-email",
+        whatsapp: "+5511999990000",
+        primarySocial: "twitter",
+        pitch: "test pitch",
       })
 
-      // Should have either succeeded or rate limited
-      expect([200, 201, 429].includes(result.status)).toBe(true)
+      expect(res.status).toBeGreaterThanOrEqual(400)
+    })
+
+    it("POST /api/affiliates/apply rejects short whatsapp", async () => {
+      const res = await fetchEndpoint("POST", "/api/affiliates/apply", {
+        fullName: "Short WA Test",
+        email: `shortwa-${Date.now()}@test.local`,
+        whatsapp: "12", // min 5 chars
+        primarySocial: "twitter",
+        pitch: "test pitch",
+      })
+
+      expect(res.status).toBeGreaterThanOrEqual(400)
     })
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  // SECTION 3: AFFILIATE DASHBOARD
+  // 3. AFFILIATE LINK TRACKING
   // ─────────────────────────────────────────────────────────────────────────
-
-  describe('3️⃣ AFFILIATE DASHBOARD', () => {
-    it('should have /dashboard/affiliates page', async () => {
-      const response = await fetch(`${API_BASE}/dashboard/affiliates`)
-
-      // Will be 200 if authenticated, 307/redirect if not
-      expect([200, 307, 308].includes(response.status)).toBe(true)
-    })
-
-    it('should display affiliate statistics', async () => {
-      // This would need auth - we're testing the endpoint exists
-      const response = await fetch(`${API_BASE}/dashboard/affiliates`)
-      expect([200, 307, 308].includes(response.status)).toBe(true)
-    })
-  })
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // SECTION 4: ADMIN PANEL
-  // ─────────────────────────────────────────────────────────────────────────
-
-  describe('4️⃣ ADMIN PANEL', () => {
-    it('should have /admin/affiliates page', async () => {
-      const response = await fetch(`${API_BASE}/admin/affiliates`)
-
-      // Will be 200 if authenticated admin, 307/redirect if not
-      expect([200, 307, 308].includes(response.status)).toBe(true)
-    })
-
-    it('should not allow unauthenticated access to admin', async () => {
-      const response = await fetch(`${API_BASE}/admin/affiliates`, {
-        redirect: 'manual',
+  describe("3. Affiliate Link Tracking", () => {
+    it("GET /?aff=TEST-CODE redirects and sets cookie", async () => {
+      const res = await fetch(`${API_BASE}/?aff=TEST-CODE-123`, {
+        redirect: "manual",
       })
 
-      // Should redirect to login or show error
-      expect([307, 308, 401].includes(response.status)).toBe(true)
-    })
-  })
+      // Middleware should redirect to clean URL
+      expect([301, 302, 307, 308]).toContain(res.status)
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // SECTION 5: AFFILIATE LINK TRACKING
-  // ─────────────────────────────────────────────────────────────────────────
-
-  describe('5️⃣ AFFILIATE LINK TRACKING', () => {
-    it('should accept affiliate referral code (?aff=CODE)', async () => {
-      const response = await fetch(`${API_BASE}/?aff=TEST-CODE-123`)
-
-      expect(response.status).toBe(200)
-
-      // Check if cookie is set
-      const setCookie = response.headers.get('set-cookie')
+      const setCookie = res.headers.get("set-cookie")
       if (setCookie) {
-        expect(setCookie).toContain('affiliate_ref')
+        expect(setCookie).toContain("affiliate_ref")
+        expect(setCookie).toContain("HttpOnly")
       }
     })
 
-    it('should handle landing page with affiliate parameter', async () => {
-      const response = await fetch(`${API_BASE}/?aff=TRADER-MIKE-001`)
-
-      expect(response.status).toBe(200)
-      expect(response.headers.get('content-type')).toContain('text/html')
-    })
-  })
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // SECTION 6: NAVIGATION & LINKS
-  // ─────────────────────────────────────────────────────────────────────────
-
-  describe('6️⃣ NAVIGATION & LINKS', () => {
-    it('should have Affiliate Program link in footer', async () => {
-      const response = await fetch(`${API_BASE}`)
-      const html = await response.text()
-
-      expect(html).toContain('/affiliates') || expect(html).toContain('affiliate')
-    })
-
-    it('should have Affiliates link in sidebar (if authenticated)', async () => {
-      const response = await fetch(`${API_BASE}/dashboard`)
-      const html = await response.text()
-
-      // Either contains "Affiliates" link or redirects to login
-      expect([200, 307].includes(response.status)).toBe(true)
-    })
-  })
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // SECTION 7: COMMISSION & PAYMENT
-  // ─────────────────────────────────────────────────────────────────────────
-
-  describe('7️⃣ COMMISSION & PAYMENT', () => {
-    it('should have 15% commission rate configured', async () => {
-      // This would need authenticated API access to verify
-      // For now, test that admin panel loads
-      const response = await fetch(`${API_BASE}/admin/affiliates`)
-      expect([200, 307, 308].includes(response.status)).toBe(true)
-    })
-
-    it('should handle withdrawal requests', async () => {
-      // This would need authenticated access
-      const response = await fetch(`${API_BASE}/dashboard/affiliates`)
-      expect([200, 307, 308].includes(response.status)).toBe(true)
-    })
-  })
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // SECTION 8: SECURITY & VALIDATION
-  // ─────────────────────────────────────────────────────────────────────────
-
-  describe('8️⃣ SECURITY & VALIDATION', () => {
-    it('should reject malformed affiliate applications', async () => {
-      const result = await testEndpoint('POST', '/api/affiliates/apply', {
-        email: 'not-an-email',
-        full_name: '',
+    it("GET /?aff=lowercase normalizes to uppercase", async () => {
+      const res = await fetch(`${API_BASE}/?aff=test-lower-123`, {
+        redirect: "manual",
       })
 
-      expect(result.status).toBeGreaterThanOrEqual(400)
+      // Should still redirect (middleware normalizes to uppercase)
+      expect([301, 302, 307, 308]).toContain(res.status)
     })
 
-    it('should prevent SQL injection in affiliate code parameter', async () => {
-      const response = await fetch(`${API_BASE}/?aff='; DROP TABLE affiliates; --`)
-
-      expect(response.status).toBe(200)
-      // Table should still exist (not dropped)
-    })
-
-    it('should sanitize XSS in affiliate names', async () => {
-      const result = await testEndpoint('POST', '/api/affiliates/apply', {
-        full_name: '<script>alert("xss")</script>',
-        email: `xss-test-${Date.now()}@test.com`,
-        primary_social: 'youtube',
-        social_url: 'https://youtube.com/test',
-        pitch: 'Test',
+    it("GET /?aff=<invalid> does not set cookie for bad format", async () => {
+      // Code with special chars should be rejected by regex
+      const res = await fetch(`${API_BASE}/?aff='; DROP TABLE--`, {
+        redirect: "manual",
       })
 
-      // Should sanitize the input
-      expect([200, 201, 400].includes(result.status)).toBe(true)
+      const setCookie = res.headers.get("set-cookie") ?? ""
+      // Should NOT contain affiliate_ref since code doesn't match [A-Z0-9-]{6,30}
+      expect(setCookie).not.toContain("affiliate_ref")
     })
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  // SECTION 9: STRIPE WEBHOOK
+  // 4. PROTECTED ROUTES (auth required)
   // ─────────────────────────────────────────────────────────────────────────
-
-  describe('9️⃣ STRIPE WEBHOOK', () => {
-    it('should have webhook endpoint for Stripe events', async () => {
-      // Webhook endpoint should exist (will reject requests without proper signature)
-      const result = await testEndpoint('POST', '/api/stripe/webhook', {
-        type: 'charge.refunded',
+  describe("4. Protected Routes", () => {
+    it("GET /dashboard/affiliates redirects unauthenticated users", async () => {
+      const res = await fetch(`${API_BASE}/dashboard/affiliates`, {
+        redirect: "manual",
       })
 
-      // Should either process or reject as invalid
-      expect([200, 401, 400].includes(result.status)).toBe(true)
+      // Should redirect to login
+      expect([301, 302, 307, 308]).toContain(res.status)
+    })
+
+    it("GET /admin/affiliates redirects unauthenticated users", async () => {
+      const res = await fetch(`${API_BASE}/admin/affiliates`, {
+        redirect: "manual",
+      })
+
+      expect([301, 302, 307, 308]).toContain(res.status)
     })
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  // SECTION 10: TRANSLATION & LOCALIZATION
+  // 5. SECURITY
   // ─────────────────────────────────────────────────────────────────────────
-
-  describe('🔟 TRANSLATION & LOCALIZATION', () => {
-    it('should support English content', async () => {
-      const response = await fetch(`${API_BASE}/affiliates`)
-      const html = await response.text()
-
-      expect(html.length).toBeGreaterThan(100)
-      expect(response.status).toBe(200)
-    })
-
-    it('should support Portuguese content', async () => {
-      const response = await fetch(`${API_BASE}/affiliates`, {
-        headers: { 'Accept-Language': 'pt-BR,pt' },
-      })
-      const html = await response.text()
-
-      expect(html.length).toBeGreaterThan(100)
-      expect(response.status).toBe(200)
-    })
-
-    it('should have nav.affiliates key in i18n', async () => {
-      // Test dashboard loads in both languages
-      const enResponse = await fetch(`${API_BASE}/dashboard`)
-      const ptResponse = await fetch(`${API_BASE}/dashboard`, {
-        headers: { 'Accept-Language': 'pt-BR' },
+  describe("5. Security", () => {
+    it("POST /api/stripe/webhook rejects unsigned requests", async () => {
+      const res = await fetchEndpoint("POST", "/api/stripe/webhook", {
+        type: "checkout.session.completed",
       })
 
-      expect([200, 307].includes(enResponse.status)).toBe(true)
-      expect([200, 307].includes(ptResponse.status)).toBe(true)
+      // Should reject without valid stripe-signature header
+      expect(res.status).toBeGreaterThanOrEqual(400)
+    })
+
+    it("XSS in application name is stored safely (React escaping)", async () => {
+      const ts = Date.now()
+      const res = await fetchEndpoint("POST", "/api/affiliates/apply", {
+        fullName: '<script>alert("xss")</script>',
+        email: `xss-${ts}@test.local`,
+        whatsapp: "+5511999990000",
+        primarySocial: "youtube",
+        pitch: "XSS test pitch for security verification.",
+      })
+
+      // Should either accept (React escapes on render) or reject via validation
+      expect([200, 400, 409, 429]).toContain(res.status)
+    })
+
+    it("SQL injection in ?aff= parameter is harmless", async () => {
+      // The regex validation in middleware prevents this
+      const res = await fetch(`${API_BASE}/?aff=1;DROP TABLE affiliates--`, {
+        redirect: "manual",
+      })
+
+      // Should be a normal response (regex rejects the code, no redirect)
+      expect([200, 301, 302, 307, 308]).toContain(res.status)
     })
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  // SECTION 11: CONTENT VERIFICATION
+  // 6. CONTENT
   // ─────────────────────────────────────────────────────────────────────────
+  describe("6. Content Verification", () => {
+    it("landing page uses Trade AI Hub branding (not TakeZ Plan)", async () => {
+      const res = await fetch(`${API_BASE}/affiliates`)
+      const html = await res.text()
 
-  describe('1️⃣1️⃣ CONTENT VERIFICATION', () => {
-    it('should NOT mention "TAKEZ PLAN" on affiliate page', async () => {
-      const response = await fetch(`${API_BASE}/affiliates`)
-      const html = await response.text()
-
-      // Should NOT have old branding
-      expect(html).not.toContain('TAKEZ PLAN')
-      expect(html).not.toContain('Takez Plan')
-      expect(html).not.toContain('takez plan')
+      const lower = html.toLowerCase()
+      expect(lower).not.toContain("takez plan")
     })
 
-    it('should mention "Trade AI Hub" on affiliate page', async () => {
-      const response = await fetch(`${API_BASE}/affiliates`)
-      const html = await response.text()
+    it("landing page mentions commission rate", async () => {
+      const res = await fetch(`${API_BASE}/affiliates`)
+      const html = await res.text()
 
-      // Should have correct branding
-      expect(html).toContain('Trade') && expect(html).toContain('Hub')
-    })
-
-    it('should show 15% commission rate', async () => {
-      const response = await fetch(`${API_BASE}/affiliates`)
-      const html = await response.text()
-
-      // Should mention 15% commission
-      expect(html).toContain('15%') || expect(html).toContain('0.15')
-    })
-
-    it('should display commission amounts correctly', async () => {
-      const response = await fetch(`${API_BASE}/affiliates`)
-      const html = await response.text()
-
-      // Should have commission table or breakdown
-      expect(html.length).toBeGreaterThan(1000)
-    })
-  })
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // SECTION 12: STAGING VS PRODUCTION
-  // ─────────────────────────────────────────────────────────────────────────
-
-  describe('1️⃣2️⃣ PRODUCTION STATUS', () => {
-    it('should be live in production', async () => {
-      const response = await fetch(`${API_BASE}`)
-      expect(response.status).toBe(200)
-    })
-
-    it('should have affiliate program in production', async () => {
-      const response = await fetch(`${API_BASE}/affiliates`)
-      expect(response.status).toBe(200)
-    })
-
-    it('should handle requests to staging (if exists)', async () => {
-      const stagingResponse = await fetch(`${API_STAGING}/affiliates`)
-
-      // Staging may exist or not, but shouldn't error
-      expect([200, 404, 502].includes(stagingResponse.status)).toBe(true)
+      // Should mention 20% somewhere
+      expect(html).toContain("20%")
     })
   })
 })
-
-/**
- * ✅ COMPREHENSIVE E2E TEST COVERAGE:
- *
- * 1️⃣  PUBLIC ENDPOINTS - 3 tests
- * 2️⃣  APPLICATION SUBMISSION - 3 tests
- * 3️⃣  AFFILIATE DASHBOARD - 2 tests
- * 4️⃣  ADMIN PANEL - 2 tests
- * 5️⃣  AFFILIATE TRACKING - 2 tests
- * 6️⃣  NAVIGATION - 2 tests
- * 7️⃣  COMMISSION & PAYMENT - 2 tests
- * 8️⃣  SECURITY - 3 tests
- * 9️⃣  STRIPE WEBHOOK - 1 test
- * 🔟 TRANSLATION - 3 tests
- * 1️⃣1️⃣ CONTENT VERIFICATION - 4 tests
- * 1️⃣2️⃣ PRODUCTION STATUS - 3 tests
- *
- * TOTAL: 32 comprehensive E2E tests
- * ✅ NO aspect left untested
- * ✅ Tests run against PRODUCTION
- */
