@@ -16,6 +16,7 @@ const SupportChatSchema = z.object({
 });
 
 const MAX_HISTORY_MESSAGES = 20;
+const MAX_ASSISTANT_REPLIES = 3;
 
 export async function OPTIONS(req: NextRequest) {
   return handleCorsPrelight(req.headers.get("origin"));
@@ -75,14 +76,7 @@ export async function POST(req: NextRequest) {
       convId = conv.id;
     }
 
-    // Save user message
-    await supabase.from("support_messages").insert({
-      conversation_id: convId,
-      role: "user",
-      content: message,
-    });
-
-    // Get conversation history
+    // Get conversation history (before saving user message, to count replies)
     const { data: history } = await supabase
       .from("support_messages")
       .select("role, content")
@@ -95,21 +89,65 @@ export async function POST(req: NextRequest) {
       content: m.content,
     }));
 
+    // Count assistant replies so far
+    const assistantReplies = previousMessages.filter((m) => m.role === "assistant").length;
+
+    // Save user message
+    await supabase.from("support_messages").insert({
+      conversation_id: convId,
+      role: "user",
+      content: message,
+    });
+
+    // If max replies reached, return ticket redirect message (no AI call)
+    if (assistantReplies >= MAX_ASSISTANT_REPLIES) {
+      const isPt = (locale ?? "en").startsWith("pt");
+      const limitMsg = isPt
+        ? "Parece que sua dúvida precisa de atenção mais detalhada. Por favor, abra um ticket de suporte para que nossa equipe possa te ajudar diretamente. Você pode fazer isso clicando em \"Tickets\" aqui na página de Suporte. Obrigado pela paciência!"
+        : "It looks like your question needs more detailed attention. Please open a support ticket so our team can help you directly. You can do that by clicking \"Tickets\" here on the Support page. Thank you for your patience!";
+
+      // Save the redirect message
+      await supabase.from("support_messages").insert({
+        conversation_id: convId,
+        role: "assistant",
+        content: limitMsg,
+      });
+
+      const encoder = new TextEncoder();
+      const limitStream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(limitMsg));
+          controller.close();
+        },
+      });
+
+      return new Response(limitStream, {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+          "X-Conversation-Id": convId!,
+          "X-Chat-Limited": "true",
+          ...corsHeaders,
+        },
+      });
+    }
+
     // Build system prompt
-    const systemPrompt = buildSupportSystemPrompt(locale ?? "en");
+    const systemPrompt = buildSupportSystemPrompt(locale ?? "en", assistantReplies);
 
     const apiMessages = [
       { role: "system" as const, content: systemPrompt },
       ...previousMessages,
+      { role: "user" as const, content: message },
     ];
 
     // Stream response
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
+        let fullContent = "";
         try {
-          let fullContent = "";
-
           for await (const chunk of chatCompletionStream(apiMessages, {
             maxTokens: 1024,
           })) {
@@ -127,6 +165,20 @@ export async function POST(req: NextRequest) {
           });
         } catch (err) {
           console.error("[support-chat] Stream error:", err);
+
+          // Save partial content so conversation history stays consistent
+          if (fullContent.length > 0) {
+            try {
+              await supabase.from("support_messages").insert({
+                conversation_id: convId,
+                role: "assistant",
+                content: fullContent + "\n\n[Response interrupted]",
+              });
+            } catch {
+              // Ignore save errors during stream failure
+            }
+          }
+
           controller.error(err);
         }
       },
