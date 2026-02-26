@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getEmailConfirmationCallbackUrl } from "@/lib/supabase/admin";
+import { sendEmailConfirmationEmail } from "@/lib/email/send";
 
 function friendlyAuthError(message: string): string {
   const lower = message.toLowerCase();
@@ -61,11 +63,14 @@ export async function signUp(formData: FormData): Promise<never> {
     metadata.referral_code = referralCode;
   }
 
-  const { error } = await supabase.auth.signUp({
+  // Create user in Supabase (will attempt to send confirmation email via Supabase SMTP)
+  const { error, data } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: metadata,
+      // Keep emailRedirectTo so Supabase can generate the confirmation link
+      // However, Supabase SMTP is unreliable, so we'll send via Resend too
       emailRedirectTo: `${APP_URL}/auth/callback`,
     },
   });
@@ -74,8 +79,29 @@ export async function signUp(formData: FormData): Promise<never> {
     redirect("/register?message=" + encodeURIComponent(friendlyAuthError(error.message)));
   }
 
+  // Send confirmation reminder email via Resend (more reliable than Supabase SMTP)
+  if (data?.user?.email) {
+    const confirmUrl = getEmailConfirmationCallbackUrl();
+
+    await sendEmailConfirmationEmail({
+      to: data.user.email,
+      confirmLink: confirmUrl,
+      userName: fullName,
+      locale: "pt-BR", // Could detect from request headers
+    }).catch((err) => {
+      console.error("[Auth] Failed to send confirmation email via Resend:", err);
+      // Don't block signup if Resend email fails to send
+      // User will receive the Supabase confirmation email instead
+    });
+  }
+
   revalidatePath("/", "layout");
-  redirect("/login?message=" + encodeURIComponent("Confira seu email para confirmar a conta."));
+  redirect(
+    "/login?message=" +
+      encodeURIComponent(
+        "Cadastro realizado! Confira seu email para confirmar a conta. Se não receber em alguns minutos, verifique a pasta de spam."
+      )
+  );
 }
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.tradeaihub.com";

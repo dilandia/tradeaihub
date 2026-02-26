@@ -2,6 +2,7 @@
 
 import { getResendClient } from "@/lib/email/client"
 import { welcomeEmailHtml } from "@/lib/email/templates/welcome"
+import { emailConfirmationHtml } from "@/lib/email/templates/email-confirmation"
 import { passwordResetEmailHtml } from "@/lib/email/templates/password-reset"
 import { tradingReportEmailHtml } from "@/lib/email/templates/trading-report"
 import { paymentFailedEmailHtml } from "@/lib/email/templates/payment-failed"
@@ -79,6 +80,46 @@ export async function sendWelcomeEmail(params: {
     return { success: true }
   } catch (error) {
     console.error("[Email] Failed to send welcome email:", error)
+    return {
+      success: false,
+      error: `Failed to send: ${error instanceof Error ? error.message : "Unknown"}`,
+    }
+  }
+}
+
+export async function sendEmailConfirmationEmail(params: {
+  to: string
+  confirmLink: string
+  userName?: string
+  locale?: string
+}): Promise<EmailResult> {
+  const resend = getResendClient()
+  if (!resend) {
+    console.warn("[Email] RESEND_API_KEY not configured — skipping email confirmation")
+    return { success: false, error: "Email not configured" }
+  }
+
+  try {
+    const html = emailConfirmationHtml({
+      confirmLink: params.confirmLink,
+      userName: params.userName,
+      locale: params.locale,
+    })
+
+    const subject = params.locale?.startsWith("pt")
+      ? "Confirme seu email — Trade AI Hub"
+      : "Confirm Your Email — Trade AI Hub"
+
+    await resend.emails.send({
+      from: FROM,
+      to: params.to,
+      subject,
+      html,
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error("[Email] Failed to send email confirmation:", error)
     return {
       success: false,
       error: `Failed to send: ${error instanceof Error ? error.message : "Unknown"}`,
