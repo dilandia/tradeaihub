@@ -944,7 +944,16 @@
     "registering": "Registering...",
     "noAccount": "Don't have an account?",
     "hasAccount": "Already have an account?",
-    "signUp": "Sign up"
+    "signUp": "Sign up",
+    "emailAlreadyRegistered": "This email is already registered.",
+    "resendConfirmationHint": "If you haven't confirmed your email, click below to resend the confirmation link.",
+    "resendConfirmation": "Resend confirmation email",
+    "resendSending": "Sending...",
+    "resendAgain": "Resend again",
+    "resendSuccess": "Email sent! Check your inbox and spam folder.",
+    "resendLimitReached": "Still not receiving it?",
+    "contactSupport": "Contact support",
+    "tryAnotherEmail": "or try signing up with a different email."
   },
   "settings": {
     "title": "Settings",

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useRef } from "react";
-import { signUp } from "@/app/actions/auth";
+import { signUpWithResult, resendConfirmationEmail } from "@/app/actions/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField, type FieldState } from "@/components/ui/form-field";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -21,6 +21,12 @@ export function RegisterForm({ message, referralCode }: Props) {
   const [passwordError, setPasswordError] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string>("");
+
+  // Resend confirmation states
+  const [showResend, setShowResend] = useState(false);
+  const [resendEmail, setResendEmail] = useState("");
+  const [resendCount, setResendCount] = useState(0);
+  const [resendStatus, setResendStatus] = useState<"idle" | "sending" | "sent">("idle");
 
   // Validate email format
   const validateEmail = (email: string) => {
@@ -70,10 +76,27 @@ export function RegisterForm({ message, referralCode }: Props) {
     }
   };
 
+  // Handle resend confirmation email
+  const handleResend = async () => {
+    if (!resendEmail || resendCount >= 2) return;
+
+    setResendStatus("sending");
+    try {
+      await resendConfirmationEmail(resendEmail);
+      setResendCount((prev) => prev + 1);
+      setResendStatus("sent");
+    } catch {
+      setResendStatus("idle");
+    }
+  };
+
   // Form submission
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormError("");
+    setShowResend(false);
+    setResendCount(0);
+    setResendStatus("idle");
     setIsSubmitting(true);
 
     const formData = new FormData(formRef.current!);
@@ -108,14 +131,38 @@ export function RegisterForm({ message, referralCode }: Props) {
     }
 
     try {
-      await signUp(formData);
+      const result = await signUpWithResult(formData);
+
+      if (result.success) {
+        // Redirect to login with success message
+        window.location.href =
+          "/login?message=" +
+          encodeURIComponent(
+            "Cadastro realizado! Confira seu email para confirmar a conta. Se não receber em alguns minutos, verifique a pasta de spam."
+          );
+        return;
+      }
+
+      // Handle "already registered" error with resend flow
+      if (result.code === "EMAIL_ALREADY_REGISTERED") {
+        setResendEmail(email);
+        setShowResend(true);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Handle other errors
+      setFormError(result.error);
+      setIsSubmitting(false);
     } catch (error: unknown) {
       // Next.js redirect() throws internally — re-throw so the redirect completes
       const digest = (error as Record<string, unknown>)?.digest;
       if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
         throw error;
       }
-      setFormError(error instanceof Error ? error.message : "Registration failed. Please try again.");
+      const errorMsg = error instanceof Error ? error.message : "Registration failed. Please try again.";
+      console.error("[RegisterForm] Signup error:", error);
+      setFormError(errorMsg);
       setIsSubmitting(false);
     }
   };
@@ -146,7 +193,7 @@ export function RegisterForm({ message, referralCode }: Props) {
               className="mb-4"
             />
           )}
-          {formError && (
+          {formError && !showResend && (
             <ErrorAlert
               severity="error"
               title="Registration Failed"
@@ -155,6 +202,61 @@ export function RegisterForm({ message, referralCode }: Props) {
               onClose={() => setFormError("")}
             />
           )}
+
+          {/* Resend confirmation email card */}
+          {showResend && (
+            <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+              <p className="font-medium text-amber-800 dark:text-amber-300">
+                {t("auth.emailAlreadyRegistered")}
+              </p>
+              <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
+                {t("auth.resendConfirmationHint")}
+              </p>
+
+              {resendStatus === "sent" && resendCount < 2 && (
+                <div className="mt-3 rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+                  {t("auth.resendSuccess")}
+                </div>
+              )}
+
+              {resendCount >= 2 && (
+                <div className="mt-3 rounded-md border border-muted bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                  {t("auth.resendLimitReached")}{" "}
+                  <a
+                    href="mailto:support@tradeaihub.com"
+                    className="font-medium text-score underline underline-offset-2 hover:no-underline"
+                  >
+                    {t("auth.contactSupport")}
+                  </a>{" "}
+                  {t("auth.tryAnotherEmail")}
+                </div>
+              )}
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {resendCount < 2 && (
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resendStatus === "sending"}
+                    className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {resendStatus === "sending"
+                      ? t("auth.resendSending")
+                      : resendCount > 0
+                        ? t("auth.resendAgain")
+                        : t("auth.resendConfirmation")}
+                  </button>
+                )}
+                <Link
+                  href="/login"
+                  className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                >
+                  {t("auth.login")}
+                </Link>
+              </div>
+            </div>
+          )}
+
           <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-5">
             <FormField
               id="full_name"

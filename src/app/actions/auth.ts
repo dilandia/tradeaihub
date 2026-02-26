@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { generateConfirmationLink } from "@/lib/supabase/admin";
-import { sendEmailConfirmationEmail } from "@/lib/email/send";
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.tradeaihub.com";
 
 function friendlyAuthError(message: string): string {
   const lower = message.toLowerCase();
@@ -64,42 +64,18 @@ export async function signUp(formData: FormData): Promise<never> {
   }
 
   // Create user in Supabase
+  // Supabase will send the confirmation email automatically
   const { error, data } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: metadata,
-      // Don't set emailRedirectTo here - we'll send via Resend with proper link
+      emailRedirectTo: `${APP_URL}/auth/callback`,
     },
   });
 
   if (error) {
     redirect("/register?message=" + encodeURIComponent(friendlyAuthError(error.message)));
-  }
-
-  // Send confirmation email via Resend with proper verification link
-  if (data?.user?.email) {
-    try {
-      // Generate the confirmation link using Supabase Admin API (includes verification code)
-      const confirmLink = await generateConfirmationLink(data.user.email);
-
-      if (confirmLink) {
-        await sendEmailConfirmationEmail({
-          to: data.user.email,
-          confirmLink,
-          userName: fullName,
-          locale: "pt-BR", // Could detect from request headers
-        }).catch((err) => {
-          console.error("[Auth] Failed to send confirmation email via Resend:", err);
-          // Don't block signup if Resend email fails to send
-        });
-      } else {
-        console.warn("[Auth] Failed to generate confirmation link for", data.user.email);
-      }
-    } catch (err) {
-      console.error("[Auth] Error generating confirmation link:", err);
-      // Don't block signup if link generation fails
-    }
   }
 
   revalidatePath("/", "layout");
@@ -111,7 +87,70 @@ export async function signUp(formData: FormData): Promise<never> {
   );
 }
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.tradeaihub.com";
+type SignUpResult =
+  | { success: true }
+  | { success: false; error: string; code?: string };
+
+export async function signUpWithResult(formData: FormData): Promise<SignUpResult> {
+  const supabase = await createClient();
+
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+  const fullName = (formData.get("full_name") as string) || "";
+  const referralCode = (formData.get("referral_code") as string) || "";
+
+  if (!email || !password) {
+    return { success: false, error: "Email e senha são obrigatórios." };
+  }
+
+  const metadata: Record<string, string> = { full_name: fullName };
+  if (referralCode) {
+    metadata.referral_code = referralCode;
+  }
+
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: metadata,
+      emailRedirectTo: `${APP_URL}/auth/callback`,
+    },
+  });
+
+  if (error) {
+    const lower = error.message.toLowerCase();
+    const isAlreadyRegistered =
+      lower.includes("user already registered") || lower.includes("already_registered");
+    return {
+      success: false,
+      error: friendlyAuthError(error.message),
+      code: isAlreadyRegistered ? "EMAIL_ALREADY_REGISTERED" : undefined,
+    };
+  }
+
+  return { success: true };
+}
+
+export async function resendConfirmationEmail(
+  email: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!email) {
+    return { success: false, error: "Email is required." };
+  }
+
+  const supabase = await createClient();
+
+  await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: {
+      emailRedirectTo: `${APP_URL}/auth/callback`,
+    },
+  });
+
+  // Always return success for security (don't reveal if email exists)
+  return { success: true };
+}
 
 export async function requestPasswordReset(formData: FormData): Promise<{ success: boolean }> {
   const email = formData.get("email") as string;

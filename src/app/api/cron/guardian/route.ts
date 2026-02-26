@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
 import { createClient } from "@supabase/supabase-js"
 import OpenAI from "openai"
+import { sendGuardianAlertEmail } from "@/lib/email/send"
 
 const CRON_SECRET = process.env.CRON_SECRET
 
@@ -269,6 +270,35 @@ export async function GET(req: NextRequest) {
     )
 
     // ============================================================
+    // Load learnings + trends for AI context (memory system)
+    // ============================================================
+    let learnings: unknown[] = []
+    let trends: Record<string, unknown> = {}
+    try {
+      const { data: learnData } = await supabase.rpc("guardian_get_learnings")
+      if (learnData) learnings = learnData as unknown[]
+      const { data: trendData } = await supabase.rpc("guardian_get_scan_trends", { p_days: 7 })
+      if (trendData) trends = trendData as Record<string, unknown>
+    } catch {
+      // Non-critical: continue without memory context
+    }
+
+    // Record learnings from this scan's findings
+    for (const evt of allEvents) {
+      try {
+        await supabase.rpc("guardian_record_learning", {
+          p_category: evt.auto_action_taken ? "fix" : "pattern",
+          p_module: evt.module,
+          p_title: `${evt.check_name}: ${evt.description.slice(0, 100)}`,
+          p_description: evt.description,
+          p_context: { severity: evt.severity, auto_fixed: !!evt.auto_action_taken, scan_date: new Date().toISOString() },
+        })
+      } catch {
+        // Non-critical
+      }
+    }
+
+    // ============================================================
     // AI Heartbeat — Intelligent security assessment via GPT-4o-mini
     // ============================================================
     const aiAssessment = await generateAIHeartbeat({
@@ -282,8 +312,10 @@ export async function GET(req: NextRequest) {
       lowCount,
       autoFixesApplied,
       modulesRun,
-      events: allEvents.slice(0, 20), // Top 20 events for context
+      events: allEvents.slice(0, 20),
       durationMs,
+      learnings: learnings as Array<{ title: string; description: string; times_seen: number }>,
+      trends,
     })
 
     if (aiAssessment) {
@@ -291,6 +323,34 @@ export async function GET(req: NextRequest) {
         .from("guardian_scan_results")
         .update({ ai_assessment: aiAssessment })
         .eq("id", scanId)
+    }
+
+    // ============================================================
+    // EMAIL ALERT — Send when threats detected (CRITICAL or HIGH)
+    // ============================================================
+    const ADMIN_EMAIL = process.env.GUARDIAN_ALERT_EMAIL || process.env.ADMIN_EMAIL
+    if (ADMIN_EMAIL && (criticalCount > 0 || highCount > 0)) {
+      try {
+        await sendGuardianAlertEmail({
+          to: ADMIN_EMAIL,
+          scanType,
+          verdict,
+          totalChecks,
+          totalEvents,
+          criticalCount,
+          highCount,
+          mediumCount,
+          lowCount,
+          autoFixesApplied,
+          modulesRun,
+          events: allEvents.slice(0, 15),
+          aiAssessment: aiAssessment ?? undefined,
+          durationMs,
+        })
+        console.log(`[Guardian] Alert email sent to ${ADMIN_EMAIL}`)
+      } catch (emailErr) {
+        console.error("[Guardian] Failed to send alert email:", emailErr)
+      }
     }
 
     return NextResponse.json({
@@ -392,6 +452,8 @@ async function generateAIHeartbeat(scanData: {
   modulesRun: string[]
   events: ScanEvent[]
   durationMs: number
+  learnings?: Array<{ title: string; description: string; times_seen: number }>
+  trends?: Record<string, unknown>
 }): Promise<string | null> {
   if (!process.env.OPENAI_API_KEY) {
     console.warn("[Guardian] No OPENAI_API_KEY — skipping AI heartbeat")
@@ -408,19 +470,38 @@ async function generateAIHeartbeat(scanData: {
       )
       .join("\n")
 
+    // Build memory context from learnings
+    const learningsContext = scanData.learnings && scanData.learnings.length > 0
+      ? `\n\nMemoria do Sentinel (aprendizados anteriores):\n${scanData.learnings.slice(0, 10).map(
+          (l) => `- [${l.times_seen}x] ${l.title}`
+        ).join("\n")}`
+      : ""
+
+    // Build trends context
+    const trendsContext = scanData.trends
+      ? `\n\nTendencias ultimos 7 dias: ${JSON.stringify(scanData.trends)}`
+      : ""
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      max_tokens: 300,
+      max_tokens: 400,
       temperature: 0.3,
       messages: [
         {
           role: "system",
           content: `You are Sentinel, a security guardian AI for a SaaS trading analytics platform (Trade AI Hub). You analyze automated security scan results and produce a concise heartbeat assessment in Portuguese (PT-BR).
 
+You have persistent memory — learnings from past incidents and scan trends. Use this context to:
+1. Identify recurring patterns (same issue appearing multiple scans)
+2. Detect improvements or regressions compared to recent trends
+3. Flag NEW issues that don't match known patterns (higher concern)
+4. Recognize when a known auto-fixable pattern was successfully resolved
+
 Your assessment must be:
 - 2-4 sentences maximum
 - Start with a status emoji: 🟢 (all clear), 🟡 (warnings), 🔴 (threats)
 - Mention the most important finding if any
+- Compare with recent trends if relevant (improving/degrading)
 - End with a confidence level: [Confianca: ALTA/MEDIA/BAIXA]
 - Be direct and actionable, no fluff`,
         },
@@ -433,7 +514,7 @@ CRITICAL: ${scanData.criticalCount} | HIGH: ${scanData.highCount} | MEDIUM: ${sc
 Auto-fixes aplicados: ${scanData.autoFixesApplied}
 Verdict: ${scanData.verdict}
 
-${eventsContext ? `Eventos detectados:\n${eventsContext}` : "Nenhum evento detectado."}`,
+${eventsContext ? `Eventos detectados:\n${eventsContext}` : "Nenhum evento detectado."}${learningsContext}${trendsContext}`,
         },
       ],
     })
