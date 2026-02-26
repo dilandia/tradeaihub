@@ -364,6 +364,17 @@ export async function POST(req: Request) {
             .update({ credits_remaining: 0, updated_at: new Date().toISOString() })
             .eq("user_id", userId);
 
+          // Mark affiliate referral as churned (if user was referred)
+          try {
+            await supabase
+              .from("affiliate_referrals")
+              .update({ status: "churned" })
+              .eq("referred_user_id", userId)
+              .eq("status", "converted");
+          } catch (churnErr) {
+            console.error("[stripe/webhook] affiliate churn update failed:", churnErr);
+          }
+
           // Send cancellation email and track event
           try {
             const { data: profile } = await supabase

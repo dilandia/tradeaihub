@@ -199,6 +199,8 @@ export async function getAffiliateDashboard(): Promise<AffiliateDashboardData | 
 /**
  * Updates the affiliate's crypto payout info.
  */
+const ALLOWED_NETWORKS = ["USDT-TRC20", "USDC-ERC20", "BTC", "ETH"] as const
+
 export async function updatePayoutInfo(
   wallet: string,
   network: string
@@ -206,13 +208,28 @@ export async function updatePayoutInfo(
   const user = await getAuthUser()
   const admin = getAdmin()
 
-  if (!wallet.trim() || !network.trim()) {
+  const trimmedWallet = wallet.trim()
+  const trimmedNetwork = network.trim()
+
+  if (!trimmedWallet || !trimmedNetwork) {
     return { success: false, error: "Wallet and network are required" }
+  }
+
+  if (!ALLOWED_NETWORKS.includes(trimmedNetwork as typeof ALLOWED_NETWORKS[number])) {
+    return { success: false, error: `Invalid network. Allowed: ${ALLOWED_NETWORKS.join(", ")}` }
+  }
+
+  if (trimmedWallet.length > 200) {
+    return { success: false, error: "Wallet address is too long (max 200 characters)" }
+  }
+
+  if (trimmedWallet.length < 10) {
+    return { success: false, error: "Wallet address is too short" }
   }
 
   const { error } = await admin
     .from("affiliates")
-    .update({ crypto_wallet: wallet.trim(), crypto_network: network.trim(), updated_at: new Date().toISOString() })
+    .update({ crypto_wallet: trimmedWallet, crypto_network: trimmedNetwork, updated_at: new Date().toISOString() })
     .eq("user_id", user.id)
 
   if (error) {
