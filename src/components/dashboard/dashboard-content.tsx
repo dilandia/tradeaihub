@@ -448,6 +448,18 @@ export function DashboardContent({
     tradeFilters.pairs.length > 0 ||
     tradeFilters.result !== "all";
 
+  /* ─── Placeholder for broker widgets without data ─── */
+  function brokerPlaceholder(title: string): ReactNode {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-6 text-center min-h-[200px]">
+        <span className="text-sm font-semibold text-foreground">{title}</span>
+        <span className="text-xs text-muted-foreground max-w-[200px]">
+          {t("widgets.brokerSyncRequired")}
+        </span>
+      </div>
+    );
+  }
+
   /* ─── Render de cada widget ─── */
   function renderWidget(id: string): ReactNode {
       switch (id) {
@@ -721,57 +733,45 @@ export function DashboardContent({
         case "broker-performance":
           return brokerMetrics ? (
             <BrokerPerformanceWidget data={brokerMetrics} privacy={privacy} />
-          ) : null;
+          ) : brokerPlaceholder(t("widgets.brokerPerformance"));
         case "broker-risk-quality":
           return brokerMetrics ? (
             <BrokerRiskQualityWidget data={brokerMetrics} privacy={privacy} />
-          ) : null;
+          ) : brokerPlaceholder(t("widgets.brokerRiskQuality"));
         case "broker-long-short":
           return brokerMetrics ? (
             <BrokerLongShortWidget data={brokerMetrics} privacy={privacy} />
-          ) : null;
+          ) : brokerPlaceholder(t("widgets.brokerLongShort"));
         case "broker-extremes":
           return brokerMetrics ? (
             <BrokerExtremesWidget data={brokerMetrics} privacy={privacy} />
-          ) : null;
+          ) : brokerPlaceholder(t("widgets.brokerExtremes"));
         case "broker-by-currency":
           return brokerMetrics ? (
             <BrokerByCurrencyWidget data={brokerMetrics} privacy={privacy} />
-          ) : null;
+          ) : brokerPlaceholder(t("widgets.brokerByCurrency"));
         case "broker-by-weekday":
           return brokerMetrics ? (
             <BrokerByWeekdayWidget data={brokerMetrics} privacy={privacy} />
-          ) : null;
+          ) : brokerPlaceholder(t("widgets.brokerByWeekday"));
         case "broker-by-hour":
           return brokerMetrics ? (
             <BrokerByHourWidget data={brokerMetrics} privacy={privacy} />
-          ) : null;
+          ) : brokerPlaceholder(t("widgets.brokerByHour"));
         case "broker-advanced-risk":
           return brokerMetrics ? (
             <BrokerAdvancedRiskWidget data={brokerMetrics} privacy={privacy} />
-          ) : null;
+          ) : brokerPlaceholder(t("widgets.brokerAdvancedRisk"));
         default:
           return null;
       }
     }
 
-  const BROKER_WIDGET_IDS = [
-    "broker-performance",
-    "broker-risk-quality",
-    "broker-long-short",
-    "broker-extremes",
-    "broker-by-currency",
-    "broker-by-weekday",
-    "broker-by-hour",
-    "broker-advanced-risk",
-  ];
-
   const allGridItems = prefs.order
     .filter(
       (id) =>
         isVisible(id) &&
-        (id !== "report-metrics" || reportMetrics != null) &&
-        (!BROKER_WIDGET_IDS.includes(id) || brokerMetrics != null)
+        (id !== "report-metrics" || reportMetrics != null)
     )
     .map((id) => ({ id, children: renderWidget(id) }))
     .filter((item) => item.children != null);
