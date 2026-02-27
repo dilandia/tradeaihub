@@ -1112,13 +1112,15 @@ export async function syncAccountWithMetaApi(
     // 10.9.5) Store metrics in account_metrics table
     if (metastatsMetrics) {
       try {
-        const summary = extractMetricsSummary(metastatsMetrics);
+        // MetaStats API returns { metrics: { gain, profitFactor, ... } }
+        const metricsInner = (metastatsMetrics as Record<string, unknown>).metrics ?? metastatsMetrics;
+        const summary = extractMetricsSummary(metricsInner as Record<string, unknown>);
         await sb.from("account_metrics").upsert({
           trading_account_id: tradingAccountId,
           user_id: userId,
           metrics_data: metastatsMetrics,
           metrics_summary: summary,
-          trades_count: metastatsMetrics.trades ?? imported,
+          trades_count: (metricsInner as Record<string, unknown>).trades ?? imported,
           updated_at: new Date().toISOString(),
         }, { onConflict: "trading_account_id" });
         console.log("[sync] MetaStats metrics stored");
