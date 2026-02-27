@@ -197,9 +197,23 @@ async function createMetaApiAccount(params: {
 
   if (res.status === 201 || res.status === 200) {
     const data = await res.json();
-    if (process.env.NODE_ENV === "development") {
-      console.log("[metaApi] Account created successfully");
+    console.log("[metaApi] Account created:", data.id);
+
+    // Enable MetaStats API on the new account (required for metrics endpoint)
+    try {
+      const enableRes = await metaFetch(
+        `${PROVISIONING_BASE}/users/current/accounts/${data.id}/enable-metastats-api`,
+        { method: "POST" }
+      );
+      if (enableRes.status === 204 || enableRes.status === 200) {
+        console.log("[metaApi] MetaStats API enabled for account", data.id);
+      } else {
+        console.warn("[metaApi] Failed to enable MetaStats:", enableRes.status);
+      }
+    } catch (err) {
+      console.warn("[metaApi] MetaStats enable failed (non-blocking):", err);
     }
+
     return { id: data.id };
   }
 
