@@ -10,6 +10,12 @@ const CreateTicketSchema = z.object({
   description: z.string().min(20).max(5000).trim(),
 });
 
+const ReplySchema = z.object({
+  ticketId: z.string().uuid(),
+  content: z.string().min(1).max(5000).trim(),
+  attachmentUrl: z.string().url().optional(),
+});
+
 type CreateTicketInput = z.infer<typeof CreateTicketSchema>;
 
 export async function createTicket(input: CreateTicketInput) {
@@ -88,11 +94,78 @@ export async function getTicketDetail(ticketId: string) {
 
   const { data: replies } = await supabase
     .from("support_ticket_replies")
-    .select("id, content, is_admin, created_at")
+    .select("id, content, is_admin, attachment_url, created_at")
     .eq("ticket_id", ticketId)
     .order("created_at", { ascending: true });
 
   return { ...ticket, replies: replies ?? [] };
+}
+
+export async function replyToUserTicket(input: {
+  ticketId: string;
+  content: string;
+  attachmentUrl?: string;
+}) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const parsed = ReplySchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: "Invalid input" };
+  }
+
+  const { ticketId, content, attachmentUrl } = parsed.data;
+
+  // Verify ticket belongs to user and is not closed
+  const { data: ticket } = await supabase
+    .from("support_tickets")
+    .select("id, status")
+    .eq("id", ticketId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!ticket) {
+    return { success: false, error: "Ticket not found" };
+  }
+
+  if (ticket.status === "closed") {
+    return { success: false, error: "Ticket is closed" };
+  }
+
+  // Insert reply
+  const insertData: Record<string, unknown> = {
+    ticket_id: ticketId,
+    user_id: user.id,
+    is_admin: false,
+    content: content.trim(),
+  };
+  if (attachmentUrl) {
+    insertData.attachment_url = attachmentUrl;
+  }
+
+  const { error } = await supabase
+    .from("support_ticket_replies")
+    .insert(insertData);
+
+  if (error) {
+    console.error("[replyToUserTicket] Error:", error);
+    return { success: false, error: "Failed to send reply" };
+  }
+
+  // If ticket was resolved, reopen it
+  const newStatus = ticket.status === "resolved" ? "open" : ticket.status;
+  await supabase
+    .from("support_tickets")
+    .update({ status: newStatus, updated_at: new Date().toISOString() })
+    .eq("id", ticketId);
+
+  return { success: true };
 }
 
 export async function cancelTicket(ticketId: string) {

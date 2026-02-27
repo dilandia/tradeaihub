@@ -7,6 +7,7 @@ import {
   getUserTickets,
   getTicketDetail,
   cancelTicket,
+  replyToUserTicket,
 } from "@/app/actions/support-tickets";
 import { toast } from "sonner";
 import {
@@ -21,6 +22,10 @@ import {
   Clock,
   XCircle,
   ChevronRight,
+  Send,
+  Paperclip,
+  X,
+  ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +42,7 @@ type TicketRow = {
 
 type TicketDetail = TicketRow & {
   description: string;
-  replies: { id: string; content: string; is_admin: boolean; created_at: string }[];
+  replies: { id: string; content: string; is_admin: boolean; attachment_url: string | null; created_at: string }[];
 };
 
 type View = "form" | "list" | "detail";
@@ -86,6 +91,17 @@ export function SupportTickets() {
   const [priority, setPriority] = useState<string>("medium");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [formAttachment, setFormAttachment] = useState<File | null>(null);
+  const [formPreview, setFormPreview] = useState<string | null>(null);
+
+  // Reply state
+  const [replyContent, setReplyContent] = useState("");
+  const [replyAttachment, setReplyAttachment] = useState<File | null>(null);
+  const [replyPreview, setReplyPreview] = useState<string | null>(null);
+  const [sendingReply, setSendingReply] = useState(false);
+
+  // Lightbox state
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const loadTickets = useCallback(async () => {
     setLoadingTickets(true);
@@ -97,6 +113,28 @@ export function SupportTickets() {
   useEffect(() => {
     loadTickets();
   }, [loadTickets]);
+
+  const handleFormAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const allowedTypes = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error(t("support.ticketImageInvalidType"));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(t("support.ticketImageTooLarge"));
+      return;
+    }
+    setFormAttachment(file);
+    setFormPreview(URL.createObjectURL(file));
+  };
+
+  const handleFormRemoveAttach = () => {
+    if (formPreview) URL.revokeObjectURL(formPreview);
+    setFormAttachment(null);
+    setFormPreview(null);
+  };
 
   const handleSubmit = async () => {
     if (subject.trim().length < 1 || description.trim().length < 20) return;
@@ -110,12 +148,32 @@ export function SupportTickets() {
         description: description.trim(),
       });
 
-      if (result.success) {
+      if (result.success && result.ticketId) {
+        // Upload image as first reply if attached
+        if (formAttachment) {
+          const formData = new FormData();
+          formData.append("file", formAttachment);
+          formData.append("ticketId", result.ticketId);
+          const uploadRes = await fetch("/api/support/upload", {
+            method: "POST",
+            body: formData,
+          });
+          if (uploadRes.ok) {
+            const { url } = await uploadRes.json();
+            await replyToUserTicket({
+              ticketId: result.ticketId,
+              content: "[Screenshot]",
+              attachmentUrl: url,
+            });
+          }
+        }
+
         toast.success(t("support.ticketSuccess"));
         setSubject("");
         setCategory("bug");
         setPriority("medium");
         setDescription("");
+        handleFormRemoveAttach();
         setView("list");
         loadTickets();
       } else {
@@ -153,6 +211,99 @@ export function SupportTickets() {
       toast.error(t("support.ticketError"));
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handleAttachImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error(t("support.ticketImageInvalidType"));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(t("support.ticketImageTooLarge"));
+      return;
+    }
+
+    setReplyAttachment(file);
+    setReplyPreview(URL.createObjectURL(file));
+  };
+
+  const handleRemoveAttachment = () => {
+    if (replyPreview) URL.revokeObjectURL(replyPreview);
+    setReplyAttachment(null);
+    setReplyPreview(null);
+  };
+
+  const handleSendReply = async () => {
+    if (!selectedTicket || (!replyContent.trim() && !replyAttachment)) return;
+
+    setSendingReply(true);
+    try {
+      let attachmentUrl: string | undefined;
+
+      // Upload image if attached
+      if (replyAttachment) {
+        const formData = new FormData();
+        formData.append("file", replyAttachment);
+        formData.append("ticketId", selectedTicket.id);
+
+        const uploadRes = await fetch("/api/support/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!uploadRes.ok) {
+          const err = await uploadRes.json();
+          toast.error(err.error ?? t("support.ticketReplyError"));
+          setSendingReply(false);
+          return;
+        }
+
+        const uploadData = await uploadRes.json();
+        attachmentUrl = uploadData.url;
+      }
+
+      const result = await replyToUserTicket({
+        ticketId: selectedTicket.id,
+        content: replyContent.trim() || (replyAttachment ? "[Image]" : ""),
+        attachmentUrl,
+      });
+
+      if (result.success) {
+        toast.success(t("support.ticketReplySuccess"));
+
+        // Optimistic update
+        setSelectedTicket((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            status: prev.status === "resolved" ? "open" : prev.status,
+            replies: [
+              ...prev.replies,
+              {
+                id: crypto.randomUUID(),
+                content: replyContent.trim() || "[Image]",
+                is_admin: false,
+                attachment_url: attachmentUrl ?? null,
+                created_at: new Date().toISOString(),
+              },
+            ],
+          };
+        });
+
+        setReplyContent("");
+        handleRemoveAttachment();
+      } else {
+        toast.error(result.error ?? t("support.ticketReplyError"));
+      }
+    } catch {
+      toast.error(t("support.ticketReplyError"));
+    } finally {
+      setSendingReply(false);
     }
   };
 
@@ -304,6 +455,48 @@ export function SupportTickets() {
                 <p className="mt-1 text-xs text-red-400">
                   {t("support.ticketDescriptionMin")}
                 </p>
+              )}
+            </div>
+
+            {/* Attachment (optional) */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                {t("support.ticketAttachImage")}
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                  ({t("support.ticketAttachOptional")})
+                </span>
+              </label>
+              {formPreview ? (
+                <div className="relative inline-block">
+                  <img
+                    src={formPreview}
+                    alt="Preview"
+                    className="max-h-[120px] rounded-lg border border-border object-contain"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleFormRemoveAttach}
+                    className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-loss text-white text-xs hover:bg-loss/80"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <label
+                  className={cn(
+                    "flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border px-4 py-3",
+                    "text-sm text-muted-foreground transition-colors hover:border-score hover:text-score"
+                  )}
+                >
+                  <Paperclip className="h-4 w-4" />
+                  {t("support.ticketAttachClick")}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/gif,image/webp"
+                    onChange={handleFormAttach}
+                    className="hidden"
+                  />
+                </label>
               )}
             </div>
 
@@ -486,8 +679,92 @@ export function SupportTickets() {
                         <p className="whitespace-pre-wrap text-sm text-foreground">
                           {reply.content}
                         </p>
+                        {reply.attachment_url && (
+                          <button
+                            type="button"
+                            onClick={() => setLightboxUrl(reply.attachment_url)}
+                            className="mt-2 block"
+                          >
+                            <img
+                              src={reply.attachment_url}
+                              alt="Attachment"
+                              className="max-h-[200px] rounded-lg border border-border object-contain cursor-pointer hover:opacity-80 transition-opacity"
+                            />
+                          </button>
+                        )}
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* Reply form (not for closed tickets) */}
+                {selectedTicket.status !== "closed" && (
+                  <div className="rounded-lg border border-border bg-muted/10 p-3 space-y-3">
+                    {selectedTicket.status === "resolved" && (
+                      <p className="text-xs text-yellow-500">
+                        {t("support.ticketReopenNote")}
+                      </p>
+                    )}
+                    <textarea
+                      value={replyContent}
+                      onChange={(e) => setReplyContent(e.target.value)}
+                      placeholder={t("support.ticketReplyPlaceholder")}
+                      rows={3}
+                      maxLength={5000}
+                      className={cn(
+                        "w-full resize-none rounded-lg border border-border bg-background px-3 py-2",
+                        "text-sm text-foreground placeholder:text-muted-foreground",
+                        "transition-colors focus:border-score focus:outline-none focus:ring-1 focus:ring-score"
+                      )}
+                    />
+
+                    {/* Attachment preview */}
+                    {replyPreview && (
+                      <div className="relative inline-block">
+                        <img
+                          src={replyPreview}
+                          alt="Preview"
+                          className="max-h-[120px] rounded-lg border border-border object-contain"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleRemoveAttachment}
+                          className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-loss text-white text-xs hover:bg-loss/80"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between">
+                      <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                        <Paperclip className="h-3.5 w-3.5" />
+                        {t("support.ticketAttachImage")}
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/gif,image/webp"
+                          onChange={handleAttachImage}
+                          className="hidden"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleSendReply}
+                        disabled={sendingReply || (!replyContent.trim() && !replyAttachment)}
+                        className={cn(
+                          "flex items-center gap-1.5 rounded-lg bg-score px-3 py-1.5 text-xs font-medium text-white",
+                          "transition-colors hover:bg-score/90",
+                          "disabled:cursor-not-allowed disabled:opacity-50"
+                        )}
+                      >
+                        {sendingReply ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Send className="h-3.5 w-3.5" />
+                        )}
+                        {sendingReply ? t("support.ticketReplySending") : t("support.ticketReplySend")}
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -518,6 +795,28 @@ export function SupportTickets() {
           </div>
         )}
       </div>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxUrl(null)}
+            className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="Full size"
+            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
