@@ -1139,6 +1139,7 @@ export async function syncAccountWithMetaApi(
       .from("trading_accounts")
       .update({
         status: "connected",
+        auto_sync_enabled: true,
         last_sync_at: shouldUpdateSyncTime ? now : null,
         balance: accInfo?.balance ?? account.balance,
         equity: accInfo?.equity ?? account.equity,
