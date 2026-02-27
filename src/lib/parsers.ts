@@ -185,43 +185,82 @@ function calcPips(pair: string, entry: number, exit: number, isWin: boolean, pro
    Uses 2-pass matching: exact → loose (contains) for maximum compatibility. */
 
 const TIME_SYNONYMS = [
-  "time", "fecha/hora", "data/hora", "date/heure", "heure", "zeit",
-  "data/ora", "время", "时间", "日時", "시간", "tarih/saat", "czas",
+  // EN
+  "time", "date/time", "date", "open time", "close time",
+  // ES — MT5: "Hora", "Fecha/Hora"
+  "fecha/hora", "fecha",
+  // PT-BR — MT5: "Horário", "Data/Hora"
+  "data/hora", "hora", "horário", "horario", "data",
+  // FR — MT5: "Heure", "Date/Heure"
+  "date/heure", "heure",
+  // DE — MT5: "Zeit", "Datum/Zeit"
+  "zeit", "datum/zeit",
+  // IT — MT5: "Ora", "Data/Ora"
+  "data/ora", "ora",
+  // RU/ZH/JA/KO/AR/TR/PL/CZ/NL/SV/FI
+  "время", "时间", "日時", "시간", "الوقت", "tarih/saat", "czas",
   "čas", "datum/tijd", "tid", "aika",
-  // PT-BR variants
-  "hora", "horário", "horario", "data",
-  // EN variants
-  "date/time", "date", "open time", "close time",
 ];
 
 const SYMBOL_SYNONYMS = [
-  "symbol", "símbolo", "simbolo", "symbole", "символ",
-  "交易品种", "品种", "通貨ペア", "銘柄", "심볼", "الرمز", "sembol",
-  "symbool", "シンボル",
-  // PT-BR / universal variants
-  "instrumento", "instrument", "ativo", "asset", "pair", "par",
+  // EN
+  "symbol", "instrument", "asset", "pair",
+  // ES — MT5: "Símbolo"
+  "símbolo",
+  // PT-BR — MT5: "Ativo", "Símbolo"
+  "ativo", "instrumento",
+  // FR — MT5: "Symbole"
+  "symbole",
+  // DE — MT5: "Symbol"
+  // IT — MT5: "Simbolo"
+  "simbolo",
+  // Other
+  "par", "символ", "交易品种", "品种", "通貨ペア", "銘柄", "심볼",
+  "الرمز", "sembol", "symbool", "シンボル",
 ];
 
 const PROFIT_SYNONYMS = [
-  "profit", "beneficio", "lucro", "bénéfice", "benefice", "gewinn",
-  "profitto", "прибыль", "利润", "盈利", "損益", "利益", "수익", "이익",
+  // EN
+  "profit", "result", "p/l", "pnl", "net profit",
+  // ES — MT5: "Beneficio"
+  "beneficio",
+  // PT-BR — MT5: "Lucro"
+  "lucro", "resultado", "ganho", "lucro líquido", "lucro liquido",
+  // FR — MT5: "Bénéfice"
+  "bénéfice", "benefice",
+  // DE — MT5: "Gewinn"
+  "gewinn",
+  // IT — MT5: "Profitto"
+  "profitto",
+  // Other
+  "прибыль", "利润", "盈利", "損益", "利益", "수익", "이익",
   "الربح", "kâr", "kar", "zysk", "zisk", "winst",
-  // PT-BR / universal variants
-  "resultado", "result", "p/l", "ganho", "pnl", "net profit",
-  "lucro líquido", "lucro liquido",
 ];
 
 const PRICE_SYNONYMS = [
-  "price", "precio", "preço", "preco", "prix", "preis",
-  "prezzo", "цена", "价格", "価格", "가격", "السعر", "fiyat",
-  "cena", "prijs",
-  // PT-BR / universal variants
-  "abertura", "open", "fechamento", "close", "entrada", "saída", "saida",
+  // EN
+  "price", "open", "close",
+  // ES — MT5: "Precio"
+  "precio",
+  // PT-BR — MT5: "Preço"
+  "preço", "preco", "abertura", "fechamento", "entrada", "saída", "saida",
+  // FR — MT5: "Prix"
+  "prix",
+  // DE — MT5: "Preis"
+  "preis",
+  // IT — MT5: "Prezzo"
+  "prezzo",
+  // Other
+  "цена", "价格", "価格", "가격", "السعر", "fiyat", "cena", "prijs",
 ];
 
 const TYPE_SYNONYMS = [
-  "type", "tipo", "typ", "тип", "类型", "タイプ", "유형", "النوع", "tip",
-  "rodzaj", "soort",
+  // EN/ES/PT/IT
+  "type", "tipo",
+  // DE
+  "typ",
+  // Other
+  "тип", "类型", "タイプ", "유형", "النوع", "tip", "rodzaj", "soort",
 ];
 
 const RESULTS_SYNONYMS = [
@@ -232,12 +271,12 @@ const RESULTS_SYNONYMS = [
 
 /** Keywords in the title row that indicate a trading history report */
 const TITLE_TRADE_KW = [
-  "trade", "trading", "negociação", "negociacion", "handel",
-  "торговл", "交易", "取引", "거래", "işlem", "handels",
+  "trade", "trading", "negociação", "negociacion", "negociación",
+  "negoziazione", "handel", "торговл", "交易", "取引", "거래", "işlem", "handels",
 ];
 const TITLE_HISTORY_KW = [
   "history", "historial", "histórico", "historico", "historique",
-  "historie", "storia", "истори", "历史", "履歴", "내역", "geçmiş", "gecmis",
+  "storico", "historie", "storia", "истори", "历史", "履歴", "내역", "geçmiş", "gecmis",
 ];
 const TITLE_REPORT_KW = [
   "report", "informe", "relatório", "relatorio", "rapport",
@@ -297,6 +336,25 @@ function findPositionsHeaderRow(raw: unknown[][]): number {
     const hasSymbol = cells.some((c) => matchesSynLoose(c, SYMBOL_SYNONYMS));
     const hasProfit = cells.some((c) => matchesSynLoose(c, PROFIT_SYNONYMS));
     if (hasTime && hasSymbol && hasProfit) return i;
+  }
+
+  // Pass 3: Positional MT5 detection — MT5 ALWAYS uses fixed column layout:
+  // A=Time B=Position C=Symbol D=Type E=Volume F=Price G=S/L H=T/P I=Time J=Price K=Commission L=Swap M=Profit
+  // Header is always after metadata rows (title, name, account, company, date, section title).
+  // Detect by: row has 13+ non-empty cells as text, and the NEXT row starts with a date.
+  const dateRe = /^\d{4}[.\-/]/;
+  for (let i = 4; i < Math.min(max, 15); i++) {
+    const row = raw[i] as unknown[];
+    if (!Array.isArray(row)) continue;
+    const cells = row.map((c) => String(c ?? "").trim());
+    const nonEmpty = cells.filter(Boolean).length;
+    // Header row: 10+ non-empty text cells, first cell is NOT a date
+    if (nonEmpty < 10 || dateRe.test(cells[0])) continue;
+    // Verify next row starts with a date (data row)
+    const nextRow = raw[i + 1] as unknown[] | undefined;
+    if (!nextRow) continue;
+    const nextFirst = String(nextRow[0] ?? "").trim();
+    if (dateRe.test(nextFirst)) return i;
   }
 
   return -1;
@@ -774,6 +832,160 @@ export function diagnoseHeaders(buffer: Buffer, format: "excel" | "csv" | "html"
   if (missing.length > 0) msg += ` Colunas não encontradas: ${missing.join(", ")}.`;
   msg += " Certifique-se de que o relatório contém colunas de Time/Data, Symbol/Símbolo e Profit/Lucro.";
   return msg;
+}
+
+/* ─────── AI Fallback: parse with AI-provided column mapping ─────── */
+
+export type AIColumnMapping = {
+  timeCol: number;
+  symbolCol: number;
+  profitCol: number;
+  priceCol: number;
+  priceExitCol: number;
+  typeCol: number;
+};
+
+/** Extract raw rows from any format (for AI fallback) */
+export function extractRawRows(
+  buffer: Buffer,
+  format: "excel" | "csv" | "html",
+): { headers: string[]; dataRows: string[][] } {
+  if (format === "excel") {
+    const wb = XLSX.read(buffer, { type: "buffer" });
+    const first = wb.SheetNames[0];
+    if (!first) return { headers: [], dataRows: [] };
+    const sheet = wb.Sheets[first];
+    const raw = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
+    // Find the first row with 4+ non-empty cells that looks like headers
+    for (let i = 0; i < Math.min(raw.length, 30); i++) {
+      const row = (raw[i] as unknown[]).map((c) => String(c ?? "").trim());
+      const nonEmpty = row.filter(Boolean);
+      if (nonEmpty.length >= 4 && !/^\d{4}[.\-/]/.test(row[0])) {
+        const dataRows = raw.slice(i + 1, i + 6).map((r) =>
+          (r as unknown[]).map((c) => String(c ?? "").trim()),
+        );
+        return { headers: row, dataRows };
+      }
+    }
+    return { headers: [], dataRows: [] };
+  }
+
+  if (format === "html") {
+    const html = buffer.toString("utf-8");
+    const tableRe = /<table[^>]*>([\s\S]*?)<\/table>/gi;
+    let tm;
+    while ((tm = tableRe.exec(html)) !== null) {
+      const rows = extractTableRows(tm[1]);
+      if (rows.length < 2) continue;
+      for (let i = 0; i < Math.min(rows.length, 10); i++) {
+        const row = rows[i];
+        if (row.length >= 4 && !/^\d{4}[.\-/]/.test(row[0])) {
+          const dataRows = rows.slice(i + 1, i + 6);
+          return { headers: row, dataRows };
+        }
+      }
+    }
+    return { headers: [], dataRows: [] };
+  }
+
+  // CSV
+  const lines = buffer.toString("utf-8").split("\n").filter(Boolean);
+  if (lines.length < 2) return { headers: [], dataRows: [] };
+  const sep = lines[0].includes("\t") ? "\t" : lines[0].includes(";") ? ";" : ",";
+  const headers = lines[0].split(sep).map((c) => c.trim());
+  const dataRows = lines.slice(1, 6).map((l) => l.split(sep).map((c) => c.trim()));
+  return { headers, dataRows };
+}
+
+/** Parse trades using AI-provided column indices */
+export function parseWithAIMapping(
+  buffer: Buffer,
+  format: "excel" | "csv" | "html",
+  mapping: AIColumnMapping,
+): ParseResult {
+  const { timeCol, symbolCol, profitCol, priceCol, priceExitCol } = mapping;
+  if (timeCol < 0 || symbolCol < 0 || profitCol < 0) {
+    return { trades: [], summary: null };
+  }
+
+  const dateRe = /^\d{4}[.\-/]/;
+  const trades: TradeInsert[] = [];
+
+  const processRow = (row: string[]) => {
+    const timeVal = (row[timeCol] ?? "").trim();
+    if (!dateRe.test(timeVal)) return;
+
+    const symbolVal = (row[symbolCol] ?? "").trim();
+    if (!symbolVal) return;
+    const pair = symbolVal.replace(/\.[a-z]$/i, "").trim().toUpperCase();
+    if (!pair) return;
+
+    const profit = parseNumber(row[profitCol]);
+    const entry = priceCol >= 0 ? parseNumber(row[priceCol]) : 0;
+    const exit = priceExitCol >= 0 ? parseNumber(row[priceExitCol]) : 0;
+    const tradeDate = timeVal.split(" ")[0].replace(/\./g, "-");
+    const is_win = profit >= 0;
+    const entry_time = extractTime(timeVal);
+
+    trades.push({
+      trade_date: tradeDate,
+      pair,
+      entry_price: entry,
+      exit_price: exit,
+      pips: calcPips(pair, entry, exit, is_win, profit),
+      is_win,
+      entry_time,
+      exit_time: null,
+      duration_minutes: null,
+      profit_dollar: profit !== 0 ? profit : null,
+    });
+  };
+
+  if (format === "excel") {
+    const wb = XLSX.read(buffer, { type: "buffer" });
+    const first = wb.SheetNames[0];
+    if (!first) return { trades: [], summary: null };
+    const sheet = wb.Sheets[first];
+    const raw = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
+    // Find header row, then process data rows
+    for (let i = 0; i < Math.min(raw.length, 30); i++) {
+      const row = (raw[i] as unknown[]).map((c) => String(c ?? "").trim());
+      if (row.length >= 4 && !/^\d{4}[.\-/]/.test(row[0]) && row.filter(Boolean).length >= 4) {
+        // This is likely the header row, process rows after it
+        for (let j = i + 1; j < raw.length; j++) {
+          const dataRow = (raw[j] as unknown[]).map((c) => String(c ?? "").trim());
+          processRow(dataRow);
+        }
+        break;
+      }
+    }
+  } else if (format === "html") {
+    const html = buffer.toString("utf-8");
+    const tableRe = /<table[^>]*>([\s\S]*?)<\/table>/gi;
+    let tm;
+    while ((tm = tableRe.exec(html)) !== null) {
+      const rows = extractTableRows(tm[1]);
+      // Find header row, then process data
+      for (let i = 0; i < Math.min(rows.length, 10); i++) {
+        if (rows[i].length >= 4 && !/^\d{4}[.\-/]/.test(rows[i][0])) {
+          for (let j = i + 1; j < rows.length; j++) {
+            processRow(rows[j]);
+          }
+          if (trades.length > 0) return { trades, summary: null };
+          break;
+        }
+      }
+    }
+  } else {
+    // CSV
+    const lines = buffer.toString("utf-8").split("\n").filter(Boolean);
+    for (let i = 1; i < lines.length; i++) {
+      const sep = lines[0].includes("\t") ? "\t" : lines[0].includes(";") ? ";" : ",";
+      processRow(lines[i].split(sep).map((c) => c.trim()));
+    }
+  }
+
+  return { trades, summary: null };
 }
 
 function emptyResults(): Omit<ImportSummary, keyof AccountInfo> {

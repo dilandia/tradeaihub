@@ -2,7 +2,7 @@
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { parseNumber, parseExcel, parseCsv, parseHtml, diagnoseHeaders } from "@/lib/parsers";
+import { parseNumber, parseExcel, parseCsv, parseHtml, diagnoseHeaders, extractRawRows, parseWithAIMapping } from "@/lib/parsers";
 import type { TradeInsert } from "@/lib/parsers";
 import { getPlanInfo } from "@/lib/plan";
 import {
@@ -157,8 +157,30 @@ export async function importTradesFromFile(formData: FormData): Promise<{
     summary = result.summary;
   }
 
+  // AI Fallback: if standard parser found 0 trades, try AI header mapping
   if (trades.length === 0) {
-    const format = isHtml ? "html" : isCsv ? "csv" : "excel";
+    const format = isHtml ? "html" : isCsv ? "csv" : ("excel" as const);
+    try {
+      const { mapHeadersWithAI } = await import("@/lib/ai/agents/header-mapper");
+      const { headers, dataRows } = extractRawRows(buffer, format);
+      if (headers.length >= 4 && dataRows.length > 0) {
+        console.log("[trades] AI fallback: attempting header mapping for", headers.slice(0, 10));
+        const mapping = await mapHeadersWithAI(headers, dataRows);
+        if (mapping.success) {
+          console.log("[trades] AI fallback: mapping found", mapping);
+          const aiResult = parseWithAIMapping(buffer, format, mapping);
+          trades = aiResult.trades;
+          summary = aiResult.summary;
+        }
+      }
+    } catch (err) {
+      console.error("[trades] AI fallback failed:", err);
+      // Continue to error message below
+    }
+  }
+
+  if (trades.length === 0) {
+    const format = isHtml ? "html" : isCsv ? "csv" : ("excel" as const);
     const diagnostic = diagnoseHeaders(buffer, format);
     return { error: `Nenhum trade válido encontrado. ${diagnostic}` };
   }
