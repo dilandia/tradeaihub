@@ -241,7 +241,7 @@ async function deployAccount(accountId: string): Promise<boolean> {
 }
 
 /** Undeploy account (economia de custos) */
-async function undeployAccount(accountId: string): Promise<void> {
+export async function undeployAccount(accountId: string): Promise<void> {
   if (process.env.NODE_ENV === "development") {
     console.log("[metaApi] Undeploying account...");
   }
@@ -606,6 +606,9 @@ export async function syncAccountWithMetaApi(
 ): Promise<SyncResult> {
   const sb = adminClient();
 
+  // Declare metaApiId outside try so it's accessible in catch for cleanup
+  let metaApiId: string | null = null;
+
   try {
     // 1) Buscar conta no DB
     const { data: account, error: accErr } = await sb
@@ -632,7 +635,7 @@ export async function syncAccountWithMetaApi(
     }
 
     // 3) Criar ou recuperar conta no MetaApi (evitar criar duplicata = cobrança extra)
-    let metaApiId = account.metaapi_account_id;
+    metaApiId = account.metaapi_account_id;
 
     if (!metaApiId) {
       // Buscar conta existente no MetaAPI (login+server) antes de criar
@@ -857,6 +860,21 @@ export async function syncAccountWithMetaApi(
       });
     }
 
+    // 9.9) Before upserting trades, verify account wasn't deleted during sync
+    const { data: stillActive } = await sb
+      .from("trading_accounts")
+      .select("id, deleted_at")
+      .eq("id", tradingAccountId)
+      .single();
+
+    if (!stillActive || stillActive.deleted_at) {
+      console.log("[metaapi-sync] Account was deleted during sync, aborting");
+      if (metaApiId) {
+        try { await undeployAccount(metaApiId); } catch {}
+      }
+      return { success: false, tradesImported: 0, error: "Conta foi deletada durante a sincronização." };
+    }
+
     // 10) Upsert trades (usar ticket como chave única)
     let imported = 0;
     const { data: existing } = await sb
@@ -998,6 +1016,17 @@ export async function syncAccountWithMetaApi(
   } catch (err) {
     const cid = crypto.randomUUID();
     console.error(`[${cid}] [syncAccountWithMetaApi] Error:`, err instanceof Error ? err.message : "Unknown");
+
+    // Attempt to undeploy MetaApi account on error (cleanup)
+    if (metaApiId) {
+      try {
+        await undeployAccount(metaApiId);
+        console.log("[metaapi-sync] Undeployed account after error");
+      } catch (undeployErr) {
+        console.error("[metaapi-sync] Failed to undeploy after error:", undeployErr);
+      }
+    }
+
     return { success: false, error: "Erro inesperado na sincronização. Tente novamente." };
   }
 }
