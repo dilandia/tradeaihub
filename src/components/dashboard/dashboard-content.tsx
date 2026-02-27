@@ -60,6 +60,8 @@ import { BrokerByCurrencyWidget } from "@/components/dashboard/broker-by-currenc
 import { BrokerByWeekdayWidget } from "@/components/dashboard/broker-by-weekday-widget";
 import { BrokerByHourWidget } from "@/components/dashboard/broker-by-hour-widget";
 import { BrokerAdvancedRiskWidget } from "@/components/dashboard/broker-advanced-risk-widget";
+import { useSmartSync } from "@/hooks/use-smart-sync";
+import type { TradingAccountSafe } from "@/lib/trading-accounts";
 
 /* ─── Cálculos ─── */
 import {
@@ -119,6 +121,8 @@ type Props = {
   serverDrawdownCurve?: DrawdownCurvePoint[] | null;
   /** META-01: MetaStats broker-calculated metrics (enrichment, non-blocking) */
   brokerMetrics?: MetricsSummary | null;
+  /** Smart Sync: trading accounts for auto-sync on dashboard open */
+  tradingAccounts?: TradingAccountSafe[];
 };
 
 /* ─── Formatters ─── */
@@ -190,7 +194,10 @@ export function DashboardContent({
   serverDrawdown = null,
   serverDrawdownCurve = null,
   brokerMetrics = null,
+  tradingAccounts = [],
 }: Props) {
+  // Smart Sync: auto-sync stale accounts in background (plan-gated server-side)
+  useSmartSync(tradingAccounts);
   const { t } = useLanguage();
   const [viewMode, setViewMode] = useState<ViewMode>("dollar");
   const [dateRange, setDateRange] = useState("all");
