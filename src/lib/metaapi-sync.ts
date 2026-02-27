@@ -1053,6 +1053,7 @@ export async function syncAccountWithMetaApi(
     let metastatsMetrics: Record<string, unknown> | null = null;
     try {
       const metricsUrl = `${metastatsBase(region)}/users/current/accounts/${metaApiId}/metrics`;
+      console.log(`[sync] MetaStats URL: ${metricsUrl}`);
       let metricsRes = await metaFetchRetry(metricsUrl);
 
       // Handle 202 (calculating) — max 3 retries
@@ -1068,11 +1069,10 @@ export async function syncAccountWithMetaApi(
 
       if (metricsRes.status === 200) {
         metastatsMetrics = await metricsRes.json();
-        console.log("[sync] MetaStats metrics fetched successfully");
-      } else if (metricsRes.status === 403) {
-        console.log("[sync] MetaStats not enabled for this account (403)");
+        console.log("[sync] MetaStats metrics fetched successfully, keys:", Object.keys(metastatsMetrics as Record<string, unknown>).length);
       } else {
-        console.warn("[sync] MetaStats returned", metricsRes.status);
+        const errBody = await metricsRes.text().catch(() => "");
+        console.warn(`[sync] MetaStats returned ${metricsRes.status}: ${errBody.slice(0, 200)}`);
       }
     } catch (metricsErr) {
       console.error("[sync] MetaStats fetch failed (non-blocking):", metricsErr);
