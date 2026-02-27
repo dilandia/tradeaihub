@@ -52,6 +52,14 @@ import { AccountBalancePnl } from "./account-balance-pnl";
 import { CurrentStreakCombined } from "./current-streak-combined";
 import { TutorialChecklist } from "@/components/onboarding/tutorial-checklist";
 import { DashboardAiFooter } from "@/components/dashboard/dashboard-ai-footer";
+import { BrokerPerformanceWidget } from "@/components/dashboard/broker-performance-widget";
+import { BrokerRiskQualityWidget } from "@/components/dashboard/broker-risk-quality-widget";
+import { BrokerLongShortWidget } from "@/components/dashboard/broker-long-short-widget";
+import { BrokerExtremesWidget } from "@/components/dashboard/broker-extremes-widget";
+import { BrokerByCurrencyWidget } from "@/components/dashboard/broker-by-currency-widget";
+import { BrokerByWeekdayWidget } from "@/components/dashboard/broker-by-weekday-widget";
+import { BrokerByHourWidget } from "@/components/dashboard/broker-by-hour-widget";
+import { BrokerAdvancedRiskWidget } from "@/components/dashboard/broker-advanced-risk-widget";
 
 /* ─── Cálculos ─── */
 import {
@@ -80,6 +88,7 @@ import type { ViewMode } from "./view-mode-selector";
 import type { PnlPoint } from "./cumulative-pnl-chart";
 import type { DayCell, CalendarTrade } from "@/lib/calendar-utils";
 import type { ReportMetrics } from "./report-metrics-panel";
+import type { MetricsSummary } from "@/lib/account-metrics";
 import type {
   DashboardMetrics,
   EquityCurvePoint,
@@ -108,6 +117,8 @@ type Props = {
   serverDrawdown?: DrawdownAnalysis | null;
   /** W3-05: Pre-aggregated drawdown curve (daily points) from server RPC */
   serverDrawdownCurve?: DrawdownCurvePoint[] | null;
+  /** META-01: MetaStats broker-calculated metrics (enrichment, non-blocking) */
+  brokerMetrics?: MetricsSummary | null;
 };
 
 /* ─── Formatters ─── */
@@ -178,6 +189,7 @@ export function DashboardContent({
   serverEquityCurve = null,
   serverDrawdown = null,
   serverDrawdownCurve = null,
+  brokerMetrics = null,
 }: Props) {
   const { t } = useLanguage();
   const [viewMode, setViewMode] = useState<ViewMode>("dollar");
@@ -706,16 +718,60 @@ export function DashboardContent({
               <ReportMetricsPanel data={reportMetrics} privacy={privacy} />
             </div>
           ) : null;
+        case "broker-performance":
+          return brokerMetrics ? (
+            <BrokerPerformanceWidget data={brokerMetrics} privacy={privacy} />
+          ) : null;
+        case "broker-risk-quality":
+          return brokerMetrics ? (
+            <BrokerRiskQualityWidget data={brokerMetrics} privacy={privacy} />
+          ) : null;
+        case "broker-long-short":
+          return brokerMetrics ? (
+            <BrokerLongShortWidget data={brokerMetrics} privacy={privacy} />
+          ) : null;
+        case "broker-extremes":
+          return brokerMetrics ? (
+            <BrokerExtremesWidget data={brokerMetrics} privacy={privacy} />
+          ) : null;
+        case "broker-by-currency":
+          return brokerMetrics ? (
+            <BrokerByCurrencyWidget data={brokerMetrics} privacy={privacy} />
+          ) : null;
+        case "broker-by-weekday":
+          return brokerMetrics ? (
+            <BrokerByWeekdayWidget data={brokerMetrics} privacy={privacy} />
+          ) : null;
+        case "broker-by-hour":
+          return brokerMetrics ? (
+            <BrokerByHourWidget data={brokerMetrics} privacy={privacy} />
+          ) : null;
+        case "broker-advanced-risk":
+          return brokerMetrics ? (
+            <BrokerAdvancedRiskWidget data={brokerMetrics} privacy={privacy} />
+          ) : null;
         default:
           return null;
       }
     }
 
+  const BROKER_WIDGET_IDS = [
+    "broker-performance",
+    "broker-risk-quality",
+    "broker-long-short",
+    "broker-extremes",
+    "broker-by-currency",
+    "broker-by-weekday",
+    "broker-by-hour",
+    "broker-advanced-risk",
+  ];
+
   const allGridItems = prefs.order
     .filter(
       (id) =>
         isVisible(id) &&
-        (id !== "report-metrics" || reportMetrics != null)
+        (id !== "report-metrics" || reportMetrics != null) &&
+        (!BROKER_WIDGET_IDS.includes(id) || brokerMetrics != null)
     )
     .map((id) => ({ id, children: renderWidget(id) }))
     .filter((item) => item.children != null);

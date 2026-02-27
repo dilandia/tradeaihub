@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WidgetTooltip } from "@/components/dashboard/widget-tooltip";
 import { buildRiskStats } from "@/lib/reports-calc";
 import type { CalendarTrade } from "@/lib/calendar-utils";
+import type { MetricsSummary } from "@/lib/account-metrics";
 import {
   XAxis,
   YAxis,
@@ -25,7 +26,7 @@ import { cn } from "@/lib/utils";
 import { usePdfExport } from "@/hooks/use-pdf-export";
 import { ExportPdfButton } from "@/components/reports/export-pdf-button";
 
-type Props = { trades: CalendarTrade[] };
+type Props = { trades: CalendarTrade[]; brokerMetrics?: MetricsSummary | null };
 
 function fmtPnl(v: number, useDollar: boolean): string {
   if (useDollar) {
@@ -37,7 +38,7 @@ function fmtPnl(v: number, useDollar: boolean): string {
   return `${v >= 0 ? "+" : ""}${v.toFixed(1)} pips`;
 }
 
-export function RiskContent({ trades }: Props) {
+export function RiskContent({ trades, brokerMetrics = null }: Props) {
   const { t, locale } = useLanguage();
   const { exportRef, handleExport, isExporting, canExport } = usePdfExport("Risk-Report");
   const searchParams = useSearchParams();
@@ -99,6 +100,63 @@ export function RiskContent({ trades }: Props) {
           }
           loadingMessageKeys={["common.aiCalculatingRisk", "common.aiAnalyzing", "common.aiIdentifyingTrends"]}
         />
+      )}
+
+      {/* META-01: Broker risk metrics enrichment */}
+      {!empty && brokerMetrics && (brokerMetrics.sortinoRatio != null || brokerMetrics.maxDrawdown != null) && (
+        <Card>
+          <CardContent className="pt-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Shield className="h-4 w-4 text-score" />
+              <span className="text-sm font-semibold text-foreground">
+                {t("brokerMetrics.riskAdjusted")}
+              </span>
+              <span className="ml-auto text-xs text-muted-foreground">
+                {t("brokerMetrics.viaBroker")}
+              </span>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {brokerMetrics.sortinoRatio != null && (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-xs text-muted-foreground">Sortino Ratio</span>
+                  <span className="text-sm font-semibold">{brokerMetrics.sortinoRatio.toFixed(2)}</span>
+                </div>
+              )}
+              {brokerMetrics.maxDrawdown != null && (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-xs text-muted-foreground">{t("brokerMetrics.maxDrawdown")}</span>
+                  <span className="text-sm font-semibold text-loss">
+                    {fmtPnl(-Math.abs(brokerMetrics.maxDrawdown), true)}
+                  </span>
+                </div>
+              )}
+              {brokerMetrics.sharpeRatio != null && (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-xs text-muted-foreground">Sharpe Ratio</span>
+                  <span className="text-sm font-semibold">{brokerMetrics.sharpeRatio.toFixed(2)}</span>
+                </div>
+              )}
+              {brokerMetrics.zScore != null && (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-xs text-muted-foreground">Z-Score</span>
+                  <span className="text-sm font-semibold">{brokerMetrics.zScore.toFixed(2)}</span>
+                </div>
+              )}
+              {Array.isArray(brokerMetrics.riskOfRuin) && brokerMetrics.riskOfRuin.length > 0 && (
+                <div className="col-span-full flex flex-col gap-0.5">
+                  <span className="text-xs text-muted-foreground">Risk of Ruin</span>
+                  <div className="flex flex-wrap gap-2">
+                    {(brokerMetrics.riskOfRuin as Array<{ percent?: number; riskOfRuin?: number }>).map((r, i) => (
+                      <span key={i} className="rounded bg-muted px-2 py-0.5 text-xs">
+                        {r.percent != null ? `${r.percent}%` : ""} loss: {r.riskOfRuin != null ? `${(r.riskOfRuin * 100).toFixed(1)}%` : "--"}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {!empty && kpis && stats.length > 0 && (

@@ -10,6 +10,7 @@ import {
   computeRadarMetrics,
 } from "@/lib/dashboard-calc";
 import type { CalendarTrade } from "@/lib/calendar-utils";
+import type { MetricsSummary } from "@/lib/account-metrics";
 import {
   XAxis,
   YAxis,
@@ -26,7 +27,7 @@ import { cn } from "@/lib/utils";
 import { usePdfExport } from "@/hooks/use-pdf-export";
 import { ExportPdfButton } from "@/components/reports/export-pdf-button";
 
-type Props = { trades: CalendarTrade[] };
+type Props = { trades: CalendarTrade[]; brokerMetrics?: MetricsSummary | null };
 
 function fmtPnl(v: number): string {
   return `${v >= 0 ? "+$" : "-$"}${Math.abs(v).toLocaleString("pt-BR", {
@@ -76,7 +77,7 @@ function KpiCell({
   );
 }
 
-export function PerformanceContent({ trades }: Props) {
+export function PerformanceContent({ trades, brokerMetrics = null }: Props) {
   const [pnlMode, setPnlMode] = useState<"net" | "gross">("net");
   const { exportRef, handleExport, isExporting, canExport } = usePdfExport("Performance-Report");
 
@@ -262,6 +263,81 @@ export function PerformanceContent({ trades }: Props) {
                 </div>
               </CardContent>
             </Card>
+
+            {/* META-01: Broker-calculated performance enrichment */}
+            {brokerMetrics && (brokerMetrics.expectancy != null || brokerMetrics.profitFactor != null) && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base font-semibold">Broker Performance</CardTitle>
+                    <span className="text-xs text-muted-foreground">via MetaStats</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                    {brokerMetrics.expectancy != null && (
+                      <KpiCell
+                        label="Expectancy (broker)"
+                        value={fmtPnl(brokerMetrics.expectancy)}
+                        positive={brokerMetrics.expectancy >= 0}
+                        tooltip="Average expected profit per trade calculated by broker."
+                      />
+                    )}
+                    {brokerMetrics.profitFactor != null && (
+                      <KpiCell
+                        label="Profit Factor (broker)"
+                        value={brokerMetrics.profitFactor.toFixed(2)}
+                        tooltip="Profit factor calculated from broker data."
+                      />
+                    )}
+                    {brokerMetrics.sortinoRatio != null && (
+                      <KpiCell
+                        label="Sortino Ratio"
+                        value={brokerMetrics.sortinoRatio.toFixed(2)}
+                        tooltip="Risk-adjusted return considering only downside volatility."
+                      />
+                    )}
+                    {brokerMetrics.sharpeRatio != null && (
+                      <KpiCell
+                        label="Sharpe Ratio (broker)"
+                        value={brokerMetrics.sharpeRatio.toFixed(2)}
+                        tooltip="Risk-adjusted return from broker data."
+                      />
+                    )}
+                    {brokerMetrics.gain != null && (
+                      <KpiCell
+                        label="Account Gain"
+                        value={`${brokerMetrics.gain >= 0 ? "+" : ""}${brokerMetrics.gain.toFixed(2)}%`}
+                        positive={brokerMetrics.gain >= 0}
+                        tooltip="Overall account return percentage."
+                      />
+                    )}
+                    {brokerMetrics.cagr != null && (
+                      <KpiCell
+                        label="CAGR"
+                        value={`${brokerMetrics.cagr.toFixed(2)}%`}
+                        tooltip="Compound Annual Growth Rate."
+                      />
+                    )}
+                    {brokerMetrics.monthlyGain != null && (
+                      <KpiCell
+                        label="Monthly Gain"
+                        value={`${brokerMetrics.monthlyGain >= 0 ? "+" : ""}${brokerMetrics.monthlyGain.toFixed(2)}%`}
+                        positive={brokerMetrics.monthlyGain >= 0}
+                        tooltip="Average monthly return."
+                      />
+                    )}
+                    {brokerMetrics.mar != null && (
+                      <KpiCell
+                        label="MAR Ratio"
+                        value={brokerMetrics.mar.toFixed(2)}
+                        tooltip="CAGR divided by max drawdown."
+                      />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* DAYS */}
             <Card>
