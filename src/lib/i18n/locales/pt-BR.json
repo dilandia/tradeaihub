@@ -401,6 +401,7 @@
     "aiComparingPeriods": "Comparando periodos...",
     "aiAnalyzingDifferences": "Analisando diferencas...",
     "hello": "Olá, {name}",
+    "lastSync": "Último sync:",
     "loading": "Carregando...",
     "save": "Salvar",
     "cancel": "Cancelar",

@@ -22,6 +22,7 @@ type Props = {
   accounts: LinkedAccount[];
   imports: ImportReport[];
   userName: string | null;
+  lastSyncAt?: string | null;
 };
 
 /**
@@ -41,7 +42,7 @@ function getDefaultSelection(
   return { type: "all", id: null };
 }
 
-export function DashboardShell({ children, accounts, imports, userName }: Props) {
+export function DashboardShell({ children, accounts, imports, userName, lastSyncAt }: Props) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -80,7 +81,7 @@ export function DashboardShell({ children, accounts, imports, userName }: Props)
       <NpsSurvey />
       <Sidebar />
       <main className="min-w-0 overflow-x-hidden lg:pl-64">
-        <GlobalHeader userName={userName} />
+        <GlobalHeader userName={userName} lastSyncAt={lastSyncAt} />
         {children}
       </main>
     </DataSourceProvider>

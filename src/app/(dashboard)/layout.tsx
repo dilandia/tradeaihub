@@ -50,6 +50,13 @@ export default async function DashboardLayout({
     status: a.status,
   }));
 
+  // Most recent sync timestamp across all accounts (for header display)
+  const lastSyncAt = tradingAccounts.reduce<string | null>((latest, a) => {
+    if (!a.last_sync_at) return latest;
+    if (!latest) return a.last_sync_at;
+    return a.last_sync_at > latest ? a.last_sync_at : latest;
+  }, null);
+
   const imports = summaries.map((s) => ({
     id: s.id,
     filename: s.source_filename ?? "Import",
@@ -66,6 +73,7 @@ export default async function DashboardLayout({
         accounts={accounts}
         imports={imports}
         userName={userName}
+        lastSyncAt={lastSyncAt}
       >
         {children}
       </DashboardShell>
