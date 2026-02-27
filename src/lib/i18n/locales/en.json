@@ -124,7 +124,19 @@
     "ticketCancelled": "Ticket cancelled successfully.",
     "ticketReplies": "Replies",
     "ticketYou": "You",
-    "ticketNotFound": "Ticket not found."
+    "ticketNotFound": "Ticket not found.",
+    "ticketReplyPlaceholder": "Type your reply...",
+    "ticketReplySend": "Send",
+    "ticketReplySending": "Sending...",
+    "ticketReplySuccess": "Reply sent!",
+    "ticketReplyError": "Failed to send reply.",
+    "ticketAttachImage": "Attach image",
+    "ticketAttachRemove": "Remove",
+    "ticketImageTooLarge": "Image must be less than 5MB.",
+    "ticketImageInvalidType": "Only PNG, JPG, GIF and WebP are accepted.",
+    "ticketReopenNote": "Replying will reopen this ticket.",
+    "ticketAttachOptional": "optional",
+    "ticketAttachClick": "Click to attach a screenshot"
   },
   "viewMode": {
     "dollar": "Dollar",

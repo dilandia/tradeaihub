@@ -10,6 +10,8 @@ import {
   Loader2,
   User,
   Shield,
+  Paperclip,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -70,6 +72,9 @@ export function TicketDetailClient({ ticket: initialTicket }: Props) {
   const [replyContent, setReplyContent] = useState("");
   const [isPending, startTransition] = useTransition();
   const [isSending, setIsSending] = useState(false);
+  const [replyAttachment, setReplyAttachment] = useState<File | null>(null);
+  const [replyPreview, setReplyPreview] = useState<string | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   function handleStatusChange(newStatus: string) {
     startTransition(async () => {
@@ -86,11 +91,53 @@ export function TicketDetailClient({ ticket: initialTicket }: Props) {
     });
   }
 
+  function handleAttachImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const allowedTypes = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Only PNG, JPG, GIF and WebP are accepted.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB.");
+      return;
+    }
+    setReplyAttachment(file);
+    setReplyPreview(URL.createObjectURL(file));
+  }
+
+  function handleRemoveAttachment() {
+    if (replyPreview) URL.revokeObjectURL(replyPreview);
+    setReplyAttachment(null);
+    setReplyPreview(null);
+  }
+
   async function handleReply() {
-    if (!replyContent.trim()) return;
+    if (!replyContent.trim() && !replyAttachment) return;
     setIsSending(true);
     try {
-      const result = await replyToTicket(ticket.id, replyContent);
+      let attachmentUrl: string | undefined;
+
+      if (replyAttachment) {
+        const formData = new FormData();
+        formData.append("file", replyAttachment);
+        formData.append("ticketId", ticket.id);
+        const uploadRes = await fetch("/api/support/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (!uploadRes.ok) {
+          const err = await uploadRes.json();
+          toast.error(err.error ?? "Failed to upload image");
+          setIsSending(false);
+          return;
+        }
+        const uploadData = await uploadRes.json();
+        attachmentUrl = uploadData.url;
+      }
+
+      const result = await replyToTicket(ticket.id, replyContent.trim() || "[Image]", attachmentUrl);
       if (result.success) {
         setTicket((prev) => ({
           ...prev,
@@ -99,14 +146,16 @@ export function TicketDetailClient({ ticket: initialTicket }: Props) {
             ...prev.replies,
             {
               id: crypto.randomUUID(),
-              content: replyContent.trim(),
+              content: replyContent.trim() || "[Image]",
               is_admin: true,
+              attachment_url: attachmentUrl ?? null,
               created_at: new Date().toISOString(),
               author_email: "admin",
             },
           ],
         }));
         setReplyContent("");
+        handleRemoveAttachment();
         toast.success("Reply sent");
       } else {
         toast.error(result.error ?? "Failed to send reply");
@@ -211,6 +260,19 @@ export function TicketDetailClient({ ticket: initialTicket }: Props) {
               <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">
                 {reply.content}
               </p>
+              {reply.attachment_url && (
+                <button
+                  type="button"
+                  onClick={() => setLightboxUrl(reply.attachment_url)}
+                  className="mt-2 block"
+                >
+                  <img
+                    src={reply.attachment_url}
+                    alt="Attachment"
+                    className="max-h-[200px] rounded-lg border border-border object-contain cursor-pointer hover:opacity-80 transition-opacity"
+                  />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -232,13 +294,43 @@ export function TicketDetailClient({ ticket: initialTicket }: Props) {
               "resize-none"
             )}
           />
+          {/* Attachment preview */}
+          {replyPreview && (
+            <div className="mt-3 relative inline-block">
+              <img
+                src={replyPreview}
+                alt="Preview"
+                className="max-h-[120px] rounded-lg border border-border object-contain"
+              />
+              <button
+                type="button"
+                onClick={handleRemoveAttachment}
+                className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white text-xs hover:bg-red-600"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
           <div className="mt-3 flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">
-              {replyContent.length}/5000
-            </p>
+            <div className="flex items-center gap-3">
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <Paperclip className="h-3.5 w-3.5" />
+                Attach image
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  onChange={handleAttachImage}
+                  className="hidden"
+                />
+              </label>
+              <p className="text-xs text-muted-foreground">
+                {replyContent.length}/5000
+              </p>
+            </div>
             <button
               type="button"
-              disabled={!replyContent.trim() || isSending}
+              disabled={(!replyContent.trim() && !replyAttachment) || isSending}
               onClick={handleReply}
               className={cn(
                 "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
@@ -254,6 +346,27 @@ export function TicketDetailClient({ ticket: initialTicket }: Props) {
               Send Reply
             </button>
           </div>
+        </div>
+      )}
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxUrl(null)}
+            className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="Full size"
+            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>

@@ -24,6 +24,7 @@ export type AdminTicketDetail = AdminTicketRow & {
     id: string;
     content: string;
     is_admin: boolean;
+    attachment_url: string | null;
     created_at: string;
     author_email: string;
   }[];
@@ -140,7 +141,7 @@ export async function getAdminTicketDetail(
   // Get replies
   const { data: replies } = await supabase
     .from("support_ticket_replies")
-    .select("id, content, is_admin, created_at, user_id")
+    .select("id, content, is_admin, attachment_url, created_at, user_id")
     .eq("ticket_id", ticketId)
     .order("created_at", { ascending: true });
 
@@ -169,6 +170,7 @@ export async function getAdminTicketDetail(
       id: r.id as string,
       content: r.content as string,
       is_admin: r.is_admin as boolean,
+      attachment_url: (r.attachment_url as string) ?? null,
       created_at: r.created_at as string,
       author_email: userMap.get(r.user_id as string) ?? "unknown",
     })),
@@ -200,7 +202,7 @@ export async function updateTicketStatus(
 
 /* ─── Reply to ticket ─── */
 
-export async function replyToTicket(ticketId: string, content: string) {
+export async function replyToTicket(ticketId: string, content: string, attachmentUrl?: string) {
   const admin = await verifyAdmin();
   const supabase = getServiceClient();
 
@@ -208,12 +210,17 @@ export async function replyToTicket(ticketId: string, content: string) {
     return { success: false, error: "Invalid reply content" };
   }
 
-  const { error } = await supabase.from("support_ticket_replies").insert({
+  const insertData: Record<string, unknown> = {
     ticket_id: ticketId,
     user_id: admin.id,
     is_admin: true,
     content: content.trim(),
-  });
+  };
+  if (attachmentUrl) {
+    insertData.attachment_url = attachmentUrl;
+  }
+
+  const { error } = await supabase.from("support_ticket_replies").insert(insertData);
 
   if (error) {
     console.error("[admin-tickets] Reply error:", error);

@@ -124,7 +124,19 @@
     "ticketCancelled": "Ticket cancelado com sucesso.",
     "ticketReplies": "Respostas",
     "ticketYou": "Voce",
-    "ticketNotFound": "Ticket nao encontrado."
+    "ticketNotFound": "Ticket nao encontrado.",
+    "ticketReplyPlaceholder": "Digite sua resposta...",
+    "ticketReplySend": "Enviar",
+    "ticketReplySending": "Enviando...",
+    "ticketReplySuccess": "Resposta enviada!",
+    "ticketReplyError": "Falha ao enviar resposta.",
+    "ticketAttachImage": "Anexar imagem",
+    "ticketAttachRemove": "Remover",
+    "ticketImageTooLarge": "Imagem deve ter menos de 5MB.",
+    "ticketImageInvalidType": "Apenas PNG, JPG, GIF e WebP.",
+    "ticketReopenNote": "Responder reabrira este ticket.",
+    "ticketAttachOptional": "opcional",
+    "ticketAttachClick": "Clique para anexar um print"
   },
   "viewMode": {
     "dollar": "Dólar",
