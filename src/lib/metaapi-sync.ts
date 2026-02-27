@@ -593,6 +593,70 @@ function dealsToTrades(
   return trades;
 }
 
+/** Extract key metrics from full MetaStats response for fast access */
+function extractMetricsSummary(metrics: Record<string, unknown>): Record<string, unknown> {
+  return {
+    // Performance
+    gain: metrics.gain ?? null,
+    absoluteGain: metrics.absoluteGain ?? null,
+    dailyGain: metrics.dailyGain ?? null,
+    monthlyGain: metrics.monthlyGain ?? null,
+    profitFactor: metrics.profitFactor ?? null,
+    expectancy: metrics.expectancy ?? null,
+    expectancyPips: metrics.expectancyPips ?? null,
+
+    // Risk-adjusted returns
+    sortinoRatio: metrics.sortinoRatio ?? null,
+    sharpeRatio: metrics.sharpeRatio ?? null,
+    standardDeviationProfit: metrics.standardDeviationProfit ?? null,
+    kurtosisProfit: metrics.kurtosisProfit ?? null,
+    zScore: metrics.zScore ?? null,
+
+    // Growth
+    cagr: metrics.cagr ?? null,
+    mar: metrics.mar ?? null,
+
+    // Trades
+    trades: metrics.trades ?? null,
+    wonTradesPercent: metrics.wonTradesPercent ?? null,
+    lostTradesPercent: metrics.lostTradesPercent ?? null,
+    longTrades: metrics.longTrades ?? null,
+    shortTrades: metrics.shortTrades ?? null,
+    longWonTradesPercent: metrics.longWonTradesPercent ?? null,
+    shortWonTradesPercent: metrics.shortWonTradesPercent ?? null,
+
+    // Extremes
+    bestTrade: metrics.bestTrade ?? null,
+    bestTradeDate: metrics.bestTradeDate ?? null,
+    worstTrade: metrics.worstTrade ?? null,
+    worstTradeDate: metrics.worstTradeDate ?? null,
+    averageWin: metrics.averageWin ?? null,
+    averageLoss: metrics.averageLoss ?? null,
+
+    // Volume & duration
+    lots: metrics.lots ?? null,
+    averageTradeLengthInMilliseconds: metrics.averageTradeLengthInMilliseconds ?? null,
+
+    // Balance
+    highestBalance: metrics.highestBalance ?? null,
+    highestBalanceDate: metrics.highestBalanceDate ?? null,
+    maxDrawdown: metrics.maxDrawdown ?? null,
+
+    // Risk of ruin (keep first 5 entries)
+    riskOfRuin: Array.isArray(metrics.riskOfRuin)
+      ? (metrics.riskOfRuin as unknown[]).slice(0, 5)
+      : null,
+
+    // Aggregated data for report widgets
+    currencySummary: metrics.currencySummary ?? null,
+    closeTradesByWeekDay: metrics.closeTradesByWeekDay ?? null,
+    openTradesByHour: metrics.openTradesByHour ?? null,
+
+    // Metadata
+    _fetchedAt: new Date().toISOString(),
+  };
+}
+
 /* ─── Main sync function ─── */
 
 export type SyncResult = {
@@ -984,6 +1048,54 @@ export async function syncAccountWithMetaApi(
     }
 
     console.log("[sync] Trades imported:", imported);
+
+    // 10.9) Fetch MetaStats metrics while account is still deployed (zero extra cost)
+    let metastatsMetrics: Record<string, unknown> | null = null;
+    try {
+      const metricsUrl = `${metastatsBase(region)}/users/current/accounts/${metaApiId}/metrics`;
+      let metricsRes = await metaFetchRetry(metricsUrl);
+
+      // Handle 202 (calculating) — max 3 retries
+      let metricsRetries = 0;
+      while (metricsRes.status === 202 && metricsRetries < 3) {
+        const rawWait = parseInt(metricsRes.headers.get("retry-after") || "5", 10);
+        const waitSec = Number.isNaN(rawWait) || rawWait <= 0 ? 5 : rawWait;
+        console.log(`[sync] MetaStats calculating... retry in ${waitSec}s`);
+        await sleep(waitSec * 1000);
+        metricsRes = await metaFetchRetry(metricsUrl);
+        metricsRetries++;
+      }
+
+      if (metricsRes.status === 200) {
+        metastatsMetrics = await metricsRes.json();
+        console.log("[sync] MetaStats metrics fetched successfully");
+      } else if (metricsRes.status === 403) {
+        console.log("[sync] MetaStats not enabled for this account (403)");
+      } else {
+        console.warn("[sync] MetaStats returned", metricsRes.status);
+      }
+    } catch (metricsErr) {
+      console.error("[sync] MetaStats fetch failed (non-blocking):", metricsErr);
+      // Non-blocking — sync continues without metrics
+    }
+
+    // 10.9.5) Store metrics in account_metrics table
+    if (metastatsMetrics) {
+      try {
+        const summary = extractMetricsSummary(metastatsMetrics);
+        await sb.from("account_metrics").upsert({
+          trading_account_id: tradingAccountId,
+          user_id: userId,
+          metrics_data: metastatsMetrics,
+          metrics_summary: summary,
+          trades_count: metastatsMetrics.trades ?? imported,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "trading_account_id" });
+        console.log("[sync] MetaStats metrics stored");
+      } catch (storeErr) {
+        console.error("[sync] Failed to store MetaStats metrics:", storeErr);
+      }
+    }
 
     // 11) Atualizar conta no DB
     // IMPORTANTE: Só atualizar last_sync_at se realmente importou trades

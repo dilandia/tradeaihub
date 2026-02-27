@@ -81,6 +81,16 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
   { id: "win-avg-line",     labelKey: "widgets.winAvgLine",      descriptionKey: "widgets.winAvgLineDesc",      group: "chart",    size: "full", sqm: 12, placement: "main", toggleable: true },
   { id: "yearly-calendar",  labelKey: "widgets.yearlyCalendar",  descriptionKey: "widgets.yearlyCalendarDesc",  group: "calendar", size: "full", sqm: 12, placement: "main", toggleable: true },
   { id: "report-metrics",   labelKey: "widgets.reportMetrics",   descriptionKey: "widgets.reportMetricsDesc",   group: "table",    size: "full", sqm: 12, placement: "main", toggleable: true },
+
+  /* ─── Broker Metrics (MetaStats) ─── */
+  { id: "broker-performance",   labelKey: "widgets.brokerPerformance",   descriptionKey: "widgets.brokerPerformanceDesc",   group: "chart", size: "md",   sqm: 2,  placement: "main", toggleable: true },
+  { id: "broker-risk-quality",  labelKey: "widgets.brokerRiskQuality",   descriptionKey: "widgets.brokerRiskQualityDesc",   group: "chart", size: "md",   sqm: 2,  placement: "main", toggleable: true },
+  { id: "broker-long-short",    labelKey: "widgets.brokerLongShort",     descriptionKey: "widgets.brokerLongShortDesc",     group: "chart", size: "md",   sqm: 2,  placement: "main", toggleable: true },
+  { id: "broker-extremes",      labelKey: "widgets.brokerExtremes",      descriptionKey: "widgets.brokerExtremesDesc",      group: "chart", size: "md",   sqm: 2,  placement: "main", toggleable: true },
+  { id: "broker-by-currency",   labelKey: "widgets.brokerByCurrency",    descriptionKey: "widgets.brokerByCurrencyDesc",    group: "chart", size: "md",   sqm: 2,  placement: "main", toggleable: true },
+  { id: "broker-by-weekday",    labelKey: "widgets.brokerByWeekday",     descriptionKey: "widgets.brokerByWeekdayDesc",     group: "chart", size: "md",   sqm: 2,  placement: "main", toggleable: true },
+  { id: "broker-by-hour",       labelKey: "widgets.brokerByHour",        descriptionKey: "widgets.brokerByHourDesc",        group: "chart", size: "md",   sqm: 2,  placement: "main", toggleable: true },
+  { id: "broker-advanced-risk", labelKey: "widgets.brokerAdvancedRisk",  descriptionKey: "widgets.brokerAdvancedRiskDesc",  group: "table", size: "full", sqm: 12, placement: "main", toggleable: true },
 ];
 
 export const DEFAULT_WIDGET_ORDER: string[] = [
@@ -99,9 +109,30 @@ export const DEFAULT_WIDGET_ORDER: string[] = [
   "trade-duration",
   "win-avg-line",
   "yearly-calendar",
+  /* Broker widgets (after existing charts, conditionally rendered) */
+  "broker-performance",
+  "broker-risk-quality",
+  "broker-long-short",
+  "broker-extremes",
+  "broker-by-currency",
+  "broker-by-weekday",
+  "broker-by-hour",
+  "broker-advanced-risk",
 ];
-/** Ocultos por padrão: report-metrics (Reports), max-drawdown e avg-drawdown (usuário adiciona/troca no topo) */
-export const DEFAULT_HIDDEN: string[] = ["report-metrics", "max-drawdown", "avg-drawdown"];
+/** Ocultos por padrão: report-metrics (Reports), max-drawdown, avg-drawdown (usuário adiciona/troca no topo), broker-* (requer sync MetaApi — usuário adiciona manualmente) */
+export const DEFAULT_HIDDEN: string[] = [
+  "report-metrics",
+  "max-drawdown",
+  "avg-drawdown",
+  "broker-performance",
+  "broker-risk-quality",
+  "broker-long-short",
+  "broker-extremes",
+  "broker-by-currency",
+  "broker-by-weekday",
+  "broker-by-hour",
+  "broker-advanced-risk",
+];
 
 /**
  * Col span no grid principal de 3 colunas.

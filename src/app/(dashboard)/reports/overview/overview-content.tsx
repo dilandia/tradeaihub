@@ -7,6 +7,7 @@ import { AiAgentCard } from "@/components/ai/ai-agent-card";
 import { fetchAiReportSummary } from "@/hooks/use-ai-api";
 import { useLanguage } from "@/contexts/language-context";
 import type { CalendarTrade } from "@/lib/calendar-utils";
+import type { MetricsSummary } from "@/lib/account-metrics";
 import {
   buildPerformanceMetrics,
   buildAccountBalance,
@@ -28,7 +29,7 @@ import { cn } from "@/lib/utils";
 import { usePdfExport } from "@/hooks/use-pdf-export";
 import { ExportPdfButton } from "@/components/reports/export-pdf-button";
 
-type Props = { trades: CalendarTrade[] };
+type Props = { trades: CalendarTrade[]; brokerMetrics?: MetricsSummary | null };
 
 function fmtPnl(v: number): string {
   return `${v >= 0 ? "+$" : "-$"}${Math.abs(v).toLocaleString("pt-BR", {
@@ -75,7 +76,7 @@ function StatRow({
 
 const MONTH_KEYS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"] as const;
 
-export function OverviewContent({ trades }: Props) {
+export function OverviewContent({ trades, brokerMetrics = null }: Props) {
   const { t, locale } = useLanguage();
   const { exportRef, handleExport, isExporting, canExport } = usePdfExport("Overview-Report");
   const searchParams = useSearchParams();
@@ -329,6 +330,80 @@ export function OverviewContent({ trades }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      {/* META-01: Broker-calculated enrichment metrics */}
+      {brokerMetrics && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold">{t("brokerMetrics.title")}</h2>
+              <span className="text-xs text-muted-foreground">{t("brokerMetrics.viaBroker")}</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-0">
+                {brokerMetrics.gain != null && (
+                  <StatRow
+                    label={`${t("brokerMetrics.gain")} (${t("brokerMetrics.viaBroker")})`}
+                    value={`${brokerMetrics.gain >= 0 ? "+" : ""}${brokerMetrics.gain.toFixed(2)}%`}
+                    positive={brokerMetrics.gain >= 0}
+                  />
+                )}
+                {brokerMetrics.monthlyGain != null && (
+                  <StatRow
+                    label={t("brokerMetrics.monthlyGain")}
+                    value={`${brokerMetrics.monthlyGain >= 0 ? "+" : ""}${brokerMetrics.monthlyGain.toFixed(2)}%`}
+                    positive={brokerMetrics.monthlyGain >= 0}
+                  />
+                )}
+                {brokerMetrics.dailyGain != null && (
+                  <StatRow
+                    label={t("brokerMetrics.dailyGain")}
+                    value={`${brokerMetrics.dailyGain >= 0 ? "+" : ""}${brokerMetrics.dailyGain.toFixed(4)}%`}
+                  />
+                )}
+                {brokerMetrics.cagr != null && (
+                  <StatRow label="CAGR" value={`${brokerMetrics.cagr.toFixed(2)}%`} />
+                )}
+              </div>
+              <div className="space-y-0">
+                {brokerMetrics.sortinoRatio != null && (
+                  <StatRow label="Sortino Ratio" value={brokerMetrics.sortinoRatio.toFixed(2)} />
+                )}
+                {brokerMetrics.sharpeRatio != null && (
+                  <StatRow label="Sharpe Ratio" value={brokerMetrics.sharpeRatio.toFixed(2)} />
+                )}
+                {brokerMetrics.expectancy != null && (
+                  <StatRow
+                    label={t("brokerMetrics.expectancy")}
+                    value={fmtPnl(brokerMetrics.expectancy)}
+                    positive={brokerMetrics.expectancy >= 0}
+                  />
+                )}
+                {brokerMetrics.profitFactor != null && (
+                  <StatRow label="Profit Factor" value={brokerMetrics.profitFactor.toFixed(2)} />
+                )}
+              </div>
+              <div className="space-y-0">
+                {brokerMetrics.maxDrawdown != null && (
+                  <StatRow
+                    label={t("brokerMetrics.maxDrawdown")}
+                    value={fmtPnl(-Math.abs(brokerMetrics.maxDrawdown))}
+                    positive={false}
+                  />
+                )}
+                {brokerMetrics.mar != null && (
+                  <StatRow label="MAR Ratio" value={brokerMetrics.mar.toFixed(2)} />
+                )}
+                {brokerMetrics.zScore != null && (
+                  <StatRow label="Z-Score" value={brokerMetrics.zScore.toFixed(2)} />
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Gráfico 1: Daily Net Cumulative P&L */}
       <Card>

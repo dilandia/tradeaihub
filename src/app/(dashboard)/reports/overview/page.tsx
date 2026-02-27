@@ -1,6 +1,8 @@
 import { Metadata } from "next";
 import { getTrades, getTradesByDateRange, toCalendarTrades } from "@/lib/trades";
 import { periodToDateRange } from "@/lib/date-utils";
+import { createClient } from "@/lib/supabase/server";
+import { getPrimaryMetrics } from "@/lib/account-metrics";
 import { OverviewContent } from "./overview-content";
 
 export const metadata: Metadata = {
@@ -20,12 +22,21 @@ export default async function OverviewPage({
   const selectedAccountId = params.account ?? null;
   const period = params.period ?? "all";
 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id ?? "";
+
   // W3-02: Server-side date filtering — push period filter to DB
   const dateRange = periodToDateRange(period);
-  const trades = dateRange
-    ? await getTradesByDateRange(dateRange.startDate, dateRange.endDate, selectedImportId, selectedAccountId)
-    : await getTrades(selectedImportId, selectedAccountId);
+  const [trades, brokerMetrics] = await Promise.all([
+    dateRange
+      ? getTradesByDateRange(dateRange.startDate, dateRange.endDate, selectedImportId, selectedAccountId)
+      : getTrades(selectedImportId, selectedAccountId),
+    userId
+      ? getPrimaryMetrics(userId).catch(() => null)
+      : Promise.resolve(null),
+  ]);
   const calendarTrades = toCalendarTrades(trades);
 
-  return <OverviewContent trades={calendarTrades} />;
+  return <OverviewContent trades={calendarTrades} brokerMetrics={brokerMetrics} />;
 }

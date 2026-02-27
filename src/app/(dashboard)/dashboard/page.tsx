@@ -18,6 +18,8 @@ import {
   getCachedDrawdownCurve,
 } from "@/app/actions/dashboard";
 import { createClient } from "@/lib/supabase/server";
+import { getPrimaryMetrics } from "@/lib/account-metrics";
+import type { MetricsSummary } from "@/lib/account-metrics";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
 
 export default async function DashboardPage({
@@ -36,7 +38,7 @@ export default async function DashboardPage({
   } = await supabase.auth.getUser();
   const userId = user?.id ?? "";
 
-  const [summaries, trades, tradingAccounts, rpcMetrics, rpcEquityCurve, rpcDrawdown, rpcDrawdownCurve] =
+  const [summaries, trades, tradingAccounts, rpcMetrics, rpcEquityCurve, rpcDrawdown, rpcDrawdownCurve, brokerMetrics] =
     await Promise.all([
       getImportSummaries(),
       getTrades(selectedImportId, selectedAccountId),
@@ -81,6 +83,13 @@ export default async function DashboardPage({
             selectedAccountId ?? undefined
           ).catch((err) => {
             console.error("[dashboard] getCachedDrawdownCurve failed:", err);
+            return null;
+          })
+        : Promise.resolve(null),
+      // META-01: MetaStats broker-calculated metrics (enrichment)
+      userId
+        ? getPrimaryMetrics(userId).catch((err) => {
+            console.error("[dashboard] getPrimaryMetrics failed:", err);
             return null;
           })
         : Promise.resolve(null),
@@ -168,6 +177,7 @@ export default async function DashboardPage({
       serverEquityCurve={useDemoData ? null : rpcEquityCurve}
       serverDrawdown={useDemoData ? null : rpcDrawdown}
       serverDrawdownCurve={useDemoData ? null : rpcDrawdownCurve}
+      brokerMetrics={useDemoData ? null : (brokerMetrics as MetricsSummary | null)}
     />
   );
 }

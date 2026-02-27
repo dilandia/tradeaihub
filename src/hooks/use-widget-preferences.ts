@@ -21,9 +21,12 @@ function loadPrefs(): WidgetPreferences {
     const allIds = WIDGET_REGISTRY.map((w) => w.id);
     const knownOrder = parsed.order.filter((id) => allIds.includes(id));
     const missing = allIds.filter((id) => !knownOrder.includes(id));
+    // Novos widgets desconhecidos entram como hidden (aparecem na modal do editor)
+    const validHidden = parsed.hidden.filter((id) => allIds.includes(id));
+    const newHidden = missing.filter((id) => !validHidden.includes(id));
     return {
       order: [...knownOrder, ...missing],
-      hidden: parsed.hidden.filter((id) => allIds.includes(id)),
+      hidden: [...validHidden, ...newHidden],
     };
   } catch {
     return { order: DEFAULT_WIDGET_ORDER, hidden: DEFAULT_HIDDEN };
