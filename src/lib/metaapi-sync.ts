@@ -102,7 +102,8 @@ async function metaFetchRetry(
     lastRes = res;
 
     if (res.status === 429) {
-      const retryAfter = parseInt(res.headers.get("Retry-After") || "5", 10);
+      const rawRetry = parseInt(res.headers.get("Retry-After") || "5", 10);
+      const retryAfter = Number.isNaN(rawRetry) || rawRetry <= 0 ? 5 : rawRetry;
       console.warn(`[metaApi] 429 rate limited, retrying in ${retryAfter}s...`);
       await sleep(retryAfter * 1000);
       continue;
@@ -180,7 +181,8 @@ async function createMetaApiAccount(params: {
   // Se 202 (Accepted), precisa retry com mesmo transaction-id
   let retries = 0;
   while (res.status === 202 && retries < 15) {
-    const retryAfterSec = parseInt(res.headers.get("Retry-After") || "10", 10);
+    const raw = parseInt(res.headers.get("Retry-After") || "10", 10);
+    const retryAfterSec = Number.isNaN(raw) || raw <= 0 ? 10 : raw;
     const waitMs = Math.min(retryAfterSec * 1000, 30_000);
     console.log(`[metaApi] 202 Accepted, retrying in ${retryAfterSec}s...`);
     await sleep(waitMs);
@@ -412,7 +414,8 @@ async function getMetaStatsHistoricalTrades(
     return [];
   }
   if (res.status === 202) {
-    const retryAfter = parseInt(res.headers.get("retry-after") || "5", 10);
+    const rawMs = parseInt(res.headers.get("retry-after") || "5", 10);
+    const retryAfter = Number.isNaN(rawMs) || rawMs <= 0 ? 5 : rawMs;
     console.log("[metaApi] MetaStats processando... retry em", retryAfter, "s");
     await sleep(retryAfter * 1000);
     return getMetaStatsHistoricalTrades(accountId, startTime, endTime, region);
