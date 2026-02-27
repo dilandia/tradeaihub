@@ -1432,6 +1432,7 @@
     "brokerByHourDesc": "Trade activity distribution across 24 hours.",
     "brokerAdvancedRisk": "Advanced Risk Analysis",
     "brokerAdvancedRiskDesc": "Z-Score, Kurtosis, Risk of Ruin, and other advanced statistics.",
+    "brokerSyncRequired": "Sync a broker account to unlock these metrics.",
     "customize": "Customize widgets",
     "customizeDashboard": "Customize Dashboard",
     "visibleWidgets": "{count} widgets visible",

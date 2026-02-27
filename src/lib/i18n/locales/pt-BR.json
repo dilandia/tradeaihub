@@ -1432,6 +1432,7 @@
     "brokerByHourDesc": "Distribuicao de atividade de trades nas 24 horas.",
     "brokerAdvancedRisk": "Analise de Risco Avancada",
     "brokerAdvancedRiskDesc": "Z-Score, Curtose, Risco de Ruina e outras estatisticas avancadas.",
+    "brokerSyncRequired": "Sincronize uma conta do broker para desbloquear estas metricas.",
     "customize": "Personalizar widgets",
     "customizeDashboard": "Personalizar Dashboard",
     "visibleWidgets": "{count} widgets visíveis",
