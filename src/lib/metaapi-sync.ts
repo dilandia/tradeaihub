@@ -131,6 +131,7 @@ type MetaApiAccount = {
   region?: string;
   type?: string;
   name?: string;
+  metastatsApiEnabled?: boolean;
 };
 
 /** Lista contas MetaAPI do usuário (query busca em _id, name, server, login) */
@@ -759,6 +760,21 @@ export async function syncAccountWithMetaApi(
     // 4) Obter detalhes da conta (para saber a região)
     const metaAccount = await getMetaApiAccount(metaApiId!);
     const region = metaAccount?.region ?? null;
+
+    // 4.5) Ensure MetaStats API is enabled (required for metrics endpoint)
+    if (metaAccount && !metaAccount.metastatsApiEnabled) {
+      try {
+        const enableRes = await metaFetch(
+          `${PROVISIONING_BASE}/users/current/accounts/${metaApiId}/enable-metastats-api`,
+          { method: "POST" }
+        );
+        if (enableRes.status === 204 || enableRes.status === 200) {
+          console.log("[sync] MetaStats API enabled for account", metaApiId);
+        }
+      } catch {
+        // Non-blocking
+      }
+    }
 
     // 5) Deploy (se não estiver já deployed)
     if (metaAccount?.state !== "DEPLOYED") {
