@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { encrypt } from "@/lib/crypto";
 import type { TradingAccountSafe } from "@/lib/trading-accounts";
 import { getPlanInfo } from "@/lib/plan";
+import { revalidatePath } from "next/cache";
 
 type ActionResult = {
   success: boolean;
@@ -86,6 +87,7 @@ export async function createTradingAccount(
       return { success: false, error: "Erro ao criar conta." };
     }
 
+    revalidatePath("/", "layout");
     return { success: true, account: data as unknown as TradingAccountSafe };
   } catch (err) {
     console.error("[createTradingAccount]", err);
@@ -152,6 +154,7 @@ export async function updateTradingAccount(
       return { success: false, error: "Erro ao atualizar conta." };
     }
 
+    revalidatePath("/", "layout");
     return { success: true, account: data as unknown as TradingAccountSafe };
   } catch (err) {
     console.error("[updateTradingAccount]", err);
@@ -171,6 +174,34 @@ export async function deleteTradingAccount(
   if (!user) return { success: false, error: "Não autenticado." };
 
   try {
+    // 0) Fetch account and guard against deleting while syncing
+    const { data: account } = await supabase
+      .from("trading_accounts")
+      .select("status, metaapi_account_id")
+      .eq("id", accountId)
+      .eq("user_id", user.id)
+      .is("deleted_at", null)
+      .single();
+
+    if (!account) {
+      return { success: false, error: "Conta não encontrada." };
+    }
+
+    if (account.status === "syncing") {
+      return { success: false, error: "Aguarde a sincronização terminar antes de deletar a conta." };
+    }
+
+    // 0.5) Undeploy MetaApi account before deleting (cleanup)
+    if (account.metaapi_account_id) {
+      try {
+        const metaApiSync = await import("@/lib/metaapi-sync");
+        await metaApiSync.undeployAccount(account.metaapi_account_id);
+      } catch (err) {
+        console.error("[trading-accounts] Failed to undeploy MetaApi account:", err);
+        // Don't block deletion - just log the error
+      }
+    }
+
     const now = new Date().toISOString();
 
     // 1) Soft-delete trades vinculados
@@ -193,6 +224,7 @@ export async function deleteTradingAccount(
       return { success: false, error: "Erro ao deletar conta." };
     }
 
+    revalidatePath("/", "layout");
     return { success: true };
   } catch (err) {
     console.error("[deleteTradingAccount]", err);
@@ -226,18 +258,25 @@ export async function clearTradingAccountTrades(
       return { success: false, error: "Erro ao limpar trades." };
     }
 
-    // Resetar balance/equity
-    await supabase
+    // Resetar balance/equity e status
+    const { error: updateErr } = await supabase
       .from("trading_accounts")
       .update({
         balance: 0,
         equity: 0,
         last_sync_at: null,
+        status: "disconnected",
+        error_message: null,
         updated_at: now,
       })
       .eq("id", accountId)
       .eq("user_id", user.id);
 
+    if (updateErr) {
+      console.error("[clearTradingAccountTrades] Failed to reset account:", updateErr.message);
+    }
+
+    revalidatePath("/", "layout");
     return { success: true };
   } catch (err) {
     console.error("[clearTradingAccountTrades]", err);
@@ -276,6 +315,7 @@ export async function syncTradingAccount(
         .eq("user_id", user.id)
         .single();
 
+      revalidatePath("/", "layout");
       return {
         success: true,
         account: updated as unknown as TradingAccountSafe,
@@ -300,6 +340,7 @@ export async function syncTradingAccount(
         .eq("user_id", user.id)
         .single();
 
+      revalidatePath("/", "layout");
       return {
         success: false,
         error: result.error,
@@ -308,6 +349,23 @@ export async function syncTradingAccount(
     }
   } catch (err) {
     console.error("[syncTradingAccount]", err);
+
+    // CRITICAL: Always reset status from "syncing" on any exception
+    try {
+      await supabase
+        .from("trading_accounts")
+        .update({
+          status: "error",
+          error_message: err instanceof Error ? err.message : "Erro inesperado no sync.",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", accountId)
+        .eq("user_id", user.id);
+    } catch (resetErr) {
+      console.error("[syncTradingAccount] Failed to reset status:", resetErr);
+    }
+
+    revalidatePath("/", "layout");
     return { success: false, error: "Erro inesperado no sync." };
   }
 }

@@ -2,7 +2,7 @@
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { parseNumber, parseExcel, parseCsv, parseHtml } from "@/lib/parsers";
+import { parseNumber, parseExcel, parseCsv, parseHtml, diagnoseHeaders } from "@/lib/parsers";
 import type { TradeInsert } from "@/lib/parsers";
 import { getPlanInfo } from "@/lib/plan";
 import {
@@ -110,10 +110,31 @@ export async function importTradesFromFile(formData: FormData): Promise<{
   const isHtml = name.endsWith(".html") || name.endsWith(".htm");
 
   if (!isCsv && !isExcel && !isHtml) {
-    return { error: "Formato não suportado. Use .csv, .xlsx, .xls, .html ou .htm." };
+    return { error: "Formato não suportado. Use .xlsx, .xls, .html ou .htm." };
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const rawBuffer = Buffer.from(await file.arrayBuffer());
+
+  // Detect UTF-16 (LE/BE) and convert to UTF-8 — MT5 exports HTML as UTF-16
+  let buffer: Buffer;
+  if (rawBuffer[0] === 0xFF && rawBuffer[1] === 0xFE) {
+    // UTF-16 LE BOM
+    buffer = Buffer.from(rawBuffer.toString("utf16le").replace(/^\uFEFF/, ""), "utf-8");
+  } else if (rawBuffer[0] === 0xFE && rawBuffer[1] === 0xFF) {
+    // UTF-16 BE BOM — swap bytes to LE then decode
+    const swapped = Buffer.alloc(rawBuffer.length);
+    for (let i = 0; i < rawBuffer.length - 1; i += 2) {
+      swapped[i] = rawBuffer[i + 1];
+      swapped[i + 1] = rawBuffer[i];
+    }
+    buffer = Buffer.from(swapped.toString("utf16le").replace(/^\uFEFF/, ""), "utf-8");
+  } else if (rawBuffer.length > 2 && rawBuffer[1] === 0x00 && rawBuffer[3] === 0x00) {
+    // UTF-16 LE without BOM (detect by null bytes in ASCII range)
+    buffer = Buffer.from(rawBuffer.toString("utf16le"), "utf-8");
+  } else {
+    buffer = rawBuffer;
+  }
+
   let trades: TradeInsert[] = [];
   let summary = null;
 
@@ -137,7 +158,9 @@ export async function importTradesFromFile(formData: FormData): Promise<{
   }
 
   if (trades.length === 0) {
-    return { error: "Nenhum trade válido encontrado. Certifique-se de que o arquivo contém Time, Symbol, Price e Profit." };
+    const format = isHtml ? "html" : isCsv ? "csv" : "excel";
+    const diagnostic = diagnoseHeaders(buffer, format);
+    return { error: `Nenhum trade válido encontrado. ${diagnostic}` };
   }
 
   // 1) Sempre criar registro de importação (com métricas se disponíveis)

@@ -181,30 +181,42 @@ function calcPips(pair: string, entry: number, exit: number, isWin: boolean, pro
 
 /* ─────── Multilingual MT5 Header Synonyms ─────── */
 /* MT5 exports identical structure in all languages — only header text changes.
-   Covers: EN, ES, PT, FR, DE, IT, RU, ZH, JA, KO, AR, TR, PL, CZ, NL */
+   Covers: EN, ES, PT-BR, PT, FR, DE, IT, RU, ZH, JA, KO, AR, TR, PL, CZ, NL
+   Uses 2-pass matching: exact → loose (contains) for maximum compatibility. */
 
 const TIME_SYNONYMS = [
   "time", "fecha/hora", "data/hora", "date/heure", "heure", "zeit",
   "data/ora", "время", "时间", "日時", "시간", "tarih/saat", "czas",
   "čas", "datum/tijd", "tid", "aika",
+  // PT-BR variants
+  "hora", "horário", "horario", "data",
+  // EN variants
+  "date/time", "date", "open time", "close time",
 ];
 
 const SYMBOL_SYNONYMS = [
   "symbol", "símbolo", "simbolo", "symbole", "символ",
   "交易品种", "品种", "通貨ペア", "銘柄", "심볼", "الرمز", "sembol",
   "symbool", "シンボル",
+  // PT-BR / universal variants
+  "instrumento", "instrument", "ativo", "asset", "pair", "par",
 ];
 
 const PROFIT_SYNONYMS = [
   "profit", "beneficio", "lucro", "bénéfice", "benefice", "gewinn",
   "profitto", "прибыль", "利润", "盈利", "損益", "利益", "수익", "이익",
   "الربح", "kâr", "kar", "zysk", "zisk", "winst",
+  // PT-BR / universal variants
+  "resultado", "result", "p/l", "ganho", "pnl", "net profit",
+  "lucro líquido", "lucro liquido",
 ];
 
 const PRICE_SYNONYMS = [
   "price", "precio", "preço", "preco", "prix", "preis",
   "prezzo", "цена", "价格", "価格", "가격", "السعر", "fiyat",
   "cena", "prijs",
+  // PT-BR / universal variants
+  "abertura", "open", "fechamento", "close", "entrada", "saída", "saida",
 ];
 
 const TYPE_SYNONYMS = [
@@ -232,31 +244,61 @@ const TITLE_REPORT_KW = [
   "bericht", "rapporto", "отчет", "отчёт", "报告", "レポート", "보고서", "rapor",
 ];
 
-/** Check if a header cell matches any of the given synonyms (exact match) */
-function matchesSyn(cell: string, syns: string[]): boolean {
-  return syns.includes(cell);
+/** Normalize header: lowercase, trim, collapse spaces around separators */
+function normalizeHeader(cell: string): string {
+  return cell
+    .toLowerCase()
+    .trim()
+    .replace(/\s*[\/\\]\s*/g, "/")   // "Data / Hora" → "data/hora"
+    .replace(/\s+/g, " ");            // multiple spaces → single
 }
 
-/** Find index of a column whose header matches any synonym */
+/** Check if a header cell matches any synonym (exact or boundary match) */
+function matchesSyn(cell: string, syns: string[]): boolean {
+  const norm = normalizeHeader(cell);
+  return syns.some((s) => norm === s || norm.startsWith(s + " ") || norm.endsWith(" " + s));
+}
+
+/** Loose match: synonym appears anywhere in the cell (fallback for non-standard headers) */
+function matchesSynLoose(cell: string, syns: string[]): boolean {
+  const norm = normalizeHeader(cell);
+  return syns.some((s) => norm.includes(s));
+}
+
+/** Find index of a column whose header matches any synonym (exact first, loose fallback) */
 function findCol(headers: string[], syns: string[]): number {
-  return headers.findIndex((h) => syns.includes(h));
+  const exact = headers.findIndex((h) => matchesSyn(h, syns));
+  if (exact >= 0) return exact;
+  return headers.findIndex((h) => matchesSynLoose(h, syns));
 }
 
 /* ─────── Excel: Detecção e parsing Doo/MT ─────── */
 
 function findPositionsHeaderRow(raw: unknown[][]): number {
-  const max = Math.min(raw.length, 20);
+  const max = Math.min(raw.length, 30);
+
+  // Pass 1: exact/boundary match (high confidence)
   for (let i = 0; i < max; i++) {
     const row = raw[i] as unknown[];
-    if (!Array.isArray(row) || row.length < 10) continue;
-    const cells = row.map((c) => String(c ?? "").toLowerCase().trim());
-    const hasTime = matchesSyn(cells[0], TIME_SYNONYMS);
+    if (!Array.isArray(row) || row.length < 4) continue;
+    const cells = row.map((c) => normalizeHeader(String(c ?? "")));
+    const hasTime = cells.some((c) => matchesSyn(c, TIME_SYNONYMS));
     const hasSymbol = cells.some((c) => matchesSyn(c, SYMBOL_SYNONYMS));
     const hasProfit = cells.some((c) => matchesSyn(c, PROFIT_SYNONYMS));
-    if (hasTime && hasSymbol && hasProfit) {
-      return i;
-    }
+    if (hasTime && hasSymbol && hasProfit) return i;
   }
+
+  // Pass 2: loose/contains match (fallback for non-standard headers)
+  for (let i = 0; i < max; i++) {
+    const row = raw[i] as unknown[];
+    if (!Array.isArray(row) || row.length < 4) continue;
+    const cells = row.map((c) => normalizeHeader(String(c ?? "")));
+    const hasTime = cells.some((c) => matchesSynLoose(c, TIME_SYNONYMS));
+    const hasSymbol = cells.some((c) => matchesSynLoose(c, SYMBOL_SYNONYMS));
+    const hasProfit = cells.some((c) => matchesSynLoose(c, PROFIT_SYNONYMS));
+    if (hasTime && hasSymbol && hasProfit) return i;
+  }
+
   return -1;
 }
 
@@ -276,7 +318,7 @@ export function parseDooMtPositions(raw: unknown[][]): TradeInsert[] {
   const headerIdx = findPositionsHeaderRow(raw);
   if (headerIdx < 0) return trades;
 
-  const headerRow = (raw[headerIdx] as unknown[]).map((c) => String(c ?? "").toLowerCase().trim());
+  const headerRow = (raw[headerIdx] as unknown[]).map((c) => normalizeHeader(String(c ?? "")));
   const colSymbol = findCol(headerRow, SYMBOL_SYNONYMS);
   const colProfit = findCol(headerRow, PROFIT_SYNONYMS);
   const colType = findCol(headerRow, TYPE_SYNONYMS);
@@ -534,11 +576,21 @@ function extractTableRows(tableHtml: string): string[][] {
   const rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
   let rm;
   while ((rm = rowRe.exec(tableHtml)) !== null) {
-    const cellRe = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
+    const cellRe = /<t[dh]([^>]*)>([\s\S]*?)<\/t[dh]>/gi;
     const cells: string[] = [];
     let cm;
     while ((cm = cellRe.exec(rm[1])) !== null) {
-      cells.push(stripHtml(cm[1]));
+      const attrs = cm[1];
+      // Skip hidden cells (MT5 uses class="hidden" for collapsed data)
+      if (/class\s*=\s*"[^"]*hidden[^"]*"/i.test(attrs)) continue;
+      const text = stripHtml(cm[2]);
+      cells.push(text);
+      // Expand colspan for data cells (colspan <= 3, e.g. Profit colspan=2)
+      const colspanMatch = attrs.match(/colspan\s*=\s*"(\d+)"/i);
+      const colspan = colspanMatch ? parseInt(colspanMatch[1], 10) : 1;
+      if (colspan > 1 && colspan <= 3) {
+        for (let c = 1; c < colspan; c++) cells.push("");
+      }
     }
     if (cells.length > 0) rows.push(cells);
   }
@@ -555,19 +607,27 @@ export function parseHtml(html: string): ParseResult {
     if (rows.length < 2) continue;
 
     let headerIdx = -1;
-    for (let h = 0; h < Math.min(rows.length, 5); h++) {
-      const cells = rows[h].map((c) => c.toLowerCase().trim());
-      const hasTime = matchesSyn(cells[0], TIME_SYNONYMS);
+    // Pass 1: exact/boundary match
+    for (let h = 0; h < Math.min(rows.length, 10); h++) {
+      const cells = rows[h].map((c) => normalizeHeader(c));
+      const hasTime = cells.some((c) => matchesSyn(c, TIME_SYNONYMS));
       const hasSymbol = cells.some((c) => matchesSyn(c, SYMBOL_SYNONYMS));
       const hasProfit = cells.some((c) => matchesSyn(c, PROFIT_SYNONYMS));
-      if (hasTime && hasSymbol && hasProfit) {
-        headerIdx = h;
-        break;
+      if (hasTime && hasSymbol && hasProfit) { headerIdx = h; break; }
+    }
+    // Pass 2: loose match fallback
+    if (headerIdx < 0) {
+      for (let h = 0; h < Math.min(rows.length, 10); h++) {
+        const cells = rows[h].map((c) => normalizeHeader(c));
+        const hasTime = cells.some((c) => matchesSynLoose(c, TIME_SYNONYMS));
+        const hasSymbol = cells.some((c) => matchesSynLoose(c, SYMBOL_SYNONYMS));
+        const hasProfit = cells.some((c) => matchesSynLoose(c, PROFIT_SYNONYMS));
+        if (hasTime && hasSymbol && hasProfit) { headerIdx = h; break; }
       }
     }
     if (headerIdx < 0) continue;
 
-    const headers = rows[headerIdx].map((c) => c.toLowerCase().trim());
+    const headers = rows[headerIdx].map((c) => normalizeHeader(c));
     const colSymbol = findCol(headers, SYMBOL_SYNONYMS);
     const colProfit = findCol(headers, PROFIT_SYNONYMS);
     const fp = findCol(headers, PRICE_SYNONYMS);
@@ -654,6 +714,66 @@ function rowToTrade(row: Record<string, unknown>): TradeInsert | null {
   }
 
   return { trade_date, pair, entry_price, exit_price, pips, is_win, risk_reward, tags: tags.length ? tags : undefined, notes };
+}
+
+/** Diagnose why header detection failed — returns detected vs missing columns */
+export function diagnoseHeaders(buffer: Buffer, format: "excel" | "csv" | "html"): string {
+  let firstRows: string[][] = [];
+
+  if (format === "excel") {
+    const wb = XLSX.read(buffer, { type: "buffer" });
+    const first = wb.SheetNames[0];
+    if (first) {
+      const sheet = wb.Sheets[first];
+      const raw = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
+      firstRows = raw.slice(0, 20).map((r) =>
+        (r as unknown[]).map((c) => String(c ?? "").trim()).filter(Boolean)
+      );
+    }
+  } else if (format === "csv") {
+    const lines = buffer.toString("utf-8").split("\n").slice(0, 20);
+    firstRows = lines.map((l) => l.split(/[,;\t]/).map((c) => c.trim()).filter(Boolean));
+  } else {
+    const html = buffer.toString("utf-8");
+    const tableRe = /<table[^>]*>([\s\S]*?)<\/table>/i;
+    const tm = tableRe.exec(html);
+    if (tm) {
+      firstRows = extractTableRows(tm[1]).slice(0, 10);
+    }
+  }
+
+  // Collect all unique non-empty cells from first rows
+  const allHeaders = new Set<string>();
+  for (const row of firstRows) {
+    for (const cell of row) {
+      const norm = normalizeHeader(cell);
+      if (norm && !/^\d/.test(norm) && norm.length < 40) allHeaders.add(cell);
+    }
+  }
+
+  const detected: string[] = [];
+  const missing: string[] = [];
+  const headerArr = Array.from(allHeaders);
+
+  const checkGroup = (name: string, syns: string[]) => {
+    const found = headerArr.some(
+      (h) => matchesSyn(normalizeHeader(h), syns) || matchesSynLoose(normalizeHeader(h), syns)
+    );
+    if (found) detected.push(name);
+    else missing.push(name);
+  };
+
+  checkGroup("Time", TIME_SYNONYMS);
+  checkGroup("Symbol", SYMBOL_SYNONYMS);
+  checkGroup("Profit", PROFIT_SYNONYMS);
+  checkGroup("Price", PRICE_SYNONYMS);
+
+  const headerSample = headerArr.slice(0, 15).join(", ");
+  let msg = `Headers encontrados no arquivo: [${headerSample}].`;
+  if (detected.length > 0) msg += ` Colunas reconhecidas: ${detected.join(", ")}.`;
+  if (missing.length > 0) msg += ` Colunas não encontradas: ${missing.join(", ")}.`;
+  msg += " Certifique-se de que o relatório contém colunas de Time/Data, Symbol/Símbolo e Profit/Lucro.";
+  return msg;
 }
 
 function emptyResults(): Omit<ImportSummary, keyof AccountInfo> {

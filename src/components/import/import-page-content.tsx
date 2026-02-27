@@ -8,7 +8,7 @@ import { useLanguage } from "@/contexts/language-context";
 import { formatDate } from "@/lib/i18n/date-utils";
 import { createTrade, importTradesFromFile } from "@/app/actions/trades";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Upload, FileSpreadsheet } from "lucide-react";
+import { ArrowLeft, Upload, FileSpreadsheet, Loader2 } from "lucide-react";
 import { ImportHistory } from "@/components/import/import-history";
 import type { ImportRecord } from "@/components/import/import-history";
 
@@ -288,18 +288,40 @@ export function ImportPageContent({ initialImports, planLimits }: Props) {
                     id="file"
                     name="file"
                     type="file"
-                    accept=".csv,.xlsx,.xls,.html,.htm"
+                    accept=".xlsx,.xls,.html,.htm"
                     required
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-foreground file:mr-2 file:rounded file:border-0 file:bg-score file:px-3 file:py-1.5 file:text-white file:text-sm focus:outline-none focus:ring-2 focus:ring-score"
+                    disabled={fileLoading}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-foreground file:mr-2 file:rounded file:border-0 file:bg-score file:px-3 file:py-1.5 file:text-white file:text-sm focus:outline-none focus:ring-2 focus:ring-score disabled:opacity-50"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={fileLoading}
-                  className="w-full rounded-lg bg-score py-2.5 font-medium text-white transition-colors hover:bg-score/90 focus:outline-none focus:ring-2 focus:ring-score focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-score py-2.5 font-medium text-white transition-colors hover:bg-score/90 focus:outline-none focus:ring-2 focus:ring-score focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {fileLoading ? t("import.importing") : t("import.importFile")}
+                  {fileLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {t("import.importing")}
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" />
+                      {t("import.importFile")}
+                    </>
+                  )}
                 </button>
+                {fileLoading && (
+                  <div className="flex flex-col items-center gap-3 rounded-lg border border-score/20 bg-score/5 p-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-score" />
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-score/20">
+                      <div className="h-full w-2/3 animate-pulse rounded-full bg-score" />
+                    </div>
+                    <p className="text-center text-sm text-muted-foreground">
+                      {t("import.processingFile")}
+                    </p>
+                  </div>
+                )}
               </form>
 
               {/* Histórico de importação */}
