@@ -178,6 +178,7 @@ export default async function DashboardPage({
       serverDrawdown={useDemoData ? null : rpcDrawdown}
       serverDrawdownCurve={useDemoData ? null : rpcDrawdownCurve}
       brokerMetrics={useDemoData ? null : (brokerMetrics as MetricsSummary | null)}
+      tradingAccounts={tradingAccounts}
     />
   );
 }
