@@ -139,6 +139,17 @@ export function GlobalHeader({ userName, lastSyncAt }: Props) {
 
         {/* Right: actions — compact on mobile */}
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          {/* Sync button — visible on mobile (lg+ has it in left section) */}
+          <button
+            type="button"
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50 lg:hidden"
+            aria-label={t("common.syncNow")}
+            title={t("common.syncNow")}
+          >
+            <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+          </button>
           {/* Plan badge — hidden below sm */}
           {isPlanLoading ? (
             <span className="hidden h-6 w-14 animate-pulse rounded-full bg-muted sm:inline-block" />
