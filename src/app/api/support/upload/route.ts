@@ -28,6 +28,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Verify ticket belongs to the authenticated user (defense-in-depth)
+  const { data: ticket, error: ticketError } = await supabase
+    .from("support_tickets")
+    .select("id")
+    .eq("id", ticketId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (ticketError || !ticket) {
+    return NextResponse.json(
+      { error: "Ticket not found or access denied" },
+      { status: 403 }
+    );
+  }
+
   if (!ALLOWED_TYPES.includes(file.type)) {
     return NextResponse.json(
       { error: "Invalid file type. Only PNG, JPG, GIF and WebP are accepted." },

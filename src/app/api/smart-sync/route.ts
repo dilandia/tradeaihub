@@ -15,7 +15,9 @@ import { syncAccountWithMetaApi } from "@/lib/metaapi-sync";
 
 const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
 
-export async function POST() {
+export async function POST(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const force = searchParams.get("force") === "true";
   try {
     // 1. Auth
     const supabase = await createClient();
@@ -47,10 +49,11 @@ export async function POST() {
       return NextResponse.json({ skipped: true, reason: "no_accounts" });
     }
 
-    // 4. Cooldown filter
+    // 4. Cooldown filter (bypassed when force=true for manual sync)
     const now = Date.now();
     const eligible = accounts.filter((a) => {
       if (a.status === "syncing") return false;
+      if (force) return true;
       if (!a.last_sync_at) return true;
       return now - new Date(a.last_sync_at).getTime() >= THREE_HOURS_MS;
     });

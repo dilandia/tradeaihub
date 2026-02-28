@@ -6,7 +6,7 @@ import {
   CheckCircle2,
   Star,
 } from "lucide-react";
-import { getServiceClient } from "@/lib/admin-auth";
+import { getServiceClient, verifyAdmin } from "@/lib/admin-auth";
 import { StatCard } from "@/components/admin/stat-card";
 import { FeedbackList } from "@/components/admin/feedback-list";
 
@@ -61,6 +61,7 @@ interface PageProps {
 }
 
 export default async function AdminFeedbackPage({ searchParams }: PageProps) {
+  await verifyAdmin();
   const params = await searchParams;
   const status = params.status || "";
   const type = params.type || "";

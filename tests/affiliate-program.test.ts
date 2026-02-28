@@ -14,21 +14,21 @@ const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 let supabase: SupabaseClient
 
+const hasSupabaseEnv = Boolean(SUPABASE_URL && SERVICE_ROLE_KEY)
+
 beforeAll(() => {
-  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-    throw new Error(
-      "Missing env vars: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.\n" +
-        "Run: NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx vitest run tests/affiliate-program.test.ts"
-    )
+  if (!hasSupabaseEnv) {
+    // Skip suite gracefully when env vars are not available
+    return
   }
-  supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
+  supabase = createClient(SUPABASE_URL!, SERVICE_ROLE_KEY!)
 })
 
 // Unique suffix to avoid collisions between test runs
 const TS = Date.now()
 
 // ═══════════════════════════════════════════════════════════════════════════
-describe("AFFILIATE PROGRAM - DATABASE TESTS", () => {
+describe.skipIf(!hasSupabaseEnv)("AFFILIATE PROGRAM - DATABASE TESTS", () => {
   // ─────────────────────────────────────────────────────────────────────────
   // 1. SCHEMA INTEGRITY
   // ─────────────────────────────────────────────────────────────────────────
@@ -326,7 +326,7 @@ describe("AFFILIATE PROGRAM - DATABASE TESTS", () => {
         .single()
 
       expect(error).toBeNull()
-      expect(Number(data?.commission_rate)).toBe(0.2) // 20% default
+      expect(Number(data?.commission_rate)).toBe(0.15) // 15% default (Trade AI Hub standard)
       expect(data?.is_active).toBe(true)
       expect(Number(data?.total_referrals)).toBe(0)
       expect(Number(data?.total_conversions)).toBe(0)

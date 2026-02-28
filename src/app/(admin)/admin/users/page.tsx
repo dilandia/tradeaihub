@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { Users } from "lucide-react";
-import { getServiceClient } from "@/lib/admin-auth";
+import { getServiceClient, verifyAdmin } from "@/lib/admin-auth";
 import { UserSearch } from "@/components/admin/user-search";
 import { UsersTable } from "@/components/admin/users-table";
 
@@ -38,6 +38,7 @@ interface PageProps {
 }
 
 export default async function AdminUsersPage({ searchParams }: PageProps) {
+  await verifyAdmin();
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
   const search = String(params.search ?? "");

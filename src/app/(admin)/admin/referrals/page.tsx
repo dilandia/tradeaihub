@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { Gift, Users, Percent, Award } from "lucide-react";
 import Link from "next/link";
-import { getServiceClient } from "@/lib/admin-auth";
+import { getServiceClient, verifyAdmin } from "@/lib/admin-auth";
 import { StatCard } from "@/components/admin/stat-card";
 
 interface TopReferrer {
@@ -103,6 +103,7 @@ function formatCurrency(amount: number): string {
 }
 
 export default async function AdminReferralsPage() {
+  await verifyAdmin();
   const data = await getReferralStats();
 
   if (!data) {

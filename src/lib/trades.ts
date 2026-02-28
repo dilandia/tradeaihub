@@ -225,10 +225,17 @@ export const getImportSummaries = cache(async (): Promise<DbImportSummary[]> => 
 /** Busca um import summary específico (excludes soft-deleted) */
 export async function getImportSummary(id: string): Promise<DbImportSummary | null> {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
   const { data, error } = await supabase
     .from("import_summaries")
     .select("*")
     .eq("id", id)
+    .eq("user_id", user.id)
     .is("deleted_at", null)
     .single();
 
