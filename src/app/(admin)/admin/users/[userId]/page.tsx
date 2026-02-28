@@ -12,7 +12,7 @@ import {
   CreditCard,
   Shield,
 } from "lucide-react";
-import { getServiceClient } from "@/lib/admin-auth";
+import { getServiceClient, verifyAdmin } from "@/lib/admin-auth";
 import { PlanBadge } from "@/components/admin/plan-badge";
 import { CreditManageButton } from "@/components/admin/credit-manage-button";
 import { UserEmailActions } from "@/components/admin/user-email-actions";
@@ -47,6 +47,7 @@ interface PageProps {
 }
 
 export default async function AdminUserDetailPage({ params }: PageProps) {
+  await verifyAdmin();
   const { userId } = await params;
 
   const supabase = getServiceClient();

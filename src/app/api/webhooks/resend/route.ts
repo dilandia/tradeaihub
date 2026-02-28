@@ -73,18 +73,22 @@ export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text()
 
-    // Verify Svix signature if secret is configured
-    if (RESEND_WEBHOOK_SECRET) {
-      const isValid = verifySvixSignature(rawBody, {
-        svixId: req.headers.get("svix-id"),
-        svixTimestamp: req.headers.get("svix-timestamp"),
-        svixSignature: req.headers.get("svix-signature"),
-      }, RESEND_WEBHOOK_SECRET)
+    // Reject requests when webhook secret is not configured (prevents accepting unverified payloads)
+    if (!RESEND_WEBHOOK_SECRET) {
+      console.warn("[Resend Webhook] RESEND_WEBHOOK_SECRET not configured — rejecting request")
+      return NextResponse.json({ error: "Webhook not configured" }, { status: 503 })
+    }
 
-      if (!isValid) {
-        console.warn("[Resend Webhook] Invalid signature — rejecting request")
-        return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
-      }
+    // Verify Svix signature (always — secret is guaranteed present after the check above)
+    const isValid = verifySvixSignature(rawBody, {
+      svixId: req.headers.get("svix-id"),
+      svixTimestamp: req.headers.get("svix-timestamp"),
+      svixSignature: req.headers.get("svix-signature"),
+    }, RESEND_WEBHOOK_SECRET)
+
+    if (!isValid) {
+      console.warn("[Resend Webhook] Invalid signature — rejecting request")
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
     }
 
     const body = JSON.parse(rawBody)

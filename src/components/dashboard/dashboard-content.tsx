@@ -196,8 +196,8 @@ export function DashboardContent({
   brokerMetrics = null,
   tradingAccounts = [],
 }: Props) {
-  // Smart Sync: auto-sync stale accounts in background (plan-gated server-side)
-  useSmartSync(tradingAccounts);
+  // Smart Sync: auto-sync disabled — user triggers manually via header refresh button
+  // useSmartSync(tradingAccounts);
   const { t } = useLanguage();
   const [viewMode, setViewMode] = useState<ViewMode>("dollar");
   const [dateRange, setDateRange] = useState("all");

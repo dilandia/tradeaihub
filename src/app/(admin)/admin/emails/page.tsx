@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { Mail, Send, Eye, MousePointerClick, Globe, CheckCircle2 } from "lucide-react";
-import { getServiceClient } from "@/lib/admin-auth";
+import { getServiceClient, verifyAdmin } from "@/lib/admin-auth";
 import { StatCard } from "@/components/admin/stat-card";
 import { Resend } from "resend";
 
@@ -176,6 +176,7 @@ function EventBadge({ event }: { event: string }) {
 /* ---------- Page ---------- */
 
 export default async function AdminEmailsPage() {
+  await verifyAdmin();
   const data = await getEmailData();
 
   if (!data) {

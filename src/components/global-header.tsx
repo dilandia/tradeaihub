@@ -1,8 +1,10 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { useDataSource } from "@/contexts/data-source-context";
 import { useLanguage } from "@/contexts/language-context";
 import { usePlan } from "@/contexts/plan-context";
@@ -24,6 +26,43 @@ export function GlobalHeader({ userName, lastSyncAt }: Props) {
   const { t } = useLanguage();
   const { planInfo, isLoading: isPlanLoading } = usePlan();
   const pathname = usePathname();
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleManualSync = useCallback(async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    try {
+      const res = await fetch("/api/smart-sync?force=true", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        toast.error(t("common.syncError"));
+        return;
+      }
+      const data = await res.json();
+      if (data.skipped) {
+        if (data.reason === "free_plan") {
+          toast.info(t("common.syncProOnly"));
+        } else if (data.reason === "no_accounts") {
+          toast.info(t("common.syncNoAccounts"));
+        } else {
+          toast.info(t("common.syncUpToDate"));
+        }
+      } else if (data.triggered) {
+        toast.loading(t("common.syncStarted"), {
+          id: "manual-sync",
+          duration: 60000,
+        });
+        // Auto-dismiss after 3 min
+        setTimeout(() => toast.dismiss("manual-sync"), 3 * 60 * 1000);
+      }
+    } catch {
+      toast.error(t("common.syncError"));
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isSyncing, t]);
 
   const plan = planInfo?.plan ?? "free";
   const planLabel = t(`plans.${plan}`);
@@ -58,23 +97,35 @@ export function GlobalHeader({ userName, lastSyncAt }: Props) {
   return (
     <header className="sticky top-0 z-[100] border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-14 items-center gap-1.5 overflow-x-auto pl-14 pr-3 scrollbar-none sm:gap-3 sm:pr-4 lg:pl-6 lg:pr-6">
-        {/* Left: user greeting + last sync */}
-        <div className="hidden flex-col lg:flex">
-          <span className="text-sm font-semibold text-foreground">
-            {userName ? t("common.hello", { name: userName }) : t("common.appName")}
-          </span>
-          {lastSyncAt && (
-            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-              <RefreshCw className="h-3 w-3" />
-              {t("common.lastSync")}{" "}
-              {new Date(lastSyncAt).toLocaleString("pt-BR", {
-                day: "2-digit",
-                month: "2-digit",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+        {/* Left: user greeting + refresh button + last sync */}
+        <div className="hidden items-center gap-2 lg:flex">
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-foreground">
+              {userName ? t("common.hello", { name: userName }) : t("common.appName")}
             </span>
-          )}
+            {lastSyncAt && (
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <RefreshCw className="h-3 w-3" />
+                {t("common.lastSync")}{" "}
+                {new Date(lastSyncAt).toLocaleString("pt-BR", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+            aria-label={t("common.syncNow")}
+            title={t("common.syncNow")}
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin")} />
+          </button>
         </div>
 
         {/* Center: Current source badge — hidden on mobile */}

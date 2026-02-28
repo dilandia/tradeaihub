@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { Users, UserPlus, Activity, BarChart3, MessageSquare, Zap } from "lucide-react";
-import { getServiceClient } from "@/lib/admin-auth";
+import { getServiceClient, verifyAdmin } from "@/lib/admin-auth";
 import { StatCard } from "@/components/admin/stat-card";
 import { OverviewCharts } from "@/components/admin/overview-charts";
 
@@ -41,6 +41,7 @@ const getOverviewData = unstable_cache(
 );
 
 export default async function AdminOverviewPage() {
+  await verifyAdmin();
   const data = await getOverviewData();
 
   if (!data) {

@@ -8,7 +8,7 @@ import {
   Receipt,
   ArrowUpRight,
 } from "lucide-react";
-import { getServiceClient } from "@/lib/admin-auth";
+import { getServiceClient, verifyAdmin } from "@/lib/admin-auth";
 import { StatCard } from "@/components/admin/stat-card";
 import Stripe from "stripe";
 
@@ -236,6 +236,7 @@ const getRevenueData = unstable_cache(
 /* ---------- Page ---------- */
 
 export default async function AdminRevenuePage() {
+  await verifyAdmin();
   const data = await getRevenueData();
 
   if (!data) {

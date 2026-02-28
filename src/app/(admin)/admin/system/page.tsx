@@ -15,7 +15,7 @@ import {
   XCircle,
   Bot,
 } from "lucide-react";
-import { getServiceClient } from "@/lib/admin-auth";
+import { getServiceClient, verifyAdmin } from "@/lib/admin-auth";
 import { StatCard } from "@/components/admin/stat-card";
 import { GuardianScanButton } from "@/components/admin/guardian-scan-button";
 
@@ -191,6 +191,7 @@ function getVerdictFromScan(scan: GuardianScanResult): {
 }
 
 export default async function AdminSystemPage() {
+  await verifyAdmin();
   const [data, guardian] = await Promise.all([
     getSystemHealth(),
     getGuardianStatus(),

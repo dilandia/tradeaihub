@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { Zap, Users, ShoppingCart } from "lucide-react";
-import { getServiceClient } from "@/lib/admin-auth";
+import { getServiceClient, verifyAdmin } from "@/lib/admin-auth";
 import { StatCard } from "@/components/admin/stat-card";
 import { PlanBadge } from "@/components/admin/plan-badge";
 import Link from "next/link";
@@ -57,6 +57,7 @@ const getAiCreditsStats = unstable_cache(
 );
 
 export default async function AdminAiCreditsPage() {
+  await verifyAdmin();
   const data = await getAiCreditsStats();
 
   if (!data) {
