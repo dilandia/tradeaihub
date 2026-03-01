@@ -37,13 +37,14 @@ export function storeBuildId(buildId: string): void {
   if (typeof window === "undefined" || !buildId) return
   try {
     const existing = localStorage.getItem(BUILD_ID_KEY)
+    // Always store the current build ID first (prevents reload loops)
+    localStorage.setItem(BUILD_ID_KEY, buildId)
     if (existing && existing !== buildId) {
       // New deploy detected — purge caches and reload
       console.info("[DeploymentRecovery] New build detected, refreshing:", buildId)
       purgeAndReload()
       return
     }
-    localStorage.setItem(BUILD_ID_KEY, buildId)
   } catch {
     // localStorage blocked
   }
@@ -61,13 +62,13 @@ export async function checkBuildVersion(): Promise<boolean> {
     if (!serverBuildId) return false
 
     const localBuildId = localStorage.getItem(BUILD_ID_KEY)
+    // Always store first to prevent reload loops
+    localStorage.setItem(BUILD_ID_KEY, serverBuildId)
     if (localBuildId && localBuildId !== serverBuildId) {
       console.info("[DeploymentRecovery] Build mismatch on focus check, refreshing")
       purgeAndReload()
       return true
     }
-    // Update stored ID in case it was missing
-    localStorage.setItem(BUILD_ID_KEY, serverBuildId)
     return false
   } catch {
     return false
