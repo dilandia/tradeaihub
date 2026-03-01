@@ -1,18 +1,34 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useRef } from "react";
-import { signIn } from "@/app/actions/auth";
+import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField, type FieldState } from "@/components/ui/form-field";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { LanguageSelector } from "@/components/language-selector";
 import { useLanguage } from "@/contexts/language-context";
 
+function friendlyAuthError(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes("email rate limit exceeded") || lower.includes("rate_limit")) {
+    return "Too many attempts. Please wait a few minutes and try again.";
+  }
+  if (lower.includes("email not confirmed") || lower.includes("email_not_confirmed")) {
+    return "Please confirm your email first. Check your inbox for the confirmation link.";
+  }
+  if (lower.includes("invalid login credentials") || lower.includes("invalid_credentials")) {
+    return "Invalid email or password. Please try again.";
+  }
+  return message;
+}
+
 type Props = { message?: string };
 
 export function LoginForm({ message }: Props) {
   const { t } = useLanguage();
+  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [emailState, setEmailState] = useState<FieldState>("idle");
   const [passwordState, setPasswordState] = useState<FieldState>("idle");
@@ -20,13 +36,11 @@ export function LoginForm({ message }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string>("");
 
-  // Validate email format
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  // Real-time email validation
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const email = e.currentTarget.value;
     if (!email) {
@@ -41,7 +55,6 @@ export function LoginForm({ message }: Props) {
     }
   };
 
-  // Real-time password validation
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const password = e.currentTarget.value;
     if (!password) {
@@ -53,7 +66,6 @@ export function LoginForm({ message }: Props) {
     }
   };
 
-  // Form submission
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormError("");
@@ -63,7 +75,6 @@ export function LoginForm({ message }: Props) {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    // Validate before submit
     if (!validateEmail(email)) {
       setEmailState("invalid");
       setEmailError(t("auth.invalidEmail") || "Invalid email format");
@@ -77,17 +88,17 @@ export function LoginForm({ message }: Props) {
       return;
     }
 
-    try {
-      await signIn(formData);
-    } catch (error: unknown) {
-      // Next.js redirect() throws internally — re-throw so the redirect completes
-      const digest = (error as Record<string, unknown>)?.digest;
-      if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
-        throw error;
-      }
-      setFormError(error instanceof Error ? error.message : "Login failed. Please try again.");
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      setFormError(friendlyAuthError(error.message));
       setIsSubmitting(false);
+      return;
     }
+
+    router.push("/dashboard");
+    router.refresh();
   };
 
   return (
