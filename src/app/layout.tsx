@@ -11,6 +11,7 @@ import { COOKIE_LOCALE, LOCALES, DEFAULT_LOCALE, type Locale } from "@/lib/i18n/
 import { PostHogProvider } from "@/providers/posthog-provider";
 import { PostHogPageView } from "@/providers/posthog-pageview";
 import { CookieConsent } from "@/components/cookie-consent";
+import { DeploymentRecovery } from "@/components/deployment-recovery";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -150,6 +151,7 @@ export default async function RootLayout({
           src="https://cdn.lordicon.com/lordicon.js"
           strategy="lazyOnload"
         />
+        <DeploymentRecovery />
         <PostHogProvider>
           <PostHogPageView />
           <ThemeProvider>

@@ -101,7 +101,8 @@ export async function updateSession(request: NextRequest) {
     path.startsWith("/api/cron/") ||
     path.startsWith("/api/webhooks/") ||
     path.startsWith("/api/stripe/webhook") ||
-    path === "/api/affiliates/apply"; // public: no auth needed for applications
+    path === "/api/affiliates/apply" || // public: no auth needed for applications
+    path === "/api/health"
 
   /* API routes: return 401 JSON instead of redirect (avoids CORS cross-origin) */
   if (isApiRoute && !user && !isSelfAuthApi) {

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { AlertTriangle, RotateCcw, Home } from 'lucide-react';
+import { isStaleDeploymentError, attemptAutoRecovery, forceHardRefresh } from '@/lib/deployment-recovery';
 
 export default function AuthError({
   error,
@@ -12,6 +13,10 @@ export default function AuthError({
 }) {
   useEffect(() => {
     console.error('[Auth Error Boundary]', error);
+    if (isStaleDeploymentError(error.message || '')) {
+      attemptAutoRecovery();
+      return;
+    }
   }, [error]);
 
   return (
@@ -45,6 +50,13 @@ export default function AuthError({
           </div>
         </div>
       </div>
+
+      <button
+        onClick={forceHardRefresh}
+        className="text-sm text-gray-500 hover:text-gray-700 underline"
+      >
+        Forçar Atualização
+      </button>
 
       {process.env.NODE_ENV === 'development' && error.stack && (
         <details className="mt-8 w-full max-w-2xl">

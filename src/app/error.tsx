@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { AlertTriangle, RotateCcw, Home } from 'lucide-react';
+import { AlertTriangle, RotateCcw, Home, RefreshCw } from 'lucide-react';
+import { isStaleDeploymentError, attemptAutoRecovery, forceHardRefresh } from '@/lib/deployment-recovery';
 
 export default function RootError({
   error,
@@ -12,6 +13,10 @@ export default function RootError({
 }) {
   useEffect(() => {
     console.error('[Root Error Boundary]', error);
+    if (isStaleDeploymentError(error.message || '')) {
+      attemptAutoRecovery();
+      return;
+    }
   }, [error]);
 
   return (
@@ -63,8 +68,14 @@ export default function RootError({
           )}
 
           <p className="text-gray-500 text-sm text-center mt-4">
-            Se o problema persistir, tente limpar o cache do navegador ou contate o suporte.
+            Se o problema persistir, clique em &quot;Forçar Atualização&quot; ou contate o suporte.
           </p>
+          <button
+            onClick={forceHardRefresh}
+            className="mt-2 flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition text-sm mx-auto"
+          >
+            <RefreshCw className="w-3 h-3" /> Forçar Atualização
+          </button>
         </div>
       </body>
     </html>
