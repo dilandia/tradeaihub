@@ -28,19 +28,44 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Verify ticket belongs to the authenticated user (defense-in-depth)
-  const { data: ticket, error: ticketError } = await supabase
-    .from("support_tickets")
-    .select("id")
-    .eq("id", ticketId)
-    .eq("user_id", user.id)
-    .single();
+  // Check if user is admin
+  const isAdmin =
+    user.app_metadata?.role === "admin" ||
+    user.app_metadata?.role === "super_admin";
 
-  if (ticketError || !ticket) {
-    return NextResponse.json(
-      { error: "Ticket not found or access denied" },
-      { status: 403 }
+  // Verify ticket access: admins can upload to any ticket, users only to their own
+  if (isAdmin) {
+    const { createClient: createServiceClient } = await import("@supabase/supabase-js");
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
+    const { data: ticket, error: ticketError } = await serviceClient
+      .from("support_tickets")
+      .select("id")
+      .eq("id", ticketId)
+      .single();
+
+    if (ticketError || !ticket) {
+      return NextResponse.json(
+        { error: "Ticket not found" },
+        { status: 404 }
+      );
+    }
+  } else {
+    const { data: ticket, error: ticketError } = await supabase
+      .from("support_tickets")
+      .select("id")
+      .eq("id", ticketId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (ticketError || !ticket) {
+      return NextResponse.json(
+        { error: "Ticket not found or access denied" },
+        { status: 403 }
+      );
+    }
   }
 
   if (!ALLOWED_TYPES.includes(file.type)) {
