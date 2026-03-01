@@ -116,6 +116,11 @@ export default async function RootLayout({
             __html: `(function(){try{var t=localStorage.getItem('takez-theme');if(t==='dark'){document.documentElement.className='dark'}else{document.documentElement.className='light'}}catch(e){document.documentElement.className='light'}})()`,
           }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=document.querySelector('meta[name="x-build-id"]');if(!m)return;var b=m.getAttribute('content');if(!b)return;var k='__build_id',r='__build_recovery',s=localStorage.getItem(k);localStorage.setItem(k,b);if(s&&s!==b){var c=sessionStorage.getItem(r),d=c?JSON.parse(c):{n:0};if(d.n<1){d.n++;sessionStorage.setItem(r,JSON.stringify(d));if('caches'in window)caches.keys().then(function(n){n.forEach(function(x){caches.delete(x)})});var u=new URL(window.location.href);u.searchParams.set('_r',Date.now());window.location.replace(u.toString())}}}catch(e){}})()`,
+          }}
+        />
       </head>
       <body className={`${inter.variable} font-sans`}>
         <script

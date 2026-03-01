@@ -70,6 +70,9 @@ export async function updateSession(request: NextRequest) {
           clearResponse.cookies.delete(name);
         }
       });
+      // Force browser to purge cached resources (stale JS chunks, RSC state)
+      // This prevents users from needing to manually clear cache after deploys
+      clearResponse.headers.set("Clear-Site-Data", '"cache"');
       return clearResponse;
     }
     // Public paths proceed without user

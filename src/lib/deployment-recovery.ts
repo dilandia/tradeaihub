@@ -18,6 +18,8 @@ const STALE_DEPLOYMENT_PATTERNS = [
   /Loading CSS chunk .+ failed/i,
   /Unexpected token '<'/,
   /MIME type.*text\/html/i,
+  /router state header.*could not be parsed/i,
+  /could not be parsed/i,
 ]
 
 const RECOVERY_KEY = "__deployment_recovery"
@@ -104,15 +106,18 @@ export function attemptAutoRecovery(): boolean {
 }
 
 /**
- * Purge all caches and force a hard reload.
+ * Purge all caches and force a hard reload, bypassing bfcache.
  */
 function purgeAndReload(): void {
   // Clear Cache API (removes stale chunks)
   if ("caches" in window) {
     caches.keys().then((names) => names.forEach((name) => caches.delete(name)))
   }
-  // Force full reload bypassing browser cache
-  window.location.reload()
+  // Use location.replace with cache-busting param to bypass bfcache
+  // (window.location.reload() can restore from bfcache in some browsers)
+  const url = new URL(window.location.href)
+  url.searchParams.set("_r", String(Date.now()))
+  window.location.replace(url.toString())
 }
 
 export function forceHardRefresh(): void {
