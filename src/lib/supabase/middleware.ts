@@ -46,9 +46,33 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    // Stale/invalid refresh token (e.g. after deploy) — clear auth cookies and redirect to login
+    const path = request.nextUrl.pathname;
+    const isPublicPath =
+      path === "/login" || path === "/register" || path === "/forgot-password" ||
+      path === "/reset-password" || path === "/auth/callback" ||
+      path === "/" || path === "/about" || path === "/contact" ||
+      path === "/blog" || path === "/privacy" || path === "/terms" ||
+      path === "/affiliates" || path.startsWith("/blog/") ||
+      path.startsWith("/api/") || path === "/robots.txt" || path === "/sitemap.xml";
+
+    if (!isPublicPath) {
+      // Clear all Supabase auth cookies to break the stale token cycle
+      const clearResponse = NextResponse.redirect(new URL("/login", request.url));
+      request.cookies.getAll().forEach(({ name }) => {
+        if (name.startsWith("sb-")) {
+          clearResponse.cookies.delete(name);
+        }
+      });
+      return clearResponse;
+    }
+    // Public paths proceed without user
+  }
 
   const path = request.nextUrl.pathname;
   /* Host: prioriza headers; remove porta para comparar (localhost:3000 → localhost) */

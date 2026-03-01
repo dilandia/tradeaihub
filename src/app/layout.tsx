@@ -12,6 +12,7 @@ import { PostHogProvider } from "@/providers/posthog-provider";
 import { PostHogPageView } from "@/providers/posthog-pageview";
 import { CookieConsent } from "@/components/cookie-consent";
 import { DeploymentRecovery } from "@/components/deployment-recovery";
+import { getBuildId } from "@/lib/build-id";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -109,6 +110,7 @@ export default async function RootLayout({
   return (
     <html lang={initialLocale} suppressHydrationWarning>
       <head>
+        <meta name="x-build-id" content={getBuildId()} />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('takez-theme');if(t==='dark'){document.documentElement.className='dark'}else{document.documentElement.className='light'}}catch(e){document.documentElement.className='light'}})()`,
