@@ -62,6 +62,7 @@ export function LandingNavbar() {
             alt="Trade AI Hub"
             width={36}
             height={36}
+            unoptimized
             className="rounded-[10px] bg-white p-0.5 shadow-sm"
           />
           <span className="text-lg font-bold text-white">

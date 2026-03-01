@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { getBuildId } from "@/lib/build-id"
 
 const START_TIME = Date.now()
 
@@ -13,6 +14,7 @@ export async function GET() {
       status: "ok",
       timestamp: new Date().toISOString(),
       uptime: formatUptime(uptimeMs),
+      buildId: getBuildId(),
       memory: {
         rss: formatMB(mem.rss),
         heapUsed: formatMB(mem.heapUsed),
@@ -23,6 +25,7 @@ export async function GET() {
     {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
+        "x-build-id": getBuildId(),
       },
     }
   )
