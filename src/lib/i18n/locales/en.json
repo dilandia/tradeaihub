@@ -289,7 +289,15 @@
     "statusCancelled": "Cancelled",
     "statusCompleted": "Completed",
     "statusRejected": "Rejected",
-    "statusProcessing": "Processing"
+    "statusProcessing": "Processing",
+    "applicationPending": "Application Under Review",
+    "applicationPendingDesc": "Your affiliate application has been submitted and is being reviewed. We'll notify you by email once a decision is made.",
+    "appliedOn": "Applied on",
+    "applicationRejected": "Application Not Approved",
+    "applicationRejectedDesc": "Unfortunately, your affiliate application was not approved at this time. You're welcome to reapply in the future.",
+    "rejectionReason": "Reason:",
+    "reviewedOn": "Reviewed on",
+    "reapply": "Reapply"
   },
   "strategies": {
     "title": "Strategies",

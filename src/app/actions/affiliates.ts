@@ -17,6 +17,47 @@ async function getAuthUser() {
   return user
 }
 
+// ─── Application Status ─────────────────────────────────────────────────────
+
+export interface ApplicationStatusInfo {
+  status: "pending" | "approved" | "rejected"
+  createdAt: string
+  reviewedAt: string | null
+  reviewNotes: string | null
+}
+
+/**
+ * Returns the affiliate application status for the current user (by email).
+ * Returns null if the user has never applied.
+ */
+export async function getApplicationStatus(): Promise<ApplicationStatusInfo | null> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const email = user.email
+  if (!email) return null
+
+  const admin = getAdmin()
+
+  const { data } = await admin
+    .from("affiliate_applications")
+    .select("status, created_at, reviewed_at, review_notes")
+    .eq("email", email.toLowerCase())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (!data) return null
+
+  return {
+    status: data.status as "pending" | "approved" | "rejected",
+    createdAt: data.created_at,
+    reviewedAt: data.reviewed_at,
+    reviewNotes: data.review_notes,
+  }
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface AffiliateInfo {

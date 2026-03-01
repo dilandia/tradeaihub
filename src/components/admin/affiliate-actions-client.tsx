@@ -2,17 +2,18 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { CheckCircle2, XCircle, Loader2, ToggleLeft, ToggleRight } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, ToggleLeft, ToggleRight, RotateCcw } from "lucide-react"
 import {
   approveApplication,
   rejectApplication,
+  reopenApplication,
   toggleAffiliateStatus,
   processWithdrawal,
   rejectWithdrawal,
 } from "@/app/actions/admin-affiliates"
 
 interface Props {
-  type: "application" | "withdrawal" | "affiliate"
+  type: "application" | "withdrawal" | "affiliate" | "reopen"
   applicationId?: string
   withdrawalId?: string
   affiliateId?: string
@@ -207,6 +208,39 @@ export function AffiliateActionsClient({
             </button>
           </div>
         )}
+      </div>
+    )
+  }
+
+  if (type === "reopen") {
+    async function handleReopen() {
+      if (!applicationId) return
+      setLoading("reopen")
+      setError("")
+      const result = await reopenApplication(applicationId)
+      setLoading(null)
+      if (result.success) {
+        router.refresh()
+      } else {
+        setError(result.error ?? "Error")
+      }
+    }
+
+    return (
+      <div className="space-y-2">
+        {error && <p className="text-xs text-red-400">{error}</p>}
+        <button
+          onClick={handleReopen}
+          disabled={!!loading}
+          className={`${btnClass} bg-amber-500/20 text-amber-400 hover:bg-amber-500/30`}
+        >
+          {loading === "reopen" ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <RotateCcw className="h-3 w-3" />
+          )}
+          Re-evaluate
+        </button>
       </div>
     )
   }
