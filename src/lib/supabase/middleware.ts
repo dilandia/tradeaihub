@@ -48,7 +48,8 @@ export async function updateSession(request: NextRequest) {
 
   let user = null;
   try {
-    const { data } = await supabase.auth.getUser();
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error; // Propagate to catch block to ensure cookie cleanup
     user = data.user;
   } catch {
     // Stale/invalid refresh token (e.g. after deploy) — clear auth cookies and redirect to login
