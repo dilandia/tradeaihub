@@ -6,7 +6,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { NextResponse } from "next/server";
+import { isStaleDeploymentError, attemptAutoRecovery, forceHardRefresh } from "@/lib/deployment-recovery";
 
 export default function Error({
   error,
@@ -17,6 +17,10 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error("App error:", error);
+    if (isStaleDeploymentError(error.message || "")) {
+      attemptAutoRecovery();
+      return;
+    }
   }, [error]);
 
   return (
@@ -44,10 +48,16 @@ export default function Error({
         </button>
         <a
           href="/dashboard"
-          className="block text-blue-600 hover:text-blue-700 dark:text-blue-400"
+          className="block text-blue-600 hover:text-blue-700 dark:text-blue-400 mb-4"
         >
           Voltar para Dashboard
         </a>
+        <button
+          onClick={forceHardRefresh}
+          className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 underline"
+        >
+          Forçar Atualização
+        </button>
       </div>
     </div>
   );

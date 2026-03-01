@@ -2,6 +2,7 @@
 
 import * as Sentry from "@sentry/nextjs"
 import { useEffect } from "react"
+import { isStaleDeploymentError, attemptAutoRecovery, forceHardRefresh } from "@/lib/deployment-recovery"
 
 export default function GlobalError({
   error,
@@ -12,6 +13,12 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     Sentry.captureException(error)
+
+    // Auto-recovery for stale deployment errors
+    if (isStaleDeploymentError(error.message || "")) {
+      attemptAutoRecovery()
+      return
+    }
   }, [error])
 
   return (
@@ -37,20 +44,36 @@ export default function GlobalError({
           <p style={{ color: "#94a3b8", marginBottom: "1.5rem" }}>
             We&apos;ve been notified and are looking into it.
           </p>
-          <button
-            onClick={reset}
-            style={{
-              padding: "0.75rem 1.5rem",
-              background: "linear-gradient(to right, #6366f1, #7c3aed)",
-              color: "white",
-              border: "none",
-              borderRadius: "0.5rem",
-              cursor: "pointer",
-              fontSize: "0.875rem",
-            }}
-          >
-            Try Again
-          </button>
+          <div style={{ display: "flex", gap: "0.75rem" }}>
+            <button
+              onClick={reset}
+              style={{
+                padding: "0.75rem 1.5rem",
+                background: "linear-gradient(to right, #6366f1, #7c3aed)",
+                color: "white",
+                border: "none",
+                borderRadius: "0.5rem",
+                cursor: "pointer",
+                fontSize: "0.875rem",
+              }}
+            >
+              Try Again
+            </button>
+            <button
+              onClick={forceHardRefresh}
+              style={{
+                padding: "0.75rem 1.5rem",
+                background: "#374151",
+                color: "white",
+                border: "none",
+                borderRadius: "0.5rem",
+                cursor: "pointer",
+                fontSize: "0.875rem",
+              }}
+            >
+              Force Update
+            </button>
+          </div>
         </div>
       </body>
     </html>
