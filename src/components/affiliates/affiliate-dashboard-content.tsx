@@ -23,7 +23,7 @@ import {
   UserPlus,
   ArrowDownToLine,
 } from "lucide-react"
-import type { AffiliateDashboardData } from "@/app/actions/affiliates"
+import type { AffiliateDashboardData, ApplicationStatusInfo } from "@/app/actions/affiliates"
 import { updatePayoutInfo, requestWithdrawal } from "@/app/actions/affiliates"
 import { useLanguage } from "@/contexts/language-context"
 
@@ -32,12 +32,82 @@ import { useLanguage } from "@/contexts/language-context"
 interface Props {
   isAffiliate: boolean
   dashboard: AffiliateDashboardData | null
+  applicationStatus?: ApplicationStatusInfo | null
 }
 
 // ─── Not an affiliate CTA ─────────────────────────────────────────────────────
 
-function NotAffiliateCta() {
+function NotAffiliateCta({ applicationStatus }: { applicationStatus?: ApplicationStatusInfo | null }) {
   const { t } = useLanguage()
+
+  // Application pending
+  if (applicationStatus?.status === "pending") {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center px-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/20 mb-6">
+          <Clock className="h-8 w-8 text-amber-400" />
+        </div>
+        <h1 className="text-2xl font-bold text-foreground mb-3">
+          {t("affiliateDashboard.applicationPending")}
+        </h1>
+        <p className="text-muted-foreground max-w-md mb-4">
+          {t("affiliateDashboard.applicationPendingDesc")}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {t("affiliateDashboard.appliedOn")}{" "}
+          {new Date(applicationStatus.createdAt).toLocaleDateString(undefined, {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </p>
+      </div>
+    )
+  }
+
+  // Application rejected
+  if (applicationStatus?.status === "rejected") {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center px-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500/20 mb-6">
+          <XCircle className="h-8 w-8 text-red-400" />
+        </div>
+        <h1 className="text-2xl font-bold text-foreground mb-3">
+          {t("affiliateDashboard.applicationRejected")}
+        </h1>
+        <p className="text-muted-foreground max-w-md mb-4">
+          {t("affiliateDashboard.applicationRejectedDesc")}
+        </p>
+        {applicationStatus.reviewNotes && (
+          <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-6 py-4 max-w-md mb-6">
+            <p className="text-xs font-medium text-red-400 mb-1">{t("affiliateDashboard.rejectionReason")}</p>
+            <p className="text-sm text-muted-foreground">{applicationStatus.reviewNotes}</p>
+          </div>
+        )}
+        {applicationStatus.reviewedAt && (
+          <p className="text-xs text-muted-foreground mb-6">
+            {t("affiliateDashboard.reviewedOn")}{" "}
+            {new Date(applicationStatus.reviewedAt).toLocaleDateString(undefined, {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </p>
+        )}
+        <a
+          href="/affiliates"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3 text-sm font-semibold text-white hover:opacity-90 transition-all"
+        >
+          <ExternalLink className="h-4 w-4" />
+          {t("affiliateDashboard.reapply")}
+        </a>
+      </div>
+    )
+  }
+
+  // Never applied
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center text-center px-4">
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-500/20 mb-6">
@@ -353,13 +423,13 @@ function QuickStat({ label, value }: { label: string; value: string }) {
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
-export function AffiliateDashboardContent({ isAffiliate, dashboard }: Props) {
+export function AffiliateDashboardContent({ isAffiliate, dashboard, applicationStatus }: Props) {
   const { t } = useLanguage()
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<"overview" | "referrals" | "commissions" | "withdrawals" | "settings">("overview")
 
   if (!isAffiliate || !dashboard) {
-    return <NotAffiliateCta />
+    return <NotAffiliateCta applicationStatus={applicationStatus} />
   }
 
   const { affiliate, stats, recentReferrals, recentCommissions, withdrawals } = dashboard

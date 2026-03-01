@@ -289,7 +289,15 @@
     "statusCancelled": "Cancelado",
     "statusCompleted": "Concluido",
     "statusRejected": "Rejeitado",
-    "statusProcessing": "Processando"
+    "statusProcessing": "Processando",
+    "applicationPending": "Candidatura em Analise",
+    "applicationPendingDesc": "Sua candidatura ao programa de afiliados foi enviada e esta sendo analisada. Voce sera notificado por email quando tivermos uma decisao.",
+    "appliedOn": "Enviada em",
+    "applicationRejected": "Candidatura Nao Aprovada",
+    "applicationRejectedDesc": "Infelizmente, sua candidatura ao programa de afiliados nao foi aprovada neste momento. Voce pode se candidatar novamente no futuro.",
+    "rejectionReason": "Motivo:",
+    "reviewedOn": "Analisada em",
+    "reapply": "Candidatar-se Novamente"
   },
   "strategies": {
     "title": "Estratégias",

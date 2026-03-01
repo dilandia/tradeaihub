@@ -1,13 +1,13 @@
+import { Suspense } from "react"
 import {
   Users,
   ClipboardList,
   DollarSign,
   Wallet,
-  CheckCircle2,
-  XCircle,
   ChevronRight,
   BadgeCheck,
   BadgeX,
+  Calendar,
 } from "lucide-react"
 import Link from "next/link"
 import { verifyAdmin } from "@/lib/admin-auth"
@@ -17,18 +17,38 @@ import {
   getAffiliatesList,
   getPendingWithdrawals,
   getAffiliateStats,
+  getApplicationCounts,
 } from "@/app/actions/admin-affiliates"
 import { AffiliateActionsClient } from "@/components/admin/affiliate-actions-client"
+import { ApplicationFilterTabs } from "@/components/admin/application-filter-tabs"
 
-export default async function AdminAffiliatesPage() {
+interface PageProps {
+  searchParams: Promise<{ appStatus?: string }>
+}
+
+export default async function AdminAffiliatesPage({ searchParams }: PageProps) {
   await verifyAdmin()
 
-  const [stats, applications, affiliates, withdrawals] = await Promise.all([
+  const params = await searchParams
+  const appStatusFilter = params.appStatus || "pending"
+  const validStatuses = ["pending", "approved", "rejected", "all"]
+  const currentFilter = validStatuses.includes(appStatusFilter) ? appStatusFilter : "pending"
+
+  const statusParam = currentFilter === "all"
+    ? undefined
+    : (currentFilter as "pending" | "approved" | "rejected")
+
+  const [stats, applications, affiliates, withdrawals, counts] = await Promise.all([
     getAffiliateStats(),
-    getAffiliateApplications("pending"),
+    getAffiliateApplications(statusParam),
     getAffiliatesList(),
     getPendingWithdrawals(),
+    getApplicationCounts(),
   ])
+
+  const sectionTitle = currentFilter === "all"
+    ? "All Applications"
+    : `${currentFilter.charAt(0).toUpperCase() + currentFilter.slice(1)} Applications`
 
   return (
     <div className="space-y-8">
@@ -39,7 +59,7 @@ export default async function AdminAffiliatesPage() {
         </p>
       </div>
 
-      {/* ── KPI Cards ── */}
+      {/* KPI Cards */}
       {!stats ? (
         <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
           <p className="text-sm text-red-400">Failed to load statistics. Please refresh the page.</p>
@@ -73,32 +93,54 @@ export default async function AdminAffiliatesPage() {
         </div>
       )}
 
-      {/* ── Pending Applications ── */}
+      {/* Applications with filter */}
       <section>
-        <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-          <ClipboardList className="h-5 w-5 text-muted-foreground" />
-          Pending Applications
-          {applications.length > 0 && (
-            <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-400">
-              {applications.length}
-            </span>
-          )}
-        </h2>
+        <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <ClipboardList className="h-5 w-5 text-muted-foreground" />
+            {sectionTitle}
+            {applications.length > 0 && (
+              <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-400">
+                {applications.length}
+              </span>
+            )}
+          </h2>
+          <Suspense fallback={<div className="h-8 w-48 rounded-lg bg-muted animate-pulse" />}>
+            <ApplicationFilterTabs currentFilter={currentFilter} counts={counts} />
+          </Suspense>
+        </div>
 
         {applications.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
-            No pending applications
+            No {currentFilter === "all" ? "" : currentFilter} applications
           </div>
         ) : (
           <div className="space-y-3">
             {applications.map((app) => (
               <div
                 key={app.id}
-                className="rounded-xl border border-border bg-card p-5 space-y-3"
+                className={`rounded-xl border bg-card p-5 space-y-3 ${
+                  app.status === "rejected"
+                    ? "border-red-500/20"
+                    : app.status === "approved"
+                      ? "border-emerald-500/20"
+                      : "border-border"
+                }`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="font-semibold text-foreground">{app.full_name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-foreground">{app.full_name}</p>
+                      {app.status !== "pending" && (
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                          app.status === "approved"
+                            ? "bg-emerald-500/20 text-emerald-400"
+                            : "bg-red-500/20 text-red-400"
+                        }`}>
+                          {app.status}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">{app.email}</p>
                     {app.whatsapp && (
                       <p className="text-xs text-muted-foreground mt-0.5">WhatsApp: {app.whatsapp}</p>
@@ -126,14 +168,44 @@ export default async function AdminAffiliatesPage() {
                   &ldquo;{app.pitch}&rdquo;
                 </div>
 
-                <AffiliateActionsClient applicationId={app.id} type="application" />
+                {/* Review info for non-pending */}
+                {app.status !== "pending" && app.reviewed_at && (
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      Reviewed: {new Date(app.reviewed_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                )}
+
+                {/* Rejection reason */}
+                {app.status === "rejected" && app.review_notes && (
+                  <div className="rounded-lg bg-red-500/5 border border-red-500/20 p-3 text-xs">
+                    <span className="font-medium text-red-400">Rejection reason: </span>
+                    <span className="text-muted-foreground">{app.review_notes}</span>
+                  </div>
+                )}
+
+                {/* Actions based on status */}
+                {app.status === "pending" && (
+                  <AffiliateActionsClient applicationId={app.id} type="application" />
+                )}
+                {app.status === "rejected" && (
+                  <AffiliateActionsClient applicationId={app.id} type="reopen" />
+                )}
               </div>
             ))}
           </div>
         )}
       </section>
 
-      {/* ── Pending Withdrawals ── */}
+      {/* Pending Withdrawals */}
       {withdrawals.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -167,7 +239,7 @@ export default async function AdminAffiliatesPage() {
         </section>
       )}
 
-      {/* ── Active Affiliates ── */}
+      {/* Active Affiliates */}
       <section>
         <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
           <Users className="h-5 w-5 text-muted-foreground" />

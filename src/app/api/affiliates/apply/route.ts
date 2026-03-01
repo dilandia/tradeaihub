@@ -8,6 +8,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { z } from "zod"
+import { sendAffiliateApplicationReceivedEmail } from "@/lib/email/send"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -108,6 +109,10 @@ export async function POST(req: Request) {
     )
   }
 
+  // Capture locale from Accept-Language header
+  const acceptLang = req.headers.get("accept-language") || ""
+  const preferredLocale = acceptLang.startsWith("pt") ? "pt-BR" : acceptLang.split(",")[0]?.split(";")[0]?.trim() || "en"
+
   // Insert application
   const { error: insertError } = await supabase.from("affiliate_applications").insert({
     full_name: data.fullName,
@@ -118,6 +123,7 @@ export async function POST(req: Request) {
     audience_size: data.audienceSize || null,
     pitch: data.pitch,
     trading_experience: data.tradingExperience || null,
+    preferred_locale: preferredLocale,
   })
 
   if (insertError) {
@@ -131,6 +137,13 @@ export async function POST(req: Request) {
     console.error("[affiliates/apply] Insert error:", { code: insertError.code, message: insertError.message })
     return NextResponse.json({ error: "Failed to submit application. Please try again." }, { status: 500 })
   }
+
+  // Send confirmation email (non-blocking)
+  sendAffiliateApplicationReceivedEmail({
+    to: data.email,
+    applicantName: data.fullName,
+    locale: preferredLocale,
+  }).catch((e) => console.error("[affiliates/apply] confirmation email error:", e))
 
   return NextResponse.json({ success: true })
 }

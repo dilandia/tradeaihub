@@ -27,6 +27,7 @@ export interface AffiliateApplication {
   reviewed_at: string | null
   review_notes: string | null
   affiliate_id: string | null
+  preferred_locale: string | null
   created_at: string
 }
 
@@ -101,7 +102,7 @@ function generateAffiliateCode(name: string): string {
 
 export async function approveApplication(
   applicationId: string,
-  commissionRate: number = 0.2
+  commissionRate: number = 0.15
 ): Promise<{ success: boolean; error?: string }> {
   await verifyAdmin()
   const admin = getAdmin()
@@ -197,6 +198,7 @@ export async function approveApplication(
     affiliateName: app.full_name,
     affiliateCode: code,
     commissionRate: commissionRate,
+    locale: app.preferred_locale || undefined,
   }).catch((e) => console.error("[admin-affiliates] approval email error:", e))
 
   return { success: true }
@@ -209,12 +211,20 @@ export async function rejectApplication(
   await verifyAdmin()
   const admin = getAdmin()
 
-  // Get application info for email
+  // Get application info for email and status check
   const { data: app } = await admin
     .from("affiliate_applications")
-    .select("full_name, email")
+    .select("full_name, email, status, preferred_locale")
     .eq("id", applicationId)
     .single()
+
+  if (!app) {
+    return { success: false, error: "Application not found" }
+  }
+
+  if (app.status !== "pending") {
+    return { success: false, error: `Cannot reject: application is already ${app.status}` }
+  }
 
   const { error } = await admin
     .from("affiliate_applications")
@@ -235,6 +245,7 @@ export async function rejectApplication(
       to: app.email,
       applicantName: app.full_name,
       reason: reason || undefined,
+      locale: app.preferred_locale || undefined,
     }).catch((e) => console.error("[admin-affiliates] rejection email error:", e))
   }
 
@@ -601,6 +612,64 @@ export async function adjustAffiliateBalance(
 
   if (auditError) {
     console.error("[admin-affiliates] audit trail error:", auditError)
+  }
+
+  return { success: true }
+}
+
+export async function getApplicationCounts(): Promise<{
+  pending: number
+  approved: number
+  rejected: number
+  all: number
+}> {
+  await verifyAdmin()
+  const admin = getAdmin()
+
+  const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
+    admin.from("affiliate_applications").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    admin.from("affiliate_applications").select("id", { count: "exact", head: true }).eq("status", "approved"),
+    admin.from("affiliate_applications").select("id", { count: "exact", head: true }).eq("status", "rejected"),
+  ])
+
+  const pending = pendingRes.count ?? 0
+  const approved = approvedRes.count ?? 0
+  const rejected = rejectedRes.count ?? 0
+
+  return { pending, approved, rejected, all: pending + approved + rejected }
+}
+
+export async function reopenApplication(
+  applicationId: string
+): Promise<{ success: boolean; error?: string }> {
+  await verifyAdmin()
+  const admin = getAdmin()
+
+  const { data: app } = await admin
+    .from("affiliate_applications")
+    .select("status")
+    .eq("id", applicationId)
+    .single()
+
+  if (!app) {
+    return { success: false, error: "Application not found" }
+  }
+
+  if (app.status !== "rejected") {
+    return { success: false, error: "Only rejected applications can be reopened" }
+  }
+
+  const { error } = await admin
+    .from("affiliate_applications")
+    .update({
+      status: "pending",
+      reviewed_at: null,
+      review_notes: null,
+    })
+    .eq("id", applicationId)
+
+  if (error) {
+    return { success: false, error: "Failed to reopen application" }
   }
 
   return { success: true }

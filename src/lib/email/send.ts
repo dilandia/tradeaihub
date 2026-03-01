@@ -39,6 +39,7 @@ import { onboardingO6WeekSummaryHtml } from "@/lib/email/templates/onboarding-o6
 import { guardianAlertEmailHtml } from "@/lib/email/templates/guardian-alert"
 import { affiliateApprovedEmailHtml } from "@/lib/email/templates/affiliate-approved"
 import { affiliateRejectedEmailHtml } from "@/lib/email/templates/affiliate-rejected"
+import { affiliateApplicationReceivedEmailHtml } from "@/lib/email/templates/affiliate-application-received"
 import { canSendEmail, recordSend } from "@/lib/email/scheduler"
 
 /**
@@ -1802,6 +1803,42 @@ export async function sendAffiliateRejectedEmail(params: {
     return { success: true }
   } catch (error) {
     console.error("[Email] Failed to send affiliate rejected email:", error)
+    return {
+      success: false,
+      error: `Failed to send: ${error instanceof Error ? error.message : "Unknown"}`,
+    }
+  }
+}
+
+export async function sendAffiliateApplicationReceivedEmail(params: {
+  to: string
+  applicantName?: string
+  locale?: string
+}): Promise<EmailResult> {
+  const resend = getResendClient()
+  if (!resend) return { success: false, error: "Email not configured" }
+
+  try {
+    const html = affiliateApplicationReceivedEmailHtml({
+      applicantName: params.applicantName,
+      locale: params.locale,
+    })
+
+    const subject = params.locale?.startsWith("pt")
+      ? "Recebemos sua candidatura ao programa de afiliados!"
+      : "We received your affiliate application!"
+
+    await resend.emails.send({
+      from: FROM,
+      to: params.to,
+      subject,
+      html,
+    })
+
+    console.log(`[Email] Affiliate application received email sent to ${params.to}`)
+    return { success: true }
+  } catch (error) {
+    console.error("[Email] Failed to send affiliate application received email:", error)
     return {
       success: false,
       error: `Failed to send: ${error instanceof Error ? error.message : "Unknown"}`,
