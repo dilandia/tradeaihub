@@ -14,6 +14,7 @@ import { getPlanInfo } from "@/lib/plan";
 import { syncAccountWithMetaApi } from "@/lib/metaapi-sync";
 
 const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
+const STALE_SYNC_MS = 10 * 60 * 1000; // 10 min — auto-recover stuck "syncing" status
 
 export async function POST(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -35,22 +36,44 @@ export async function POST(request: Request) {
     }
 
     // 3. Fetch candidate accounts
+    // When force=true (manual sync), include ALL active accounts regardless of auto_sync_enabled.
+    // The auto_sync_enabled flag only gates automatic background sync, not explicit user-triggered sync.
     const admin = createAdminClient();
-    const { data: accounts } = await admin
+    let query = admin
       .from("trading_accounts")
-      .select("id, account_name, last_sync_at, status")
+      .select("id, account_name, last_sync_at, status, updated_at")
       .eq("user_id", user.id)
       .eq("is_active", true)
-      .eq("auto_sync_enabled", true)
       .is("deleted_at", null)
       .not("metaapi_account_id", "is", null);
+
+    if (!force) {
+      query = query.eq("auto_sync_enabled", true);
+    }
+
+    const { data: accounts } = await query;
 
     if (!accounts || accounts.length === 0) {
       return NextResponse.json({ skipped: true, reason: "no_accounts" });
     }
 
-    // 4. Cooldown filter (bypassed when force=true for manual sync)
+    // 3.5. Auto-recover accounts stuck in "syncing" for > 10 min (crash/restart protection)
     const now = Date.now();
+    for (const a of accounts) {
+      if (a.status === "syncing" && a.updated_at) {
+        const stuckFor = now - new Date(a.updated_at).getTime();
+        if (stuckFor > STALE_SYNC_MS) {
+          console.log(`[smart-sync] Auto-recovering stale sync for ${a.account_name} (stuck ${Math.round(stuckFor / 60000)}min)`);
+          await admin
+            .from("trading_accounts")
+            .update({ status: "error", error_message: "Sync interrompido (recuperação automática)", updated_at: new Date().toISOString() })
+            .eq("id", a.id);
+          a.status = "error"; // Update in-memory too for the filter below
+        }
+      }
+    }
+
+    // 4. Cooldown filter (bypassed when force=true for manual sync)
     const eligible = accounts.filter((a) => {
       if (a.status === "syncing") return false;
       if (force) return true;

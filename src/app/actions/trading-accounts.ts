@@ -296,6 +296,23 @@ export async function syncTradingAccount(
   if (!user) return { success: false, error: "Não autenticado." };
 
   try {
+    // Guard: if account is stuck in "syncing" for > 10 min (crash recovery), auto-reset
+    const { data: current } = await supabase
+      .from("trading_accounts")
+      .select("status, updated_at")
+      .eq("id", accountId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (current?.status === "syncing") {
+      const stuckMs = Date.now() - new Date(current.updated_at).getTime();
+      if (stuckMs < 10 * 60 * 1000) {
+        return { success: false, error: "Sincronização já em andamento. Aguarde alguns minutos." };
+      }
+      // Stale sync > 10min — auto-recover and proceed
+      console.log(`[syncTradingAccount] Auto-recovering stale sync (stuck ${Math.round(stuckMs / 60000)}min)`);
+    }
+
     // Marca como syncing
     await supabase
       .from("trading_accounts")

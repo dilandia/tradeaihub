@@ -15,6 +15,7 @@ import {
 import { LanguageSelector } from "@/components/language-selector";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { signOut } from "@/app/actions/auth";
+import { syncTradingAccount } from "@/app/actions/trading-accounts";
 
 type Props = {
   userName: string | null;
@@ -26,47 +27,80 @@ export function GlobalHeader({ userName, lastSyncAt }: Props) {
   const { t } = useLanguage();
   const { planInfo, isLoading: isPlanLoading } = usePlan();
   const pathname = usePathname();
+  const router = useRouter();
   const [isSyncing, setIsSyncing] = useState(false);
 
   const handleManualSync = useCallback(async () => {
     if (isSyncing) return;
-    setIsSyncing(true);
-    try {
-      const res = await fetch("/api/smart-sync?force=true", {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!res.ok) {
-        toast.error(t("common.syncError"));
-        return;
-      }
-      const data = await res.json();
-      if (data.skipped) {
-        if (data.reason === "free_plan") {
-          toast.info(t("common.syncProOnly"));
-        } else if (data.reason === "no_accounts") {
-          toast.info(t("common.syncNoAccounts"));
-        } else {
-          toast.info(t("common.syncUpToDate"));
-        }
-      } else if (data.triggered) {
-        toast.loading(t("common.syncStarted"), {
-          id: "manual-sync",
-          duration: 60000,
-        });
-        // Auto-dismiss after 3 min
-        setTimeout(() => toast.dismiss("manual-sync"), 3 * 60 * 1000);
-      }
-    } catch {
-      toast.error(t("common.syncError"));
-    } finally {
-      setIsSyncing(false);
+    if (accounts.length === 0) {
+      toast.info(t("common.syncNoAccounts"));
+      return;
     }
-  }, [isSyncing, t]);
+
+    const plan = planInfo?.plan ?? "free";
+    if (plan === "free") {
+      toast.info(t("common.syncProOnly"));
+      return;
+    }
+
+    setIsSyncing(true);
+
+    const syncSteps = [
+      t("settings.accountsPage.syncStep1"),
+      t("settings.accountsPage.syncStep2"),
+      t("settings.accountsPage.syncStep3"),
+      t("settings.accountsPage.syncStep4"),
+      t("settings.accountsPage.syncStep5"),
+      t("settings.accountsPage.syncStep6"),
+      t("settings.accountsPage.syncStep7"),
+    ];
+
+    let totalSuccess = 0;
+    let totalFailed = 0;
+
+    for (const account of accounts) {
+      const toastId = `header-sync-${account.id}`;
+      let stepIndex = 0;
+      toast.loading(syncSteps[0], { id: toastId, description: account.name });
+
+      const interval = setInterval(() => {
+        stepIndex = Math.min(stepIndex + 1, syncSteps.length - 1);
+        toast.loading(syncSteps[stepIndex], { id: toastId, description: account.name });
+      }, 3000);
+
+      try {
+        const result = await syncTradingAccount(account.id);
+        clearInterval(interval);
+
+        if (result.success) {
+          totalSuccess++;
+          toast.success(t("settings.accountsPage.syncSuccess"), {
+            id: toastId,
+            description: account.name,
+          });
+        } else {
+          totalFailed++;
+          toast.error(t("settings.accountsPage.syncFailed"), {
+            id: toastId,
+            description: result.error ?? account.name,
+          });
+        }
+      } catch {
+        clearInterval(interval);
+        totalFailed++;
+        toast.error(t("common.syncError"), { id: toastId, description: account.name });
+      }
+    }
+
+    if (totalSuccess > 0) {
+      router.refresh();
+    }
+
+    setIsSyncing(false);
+  }, [isSyncing, accounts, planInfo, t, router]);
 
   const plan = planInfo?.plan ?? "free";
   const planLabel = t(`plans.${plan}`);
-  const router = useRouter();
 
   const hasAnySource = accounts.length > 0 || imports.length > 0;
 
