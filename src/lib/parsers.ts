@@ -22,6 +22,10 @@ export type TradeInsert = {
   exit_time?: string | null;
   duration_minutes?: number | null;
   profit_dollar?: number | null;
+  ticket?: string | null;
+  swap?: number;
+  commission?: number;
+  source?: string;
 };
 
 export type AccountInfo = {
@@ -167,14 +171,31 @@ function calcDurationMinutes(entryDatetime: string, exitDatetime: string): numbe
   return Math.round((diffMs / 60000) * 100) / 100; // arredonda 2 casas
 }
 
-function calcPips(pair: string, entry: number, exit: number, isWin: boolean, profit: number): number {
+function calcPips(
+  pair: string,
+  entry: number,
+  exit: number,
+  isWin: boolean,
+  profit: number,
+  tradeType?: string
+): number {
   if (entry !== 0 && exit !== 0) {
-    const diff = Math.abs(exit - entry);
     const isGold = /xau|gold/i.test(pair);
+    const isSilver = /xag|silver/i.test(pair);
     const isJpy = pair.includes("JPY");
-    let pips = isGold ? diff * 100 : isJpy ? diff * 100 : diff * 10000;
-    pips = Math.round(pips * 10) / 10;
-    return isWin ? pips : -pips;
+    const pipMultiplier = (isGold || isSilver || isJpy) ? 100 : 10000;
+
+    let pips: number;
+    if (tradeType === "buy") {
+      pips = (exit - entry) * pipMultiplier;
+    } else if (tradeType === "sell") {
+      pips = (entry - exit) * pipMultiplier;
+    } else {
+      // Fallback: use absolute diff with is_win sign
+      const diff = Math.abs(exit - entry) * pipMultiplier;
+      pips = isWin ? diff : -diff;
+    }
+    return Math.round(pips * 10) / 10;
   }
   return isWin ? Math.abs(profit) : -Math.abs(profit);
 }
@@ -261,6 +282,21 @@ const TYPE_SYNONYMS = [
   "typ",
   // Other
   "тип", "类型", "タイプ", "유형", "النوع", "tip", "rodzaj", "soort",
+];
+
+const COMMISSION_SYNONYMS = [
+  "commission", "comissão", "comissao", "comision", "comisión", "commissione",
+  "kommission", "provision", "провизия", "комиссия", "佣金", "手数料",
+  "수수료", "komisyon", "prowizja",
+];
+
+const SWAP_SYNONYMS = [
+  "swap", "перенос", "своп", "掉期", "スワップ", "스왑", "takas",
+];
+
+const POSITION_SYNONYMS = [
+  "position", "posicion", "posición", "posicao", "posição", "pos",
+  "позиция", "仓位", "ポジション", "포지션", "pozisyon",
 ];
 
 const RESULTS_SYNONYMS = [
@@ -384,6 +420,11 @@ export function parseDooMtPositions(raw: unknown[][]): TradeInsert[] {
   const colTP = headerRow.findIndex((c) => /t\s*[\/.]\s*p|p\s*[\/.]\s*t|take\s*profit|tp\b/i.test(c));
   const fp = findCol(headerRow, PRICE_SYNONYMS);
   const sp = fp >= 0 ? headerRow.findIndex((c, i) => i > fp && matchesSyn(c, PRICE_SYNONYMS)) : -1;
+  // RC2: Commission and Swap columns (MT5 XLSX cols K and L)
+  const colCommission = findCol(headerRow, COMMISSION_SYNONYMS);
+  const colSwap = findCol(headerRow, SWAP_SYNONYMS);
+  // RC7: Position ID / ticket column (MT5 XLSX col B)
+  const colPosition = findCol(headerRow, POSITION_SYNONYMS);
   if (colSymbol < 0 || colProfit < 0) return trades;
 
   // Detect second "time" column (exit time) if present
@@ -400,21 +441,33 @@ export function parseDooMtPositions(raw: unknown[][]): TradeInsert[] {
     const symbolVal = row[colSymbol];
     const entry = fp >= 0 ? parseNumber(row[fp]) : 0;
     const exit = sp >= 0 ? parseNumber(row[sp]) : 0;
-    const profit = parseNumber(row[colProfit]);
+    const rawProfit = parseNumber(row[colProfit]);
+    // RC2: Include Commission + Swap in total profit (fallback to 0 if columns absent)
+    const swapVal = colSwap >= 0 ? parseNumber(row[colSwap]) : 0;
+    const commissionVal = colCommission >= 0 ? parseNumber(row[colCommission]) : 0;
+    const totalProfit = rawProfit + swapVal + commissionVal;
+    // RC7: Extract Position ID (ticket) from XLSX col B
+    const ticket = colPosition >= 0 ? String(row[colPosition] ?? "").trim() || null : null;
     if (!symbolVal) continue;
-    const pair = String(symbolVal).replace(/\.[a-z]$/i, "").trim().toUpperCase();
+    const pair = String(symbolVal).replace(/\.[a-z]+$/i, "").replace(/[_\-\s]/g, "").trim().toUpperCase();
     if (!pair) continue;
 
     const tradeDate = firstCell.split(" ")[0].replace(/\./g, "-");
-    const is_win = profit >= 0;
+    // RC4: breakeven is NOT a win (totalProfit > 0, not >= 0)
+    const is_win = totalProfit > 0;
+
+    // RC5: Extract trade type for directional pips calculation
+    const typeStr = colType >= 0 ? String(row[colType] ?? "").toLowerCase().trim() : "";
+    const tradeType = typeStr === "buy" || typeStr === "0" ? "buy"
+      : typeStr === "sell" || typeStr === "1" ? "sell"
+      : undefined;
 
     // R-múltiplo planejado a partir de S/L e T/P (quando disponíveis)
     let risk_reward: number | undefined;
     if (colSL >= 0 && colTP >= 0 && entry > 0) {
       const sl = parseNumber(row[colSL]);
       const tp = parseNumber(row[colTP]);
-      const typeStr = colType >= 0 ? String(row[colType] ?? "").toLowerCase() : "";
-      const isBuy = typeStr === "buy" || typeStr === "0" || (colType < 0 && (is_win ? exit > entry : exit < entry));
+      const isBuy = tradeType === "buy" || (!tradeType && (is_win ? exit > entry : exit < entry));
       if (sl > 0 && tp > 0 && sl !== entry && tp !== entry) {
         const riskDist = isBuy ? entry - sl : sl - entry;
         const rewardDist = isBuy ? tp - entry : entry - tp;
@@ -438,13 +491,21 @@ export function parseDooMtPositions(raw: unknown[][]): TradeInsert[] {
       pair,
       entry_price: entry,
       exit_price: exit,
-      pips: calcPips(pair, entry, exit, is_win, profit),
+      // RC5: Pass tradeType for directional pips
+      pips: calcPips(pair, entry, exit, is_win, totalProfit, tradeType),
       is_win,
       entry_time,
       exit_time,
       duration_minutes,
-      profit_dollar: profit !== 0 ? profit : null,
+      // RC6: Always use totalProfit (0 for breakeven, never null)
+      profit_dollar: totalProfit,
       risk_reward: risk_reward ?? undefined,
+      // RC7: Position ID as ticket
+      ticket,
+      // RC2: Store swap and commission separately
+      swap: swapVal,
+      commission: commissionVal,
+      source: "import",
     });
   }
   return trades;
@@ -692,6 +753,14 @@ export function parseHtml(html: string): ParseResult {
     const sp = fp >= 0 ? headers.findIndex((c, i) => i > fp && matchesSyn(c, PRICE_SYNONYMS)) : -1;
     if (colSymbol < 0 || colProfit < 0) continue;
 
+    // RC2: Commission and Swap columns for HTML
+    const htmlColCommission = findCol(headers, COMMISSION_SYNONYMS);
+    const htmlColSwap = findCol(headers, SWAP_SYNONYMS);
+    // RC7: Position ID / ticket column
+    const htmlColPosition = findCol(headers, POSITION_SYNONYMS);
+    // Trade type column
+    const htmlColType = findCol(headers, TYPE_SYNONYMS);
+
     // Detect second "time" column (exit time) if present
     const ft = findCol(headers, TIME_SYNONYMS);
     const st = ft >= 0 ? headers.findIndex((c, i) => i > ft && matchesSyn(c, TIME_SYNONYMS)) : -1;
@@ -706,13 +775,26 @@ export function parseHtml(html: string): ParseResult {
       const symbolVal = row[colSymbol] ?? "";
       const entry = fp >= 0 ? parseNumber(row[fp]) : 0;
       const exit = sp >= 0 ? parseNumber(row[sp]) : 0;
-      const profit = parseNumber(row[colProfit]);
+      const rawProfit = parseNumber(row[colProfit]);
+      // RC2: Include Commission + Swap
+      const htmlSwapVal = htmlColSwap >= 0 ? parseNumber(row[htmlColSwap]) : 0;
+      const htmlCommVal = htmlColCommission >= 0 ? parseNumber(row[htmlColCommission]) : 0;
+      const totalProfit = rawProfit + htmlSwapVal + htmlCommVal;
+      // RC7: Extract ticket
+      const htmlTicket = htmlColPosition >= 0 ? (row[htmlColPosition] ?? "").trim() || null : null;
       if (!symbolVal) continue;
-      const pair = symbolVal.replace(/\.[a-z]$/i, "").trim().toUpperCase();
+      const pair = symbolVal.replace(/\.[a-z]+$/i, "").replace(/[_\-\s]/g, "").trim().toUpperCase();
       if (!pair) continue;
 
       const tradeDate = firstCell.split(" ")[0].replace(/\./g, "-");
-      const is_win = profit >= 0;
+      // RC4: breakeven is NOT a win
+      const is_win = totalProfit > 0;
+
+      // RC5: Extract trade type for directional pips
+      const htmlTypeStr = htmlColType >= 0 ? (row[htmlColType] ?? "").toLowerCase().trim() : "";
+      const htmlTradeType = htmlTypeStr === "buy" || htmlTypeStr === "0" ? "buy"
+        : htmlTypeStr === "sell" || htmlTypeStr === "1" ? "sell"
+        : undefined;
 
       // Extract time info
       const entryDatetime = ft >= 0 ? (row[ft] ?? "").trim() : firstCell;
@@ -726,12 +808,17 @@ export function parseHtml(html: string): ParseResult {
       trades.push({
         trade_date: tradeDate, pair,
         entry_price: entry, exit_price: exit,
-        pips: calcPips(pair, entry, exit, is_win, profit),
+        pips: calcPips(pair, entry, exit, is_win, totalProfit, htmlTradeType),
         is_win,
         entry_time,
         exit_time,
         duration_minutes,
-        profit_dollar: profit !== 0 ? profit : null,
+        // RC6: Always store totalProfit (0 for breakeven, never null)
+        profit_dollar: totalProfit,
+        ticket: htmlTicket,
+        swap: htmlSwapVal,
+        commission: htmlCommVal,
+        source: "import",
       });
     }
     if (trades.length > 0) return { trades, summary: null };
@@ -752,11 +839,14 @@ function rowToTrade(row: Record<string, unknown>): TradeInsert | null {
   };
 
   const trade_date = String(get("trade_date", "date", "time", "fecha", "data", "datum", "zeit", "時間", "日時") ?? "").trim().split(" ")[0];
-  const pair = String(get("pair", "symbol", "instrument", "símbolo", "simbolo", "symbole", "品种") ?? "").trim().toUpperCase();
+  const pair = String(get("pair", "symbol", "instrument", "símbolo", "simbolo", "symbole", "品种") ?? "")
+    .replace(/\.[a-z]+$/i, "").replace(/[_\-\s]/g, "").trim().toUpperCase();
   const entry_price = parseNumber(get("entry_price", "entry", "open", "price", "precio", "preço", "prix", "preis"));
   const exit_price = parseNumber(get("exit_price", "exit", "close", "cierre", "fechamento"));
   let pips = parseNumber(get("pips", "pip"));
-  const is_win = parseBool(get("is_win", "win", "profit", "result"));
+  const profitVal = parseNumber(get("profit_dollar", "profit", "pnl", "p/l"));
+  // RC4: For generic parser, use profit value if available; otherwise use parseBool
+  const is_win = profitVal !== 0 ? profitVal > 0 : parseBool(get("is_win", "win", "result"));
   const risk_reward = get("risk_reward", "rr", "r:r") ? parseNumber(get("risk_reward", "rr", "r:r")) : undefined;
   const tags = parseTags(get("tags", "tag", "setup"));
   const notes = get("notes", "note") ? String(get("notes", "note")).trim() : undefined;
@@ -771,7 +861,13 @@ function rowToTrade(row: Record<string, unknown>): TradeInsert | null {
     pips = is_win ? Math.abs(pips) : -Math.abs(pips);
   }
 
-  return { trade_date, pair, entry_price, exit_price, pips, is_win, risk_reward, tags: tags.length ? tags : undefined, notes };
+  return {
+    trade_date, pair, entry_price, exit_price, pips, is_win, risk_reward,
+    tags: tags.length ? tags : undefined, notes,
+    // RC6: Store profit value (0 for breakeven, never null)
+    profit_dollar: profitVal,
+    source: "import",
+  };
 }
 
 /** Diagnose why header detection failed — returns detected vs missing columns */
@@ -917,27 +1013,36 @@ export function parseWithAIMapping(
 
     const symbolVal = (row[symbolCol] ?? "").trim();
     if (!symbolVal) return;
-    const pair = symbolVal.replace(/\.[a-z]$/i, "").trim().toUpperCase();
+    const pair = symbolVal.replace(/\.[a-z]+$/i, "").replace(/[_\-\s]/g, "").trim().toUpperCase();
     if (!pair) return;
 
     const profit = parseNumber(row[profitCol]);
     const entry = priceCol >= 0 ? parseNumber(row[priceCol]) : 0;
     const exit = priceExitCol >= 0 ? parseNumber(row[priceExitCol]) : 0;
     const tradeDate = timeVal.split(" ")[0].replace(/\./g, "-");
-    const is_win = profit >= 0;
+    // RC4: breakeven is NOT a win
+    const is_win = profit > 0;
     const entry_time = extractTime(timeVal);
+
+    // RC5: Extract trade type from mapping if available
+    const aiTypeStr = mapping.typeCol >= 0 ? (row[mapping.typeCol] ?? "").toLowerCase().trim() : "";
+    const aiTradeType = aiTypeStr === "buy" || aiTypeStr === "0" ? "buy"
+      : aiTypeStr === "sell" || aiTypeStr === "1" ? "sell"
+      : undefined;
 
     trades.push({
       trade_date: tradeDate,
       pair,
       entry_price: entry,
       exit_price: exit,
-      pips: calcPips(pair, entry, exit, is_win, profit),
+      pips: calcPips(pair, entry, exit, is_win, profit, aiTradeType),
       is_win,
       entry_time,
       exit_time: null,
       duration_minutes: null,
-      profit_dollar: profit !== 0 ? profit : null,
+      // RC6: Always store profit (0 for breakeven, never null)
+      profit_dollar: profit,
+      source: "import",
     });
   };
 

@@ -476,6 +476,7 @@ type TradeInsert = {
   ticket: string;
   tags: string[];
   notes: string | null;
+  source: string;
 };
 
 /**
@@ -559,10 +560,15 @@ function dealsToTrades(
     const exitPrice = exit?.price ?? entryPrice;
     const symbol = entry.symbol;
 
-    const sym = symbol.toUpperCase().replace(/\.c$/i, "");
-    const isGold = /XAU|GOLD/i.test(sym);
-    const isSilver = /XAG|SILVER/i.test(sym);
-    const isJpy = sym.includes("JPY");
+    // RC8: Normalize pair — strip broker suffixes (.c, .ecn, .pro), separators, uppercase
+    const normalizedPair = symbol
+      .replace(/\.[a-z]+$/i, "")
+      .replace(/[_\-\s]/g, "")
+      .trim()
+      .toUpperCase();
+    const isGold = /XAU|GOLD/i.test(normalizedPair);
+    const isSilver = /XAG|SILVER/i.test(normalizedPair);
+    const isJpy = normalizedPair.includes("JPY");
     const pipMultiplier = (isGold || isSilver || isJpy) ? 100 : 10000;
     const rawPips =
       entry.type === "DEAL_TYPE_BUY"
@@ -588,7 +594,7 @@ function dealsToTrades(
       user_id: userId,
       trading_account_id: accountId,
       trade_date: tradeDate,
-      pair: symbol,
+      pair: normalizedPair,
       entry_price: entryPrice,
       exit_price: exitPrice,
       pips,
@@ -601,6 +607,7 @@ function dealsToTrades(
       ticket: posId,
       tags: [],
       notes: null,
+      source: "sync",
     });
   }
 
@@ -955,6 +962,73 @@ export async function syncAccountWithMetaApi(
           duration_minutes: ms.durationInMinutes ?? t.duration_minutes,
         };
       });
+    }
+
+    // 9.8) Phase 2: Cross-source dedup — when sync finds matching import trades, UPDATE them
+    try {
+      const { data: importTrades } = await sb
+        .from("trades")
+        .select("id, pair, trade_date, entry_price, exit_price, profit_dollar, ticket, source")
+        .eq("user_id", userId)
+        .eq("source", "import")
+        .is("deleted_at", null);
+
+      if (importTrades && importTrades.length > 0 && newTrades.length > 0) {
+        const importByComposite = new Map<string, { id: string; ticket: string | null }>();
+        for (const it of importTrades) {
+          const normPair = (it.pair ?? "").replace(/\.[a-z]+$/i, "").replace(/[_\-\s]/g, "").toUpperCase();
+          const key = `${normPair}|${it.trade_date}|${it.entry_price}|${it.exit_price}`;
+          importByComposite.set(key, { id: it.id, ticket: it.ticket });
+        }
+
+        const importByTicket = new Map<string, string>();
+        for (const it of importTrades) {
+          if (it.ticket) importByTicket.set(String(it.ticket), it.id);
+        }
+
+        const upgradedTickets = new Set<string>();
+
+        for (const t of newTrades) {
+          // Level 1: ticket match
+          let matchId = t.ticket ? importByTicket.get(t.ticket) : undefined;
+
+          // Level 2: composite match
+          if (!matchId) {
+            const key = `${t.pair}|${t.trade_date}|${t.entry_price}|${t.exit_price}`;
+            const match = importByComposite.get(key);
+            if (match) matchId = match.id;
+          }
+
+          if (matchId) {
+            // UPDATE the import trade with sync data (sync is authoritative)
+            // Preserve import-only fields: risk_reward, tags, notes, strategy_id
+            await sb.from("trades").update({
+              source: "sync",
+              ticket: t.ticket,
+              trading_account_id: t.trading_account_id,
+              profit_dollar: t.profit_dollar,
+              pips: t.pips,
+              is_win: t.is_win,
+              pair: t.pair,
+              entry_time: t.entry_time,
+              exit_time: t.exit_time,
+              duration_minutes: t.duration_minutes,
+              // DO NOT overwrite: risk_reward, tags, notes, strategy_id
+            }).eq("id", matchId);
+
+            upgradedTickets.add(t.ticket);
+          }
+        }
+
+        if (upgradedTickets.size > 0) {
+          console.log(`[sync] Upgraded ${upgradedTickets.size} import trades to sync (cross-source dedup)`);
+          // Remove upgraded trades from newTrades to avoid duplicate insert
+          newTrades = newTrades.filter((t) => !upgradedTickets.has(t.ticket));
+        }
+      }
+    } catch (dedupErr) {
+      // Non-blocking: if cross-source dedup fails, proceed with normal upsert
+      console.warn("[sync] Cross-source dedup failed (non-blocking):", dedupErr);
     }
 
     // 9.9) Before upserting trades, verify account wasn't deleted during sync
