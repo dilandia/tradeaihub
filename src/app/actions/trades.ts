@@ -185,11 +185,54 @@ export async function importTradesFromFile(formData: FormData): Promise<{
     return { error: `Nenhum trade válido encontrado. ${diagnostic}` };
   }
 
+  // Phase 2: Cross-source deduplication — filter out trades that already exist via sync
+  let uniqueTrades = trades;
+  try {
+    const { data: syncTrades } = await supabase
+      .from("trades")
+      .select("id, ticket, pair, trade_date, entry_price, exit_price, profit_dollar, source")
+      .eq("user_id", user.id)
+      .eq("source", "sync")
+      .is("deleted_at", null);
+
+    if (syncTrades && syncTrades.length > 0) {
+      // Build lookup maps for dedup
+      const byTicket = new Map<string, boolean>();
+      const byComposite = new Map<string, boolean>();
+      for (const st of syncTrades) {
+        if (st.ticket) byTicket.set(String(st.ticket), true);
+        const key = `${st.pair}|${st.trade_date}|${st.entry_price}|${st.exit_price}`;
+        byComposite.set(key, true);
+      }
+
+      uniqueTrades = trades.filter((t) => {
+        // Level 1: ticket match
+        if (t.ticket && byTicket.has(String(t.ticket))) return false;
+        // Level 2: composite match
+        const key = `${t.pair}|${t.trade_date}|${t.entry_price}|${t.exit_price}`;
+        if (byComposite.has(key)) return false;
+        return true;
+      });
+
+      const deduped = trades.length - uniqueTrades.length;
+      if (deduped > 0) {
+        console.log(`[trades] Dedup: filtered out ${deduped} trades already present via sync`);
+      }
+    }
+  } catch (dedupErr) {
+    // Non-blocking: if dedup fails, import all trades (backward compatible)
+    console.warn("[trades] Dedup check failed (non-blocking):", dedupErr);
+  }
+
+  if (uniqueTrades.length === 0) {
+    return { error: "Todos os trades deste arquivo já foram importados via sincronização automática." };
+  }
+
   // 1) Sempre criar registro de importação (com métricas se disponíveis)
   const importPayload: Record<string, unknown> = {
     user_id: user.id,
     source_filename: file.name,
-    imported_trades_count: trades.length,
+    imported_trades_count: uniqueTrades.length,
   };
 
   if (summary) {
@@ -210,7 +253,7 @@ export async function importTradesFromFile(formData: FormData): Promise<{
   const importId = summaryRow.id;
 
   // 2) Inserir trades vinculados à importação
-  const toInsert = trades.map((t) => ({
+  const toInsert = uniqueTrades.map((t) => ({
     user_id: user.id,
     trade_date: t.trade_date,
     pair: t.pair,
@@ -225,7 +268,13 @@ export async function importTradesFromFile(formData: FormData): Promise<{
     entry_time: t.entry_time ?? null,
     exit_time: t.exit_time ?? null,
     duration_minutes: t.duration_minutes ?? null,
-    profit_dollar: t.profit_dollar ?? null,
+    // RC6: profit_dollar is always a number (0 for breakeven, never null)
+    profit_dollar: t.profit_dollar ?? 0,
+    // Phase 0/1: New harmonization fields
+    ticket: t.ticket ?? null,
+    swap: t.swap ?? 0,
+    commission: t.commission ?? 0,
+    source: "import",
   }));
 
   const { error } = await supabase.from("trades").insert(toInsert);
@@ -240,7 +289,7 @@ export async function importTradesFromFile(formData: FormData): Promise<{
 
   // Track import completed event + send email (fire-and-forget)
   trackEvent(user.id, "import_completed", {
-    trade_count: trades.length,
+    trade_count: uniqueTrades.length,
     account_name: file.name,
   }).catch(() => {})
 
@@ -256,13 +305,13 @@ export async function importTradesFromFile(formData: FormData): Promise<{
       to: profile.email,
       userName: profile.full_name || undefined,
       locale: profile.locale || undefined,
-      tradeCount: trades.length,
+      tradeCount: uniqueTrades.length,
       accountName: file.name || "Unknown",
       userId: user.id,
     }).catch(() => {})
   }
 
-  return { imported: trades.length, importId };
+  return { imported: uniqueTrades.length, importId };
 }
 
 /* ─────────────────────────────────────────────

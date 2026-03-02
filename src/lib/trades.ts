@@ -23,6 +23,12 @@ export type DbTrade = {
   trading_account_id: string | null;
   strategy_id: string | null;
   deleted_at: string | null;
+  // Phase 0/4: Harmonization fields
+  source?: string | null;
+  swap?: number | null;
+  commission?: number | null;
+  broker_time?: string | null;
+  ticket?: string | null;
 };
 
 export type TradeWithMetaApi = DbTrade & {
@@ -172,7 +178,8 @@ export const getTrades = cache(
   async (
     importId?: string | null,
     tradingAccountId?: string | null,
-    include_deleted?: boolean
+    include_deleted?: boolean,
+    source?: "import" | "sync" | "manual" | null
   ): Promise<DbTrade[]> => {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -190,6 +197,11 @@ export const getTrades = cache(
 
     if (tradingAccountId) {
       query = query.eq("trading_account_id", tradingAccountId);
+    }
+
+    // Phase 4: Optional source filter
+    if (source) {
+      query = query.eq("source", source);
     }
 
     // RLS already filters deleted_at IS NULL for normal users.
