@@ -48,9 +48,13 @@ export async function GET(req: NextRequest) {
     const period = searchParams.get("period") ?? "all";
 
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    let user = null;
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      if (!error) user = data.user;
+    } catch {
+      // Auth check failed silently — user remains null
+    }
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
