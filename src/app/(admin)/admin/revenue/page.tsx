@@ -126,7 +126,7 @@ const getRevenueData = unstable_cache(
         stripe.charges.list({
           limit: 100,
           created: { gte: thirtyDaysAgo },
-          expand: ["data.invoice"],
+          expand: ["data.invoice", "data.customer"],
         }),
         /* Supabase plan breakdown */
         (async () => {
@@ -190,7 +190,12 @@ const getRevenueData = unstable_cache(
           currency: charge.currency,
           status: charge.status,
           description: charge.description,
-          customer_email: charge.receipt_email ?? null,
+          customer_email:
+            (typeof charge.customer === "object" && charge.customer !== null
+              ? (charge.customer as { email?: string | null }).email
+              : null) ??
+            charge.receipt_email ??
+            null,
           created: charge.created,
         });
         stripeRevenue30d += amount;
