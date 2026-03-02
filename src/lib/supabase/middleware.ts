@@ -49,33 +49,40 @@ export async function updateSession(request: NextRequest) {
   let user = null;
   try {
     const { data, error } = await supabase.auth.getUser();
-    if (error) throw error; // Propagate to catch block to ensure cookie cleanup
+    if (error) throw error; // Propagate to catch block to attempt refresh
     user = data.user;
   } catch {
-    // Stale/invalid refresh token (e.g. after deploy) — clear auth cookies and redirect to login
-    const path = request.nextUrl.pathname;
-    const isPublicPath =
-      path === "/login" || path === "/register" || path === "/forgot-password" ||
-      path === "/reset-password" || path === "/auth/callback" ||
-      path === "/" || path === "/about" || path === "/contact" ||
-      path === "/blog" || path === "/privacy" || path === "/terms" ||
-      path === "/affiliates" || path.startsWith("/blog/") ||
-      path.startsWith("/api/") || path === "/robots.txt" || path === "/sitemap.xml";
+    // Token may be momentarily stale (common on mobile) — try refresh before invalidating
+    try {
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshData.user) throw refreshError ?? new Error("No user after refresh");
+      user = refreshData.user;
+    } catch {
+      // Refresh also failed — now clear cookies and redirect
+      const path = request.nextUrl.pathname;
+      const isPublicPath =
+        path === "/login" || path === "/register" || path === "/forgot-password" ||
+        path === "/reset-password" || path === "/auth/callback" ||
+        path === "/" || path === "/about" || path === "/contact" ||
+        path === "/blog" || path === "/privacy" || path === "/terms" ||
+        path === "/affiliates" || path.startsWith("/blog/") ||
+        path.startsWith("/api/") || path === "/robots.txt" || path === "/sitemap.xml";
 
-    if (!isPublicPath) {
-      // Clear all Supabase auth cookies to break the stale token cycle
-      const clearResponse = NextResponse.redirect(new URL("/login", request.url));
-      request.cookies.getAll().forEach(({ name }) => {
-        if (name.startsWith("sb-")) {
-          clearResponse.cookies.delete(name);
-        }
-      });
-      // Force browser to purge cached resources (stale JS chunks, RSC state)
-      // This prevents users from needing to manually clear cache after deploys
-      clearResponse.headers.set("Clear-Site-Data", '"cache"');
-      return clearResponse;
+      if (!isPublicPath) {
+        // Clear all Supabase auth cookies to break the stale token cycle
+        const clearResponse = NextResponse.redirect(new URL("/login", request.url));
+        request.cookies.getAll().forEach(({ name }) => {
+          if (name.startsWith("sb-")) {
+            clearResponse.cookies.delete(name);
+          }
+        });
+        // Force browser to purge cached resources (stale JS chunks, RSC state)
+        // This prevents users from needing to manually clear cache after deploys
+        clearResponse.headers.set("Clear-Site-Data", '"cache"');
+        return clearResponse;
+      }
+      // Public paths proceed without user
     }
-    // Public paths proceed without user
   }
 
   const path = request.nextUrl.pathname;
@@ -103,6 +110,12 @@ export async function updateSession(request: NextRequest) {
   const isApiRoute = path.startsWith("/api/");
 
   if (isProdLandingDomain || isLocalhost) {
+    /* Landing root "/" → rewrite to /landing-internal (marketing page) */
+    if (path === "/") {
+      const rewriteUrl = request.nextUrl.clone();
+      rewriteUrl.pathname = "/landing-internal";
+      return NextResponse.rewrite(rewriteUrl);
+    }
     if (isLandingPublic) return response;
     /* API routes: processar diretamente, nunca redirecionar */
     if (isApiRoute) {
