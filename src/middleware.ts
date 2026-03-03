@@ -2,8 +2,20 @@ import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
+  // Global timeout safety net: if the entire middleware takes >9s, redirect to login.
+  // This is the last line of defense against Supabase hangs causing 502.
+  // (Cloudflare times out at 100s, but we fail fast to keep UX responsive)
+  const globalTimeoutPromise = new Promise<NextResponse>((resolve) => {
+    setTimeout(() => {
+      console.error("[Middleware] Global 9s timeout hit — forcing login redirect");
+      const r = NextResponse.redirect(new URL("/login", request.url));
+      r.headers.set("Clear-Site-Data", '"cache", "cookies", "storage"');
+      resolve(r);
+    }, 9000);
+  });
+
   try {
-    return await updateSession(request);
+    return await Promise.race([updateSession(request), globalTimeoutPromise]);
   } catch (error) {
     // SAFETY NET: If middleware crashes for ANY reason, never return 500.
     // Clear all auth cookies and redirect to /login so the user can start fresh.
