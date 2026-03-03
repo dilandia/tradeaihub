@@ -1,28 +1,48 @@
 /**
  * POST /api/stripe/checkout
  * Cria sessão de checkout Stripe para upgrade de plano.
+ * Supports multi-currency: USD, BRL, EUR.
  *
  * Variáveis de ambiente necessárias:
  * - STRIPE_SECRET_KEY
- * - STRIPE_PRO_MONTHLY_PRICE_ID
- * - STRIPE_PRO_ANNUAL_PRICE_ID
- * - STRIPE_ELITE_MONTHLY_PRICE_ID
- * - STRIPE_ELITE_ANNUAL_PRICE_ID
- * - NEXT_PUBLIC_APP_URL (ex: https://app.takezplan.com)
+ * - STRIPE_PRO_MONTHLY_PRICE_ID (USD), _BRL, _EUR
+ * - STRIPE_PRO_ANNUAL_PRICE_ID (USD), _BRL, _EUR
+ * - STRIPE_ELITE_MONTHLY_PRICE_ID (USD), _BRL, _EUR
+ * - STRIPE_ELITE_ANNUAL_PRICE_ID (USD), _BRL, _EUR
+ * - NEXT_PUBLIC_APP_URL
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import Stripe from "stripe";
+import { SUPPORTED_CURRENCIES } from "@/lib/format-currency";
 
-const PRICE_IDS: Record<string, Record<string, string>> = {
+type Currency = "usd" | "brl" | "eur";
+
+const PRICE_IDS: Record<string, Record<string, Record<Currency, string>>> = {
   pro: {
-    monthly: process.env.STRIPE_PRO_MONTHLY_PRICE_ID ?? "",
-    annual: process.env.STRIPE_PRO_ANNUAL_PRICE_ID ?? "",
+    monthly: {
+      usd: process.env.STRIPE_PRO_MONTHLY_PRICE_ID ?? "",
+      brl: process.env.STRIPE_PRO_MONTHLY_PRICE_ID_BRL ?? "",
+      eur: process.env.STRIPE_PRO_MONTHLY_PRICE_ID_EUR ?? "",
+    },
+    annual: {
+      usd: process.env.STRIPE_PRO_ANNUAL_PRICE_ID ?? "",
+      brl: process.env.STRIPE_PRO_ANNUAL_PRICE_ID_BRL ?? "",
+      eur: process.env.STRIPE_PRO_ANNUAL_PRICE_ID_EUR ?? "",
+    },
   },
   elite: {
-    monthly: process.env.STRIPE_ELITE_MONTHLY_PRICE_ID ?? "",
-    annual: process.env.STRIPE_ELITE_ANNUAL_PRICE_ID ?? "",
+    monthly: {
+      usd: process.env.STRIPE_ELITE_MONTHLY_PRICE_ID ?? "",
+      brl: process.env.STRIPE_ELITE_MONTHLY_PRICE_ID_BRL ?? "",
+      eur: process.env.STRIPE_ELITE_MONTHLY_PRICE_ID_EUR ?? "",
+    },
+    annual: {
+      usd: process.env.STRIPE_ELITE_ANNUAL_PRICE_ID ?? "",
+      brl: process.env.STRIPE_ELITE_ANNUAL_PRICE_ID_BRL ?? "",
+      eur: process.env.STRIPE_ELITE_ANNUAL_PRICE_ID_EUR ?? "",
+    },
   },
 };
 
@@ -47,22 +67,30 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { planId?: string; interval?: "monthly" | "annual" };
+  let body: { planId?: string; interval?: "monthly" | "annual"; currency?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { planId, interval = "monthly" } = body;
+  const { planId, interval = "monthly", currency = "usd" } = body;
   if (!planId || !["pro", "elite"].includes(planId)) {
     return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
   }
 
-  const priceId = PRICE_IDS[planId]?.[interval];
+  const normalizedCurrency = currency.toLowerCase() as Currency;
+  if (!SUPPORTED_CURRENCIES.includes(normalizedCurrency)) {
+    return NextResponse.json(
+      { error: `Unsupported currency: ${currency}. Supported: ${SUPPORTED_CURRENCIES.join(", ")}` },
+      { status: 400 }
+    );
+  }
+
+  const priceId = PRICE_IDS[planId]?.[interval]?.[normalizedCurrency];
   if (!priceId) {
     return NextResponse.json(
-      { error: `Price ID not configured for ${planId}/${interval}` },
+      { error: `Price ID not configured for ${planId}/${interval}/${normalizedCurrency}` },
       { status: 503 }
     );
   }
@@ -105,7 +133,7 @@ export async function POST(req: Request) {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "subscription",
-      locale: "en", // Force checkout in English with USD pricing
+      locale: "auto",
       line_items: [
         {
           price: priceId,
@@ -115,9 +143,9 @@ export async function POST(req: Request) {
       success_url: `${appUrl}/settings/subscription?success=true`,
       cancel_url: `${appUrl}/settings/subscription?canceled=true`,
       subscription_data: {
-        metadata: { supabase_user_id: user.id, plan: planId, interval },
+        metadata: { supabase_user_id: user.id, plan: planId, interval, currency: normalizedCurrency },
       },
-      metadata: { supabase_user_id: user.id, plan: planId, interval },
+      metadata: { supabase_user_id: user.id, plan: planId, interval, currency: normalizedCurrency },
       allow_promotion_codes: true,
     });
 

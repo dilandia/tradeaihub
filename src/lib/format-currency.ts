@@ -53,6 +53,40 @@ export function formatPrice(
 }
 
 /**
+ * Supported currencies for multi-currency checkout
+ */
+export const SUPPORTED_CURRENCIES = ["usd", "brl", "eur"] as const;
+export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
+
+const CURRENCY_LOCALE_MAP: Record<SupportedCurrency, string> = {
+  usd: "en-US",
+  brl: "pt-BR",
+  eur: "de-DE",
+};
+
+/**
+ * Formats a numeric value as a currency string using the appropriate locale.
+ * @param value - Amount in major units (e.g. 14.90, not 1490 cents)
+ * @param currency - Currency code: "usd", "brl", or "eur"
+ * @returns Formatted string (e.g. "$14.90", "R$79,90", "12,90 EUR")
+ */
+export function formatCurrencyAmount(
+  value: number,
+  currency: string
+): string {
+  const cur = currency.toLowerCase() as SupportedCurrency;
+  const locale = CURRENCY_LOCALE_MAP[cur] ?? "en-US";
+  const currencyCode = cur === "usd" ? "USD" : cur === "brl" ? "BRL" : cur === "eur" ? "EUR" : "USD";
+
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: currencyCode,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+/**
  * Converte um preço de string/número para sempre usar Intl com en-US
  * Útil para garantir que preços de Stripe sempre aparecem em USD
  */

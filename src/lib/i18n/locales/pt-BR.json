@@ -639,9 +639,9 @@
     "faqDowngrade": "O que acontece com meus dados se eu fizer downgrade?",
     "faqDowngradeAnswer": "Seus dados são mantidos. Porém, funcionalidades do plano superior ficam desabilitadas. Se voltar ao plano pago, tudo estará disponível novamente.",
     "faqPayment": "Aceita quais formas de pagamento?",
-    "faqPaymentAnswer": "Cartão de crédito/débito (Visa, MasterCard, Amex), PIX e boleto bancário. Pagamentos processados de forma segura via Stripe.",
+    "faqPaymentAnswer": "Cartao de credito/debito (Visa, MasterCard, Amex), PIX e boleto bancario. Precos em reais (R$) para clientes no Brasil. Pagamentos processados de forma segura via Stripe.",
     "faqAnnual": "Tem desconto para plano anual?",
-    "faqAnnualAnswer": "Sim! Assinando o plano anual você economiza 2 meses. O Pro anual sai por $149/ano e o Elite por $249/ano.",
+    "faqAnnualAnswer": "Sim! Assinando o plano anual voce economiza 2 meses. O Pro anual sai por R$769,90/ano e o Elite por R$1.289,90/ano.",
     "upgradeSuccess": "Upgrade realizado com sucesso! Seu plano foi atualizado.",
     "checkoutCanceled": "Checkout cancelado. Nenhuma cobrança foi feita."
   },
@@ -1112,13 +1112,13 @@
     "pricingGuarantee": "Garantia de 7 dias em planos pagos.",
     "planFree": "Grátis",
     "planFreeDesc": "Para traders começando.",
-    "planFreePrice": "$0 para sempre",
+    "planFreePrice": "R$0 para sempre",
     "planFree1": "Até 100 trades/mês",
     "planFree2": "Métricas e gráficos básicos",
     "planFree3": "Importação CSV manual",
     "planPro": "Pro",
     "planProDesc": "Para traders ativos que querem vantagem.",
-    "planProPrice": "$14.90/mês",
+    "planProPrice": "R$79,90/mes",
     "planPro1": "Trades ilimitados",
     "planPro2": "Sync MT4/MT5",
     "planPro3": "Insights com IA",
@@ -1819,5 +1819,12 @@
     "riskOfRuinTitle": "Risco de Ruina",
     "balanceDropTo": "Queda do saldo para",
     "highestBalance": "Maior Saldo"
+  },
+  "billing": {
+    "currentPlan": "Plano atual",
+    "upgrade": "Fazer upgrade",
+    "downgrade": "Fazer downgrade",
+    "downgradeWarning": "Você perderá acesso às funcionalidades premium ao final do período atual.",
+    "confirmDowngrade": "Confirmar downgrade"
   }
 }

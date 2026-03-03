@@ -10,16 +10,30 @@ import { Sparkles, Coins, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const CREDIT_PACKS: Array<{ id: string; credits: number; price: string; popular?: boolean }> = [
-  { id: "20", credits: 20, price: "$2.99" },
-  { id: "50", credits: 50, price: "$5.99", popular: true },
-  { id: "100", credits: 100, price: "$9.99" },
+type Currency = "usd" | "brl" | "eur";
+
+function detectCurrency(locale: string): Currency {
+  if (locale.startsWith("pt")) return "brl";
+  if (locale.startsWith("en")) return "usd";
+  return "eur";
+}
+
+const CREDIT_PACKS: Array<{
+  id: string;
+  credits: number;
+  prices: Record<Currency, string>;
+  popular?: boolean;
+}> = [
+  { id: "20", credits: 20, prices: { usd: "$2.99", brl: "R$15,90", eur: "2,90 EUR" } },
+  { id: "50", credits: 50, prices: { usd: "$5.99", brl: "R$30,90", eur: "4,99 EUR" }, popular: true },
+  { id: "100", credits: 100, prices: { usd: "$9.99", brl: "R$51,90", eur: "8,90 EUR" } },
 ];
 
 export function CreditsSection() {
   const { t, locale } = useLanguage();
   const { planInfo, canUseAi, refetch } = usePlan();
   const searchParams = useSearchParams();
+  const currency = detectCurrency(locale);
 
   useEffect(() => {
     const creditsSuccess = searchParams.get("credits_success");
@@ -35,7 +49,7 @@ export function CreditsSection() {
       const res = await fetch("/api/stripe/checkout-credits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packId }),
+        body: JSON.stringify({ packId, currency }),
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
@@ -112,7 +126,7 @@ export function CreditsSection() {
                         {t("credits.credits")}
                       </span>
                       <span className="mt-2 text-sm font-semibold text-violet-600 dark:text-violet-400">
-                        {pack.price}
+                        {pack.prices[currency]}
                       </span>
                       <span className="mt-1 inline-flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400">
                         {t("credits.buy")}

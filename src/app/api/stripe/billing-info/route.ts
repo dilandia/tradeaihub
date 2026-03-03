@@ -10,6 +10,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import Stripe from "stripe";
+import { formatCurrencyAmount } from "@/lib/format-currency";
 
 export async function GET() {
   const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -98,7 +99,8 @@ export async function GET() {
       });
 
       if (upcoming.amount_due != null && upcoming.period_end) {
-        const amountFormatted = `$${(upcoming.amount_due / 100).toFixed(2)}`;
+        const upcomingCurrency = upcoming.currency ?? "usd";
+        const amountFormatted = formatCurrencyAmount(upcoming.amount_due / 100, upcomingCurrency);
         const dateFormatted = new Date(
           upcoming.period_end * 1000
         ).toISOString();
