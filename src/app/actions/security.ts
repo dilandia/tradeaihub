@@ -100,13 +100,16 @@ export async function deleteAccount(): Promise<{
   const { createClient: createAdmin } = await import("@supabase/supabase-js");
   const admin = createAdmin(adminUrl, adminKey);
 
-  // Deletar trades, import_summaries, trading_accounts primeiro
-  await admin.from("trades").delete().eq("user_id", user.id);
-  await admin.from("import_summaries").delete().eq("user_id", user.id);
-  await admin.from("trading_accounts").delete().eq("user_id", user.id);
-  await admin.from("profiles").delete().eq("id", user.id);
+  // Delete rows from tables with NO ACTION FK constraint on user_id
+  // These would block auth.users deletion if not removed first
+  await admin.from("support_ticket_replies").delete().eq("user_id", user.id);
+  await admin.from("admin_credit_adjustments").delete().eq("user_id", user.id);
 
-  // Deletar o user do auth
+  // Delete the auth user — CASCADE FKs will auto-clean:
+  // trades, import_summaries, trading_accounts, profiles, ai_credits,
+  // credit_purchases, subscriptions, strategies, feedback, email_preferences,
+  // support_tickets, support_conversations, user_tags, user_preferences, etc.
+  // affiliates.user_id will be SET NULL (preserves referral history)
   const { error } = await admin.auth.admin.deleteUser(user.id);
 
   if (error) {
