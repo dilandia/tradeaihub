@@ -69,7 +69,7 @@ export function DateRangeButton({ value, onChange }: DateRangeButtonProps) {
     if (!open) return;
     setRect(buttonRef.current?.getBoundingClientRect() ?? null);
     function handler(e: MouseEvent | TouchEvent) {
-      const target = (e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
+      const target = (typeof TouchEvent !== 'undefined' && e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
       if (!target) return;
       if (ref.current?.contains(target) || dropdownRef.current?.contains(target)) return;
       setOpen(false);
@@ -174,7 +174,7 @@ export function FiltersButton({ trades, filters, onChange }: FiltersButtonProps)
     if (!open) return;
     setRect(buttonRef.current?.getBoundingClientRect() ?? null);
     function handler(e: MouseEvent | TouchEvent) {
-      const target = (e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
+      const target = (typeof TouchEvent !== 'undefined' && e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
       if (!target) return;
       if (ref.current?.contains(target) || dropdownRef.current?.contains(target)) return;
       setOpen(false);

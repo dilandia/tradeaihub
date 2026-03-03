@@ -29,7 +29,7 @@ export function AiFloatingAssistant({ visible = true }: Props) {
   useEffect(() => {
     if (view === "closed") return;
     function handleClickOutside(e: MouseEvent | TouchEvent) {
-      const target = (e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
+      const target = (typeof TouchEvent !== 'undefined' && e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
       if (!target) return;
       if (panelRef.current && !panelRef.current.contains(target)) {
         setView("closed");
