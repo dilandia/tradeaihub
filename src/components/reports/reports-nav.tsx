@@ -69,7 +69,7 @@ export function ReportsNav() {
     if (!reportsOpen) return;
     setReportsRect(reportsButtonRef.current?.getBoundingClientRect() ?? null);
     function handler(e: MouseEvent | TouchEvent) {
-      const target = (e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
+      const target = (typeof TouchEvent !== 'undefined' && e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
       if (!target) return;
       if (ref.current?.contains(target) || reportsDropdownRef.current?.contains(target)) return;
       setReportsOpen(false);

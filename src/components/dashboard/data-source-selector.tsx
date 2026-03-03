@@ -76,7 +76,7 @@ export function DataSourceSelector({
     if (!open) return;
     updateRect();
     function handler(e: MouseEvent | TouchEvent) {
-      const target = (e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
+      const target = (typeof TouchEvent !== 'undefined' && e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
       if (!target) return;
       if (ref.current?.contains(target) || dropdownRef.current?.contains(target)) return;
       setOpen(false);

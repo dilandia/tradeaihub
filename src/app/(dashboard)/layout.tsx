@@ -68,7 +68,7 @@ export default async function DashboardLayout({
 
   return (
     <Suspense fallback={<div className="h-14" />}>
-      {planInfo && <PlanHydrator planInfo={planInfo} />}
+      <PlanHydrator planInfo={planInfo} />
       <DashboardShell
         accounts={accounts}
         imports={imports}

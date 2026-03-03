@@ -24,7 +24,7 @@ export function LanguageSelector() {
     if (!open) return;
     setDropdownRect(buttonRef.current?.getBoundingClientRect() ?? null);
     function handler(e: MouseEvent | TouchEvent) {
-      const target = (e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
+      const target = (typeof TouchEvent !== 'undefined' && e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Node | null;
       if (!target) return;
       const insideTrigger = ref.current?.contains(target);
       const insideDropdown = dropdownRef.current?.contains(target);

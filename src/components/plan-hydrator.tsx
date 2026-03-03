@@ -5,7 +5,7 @@ import { usePlan } from "@/contexts/plan-context";
 import type { PlanInfo } from "@/lib/plan";
 
 type Props = {
-  planInfo: PlanInfo;
+  planInfo: PlanInfo | null;
 };
 
 /**
@@ -14,6 +14,9 @@ type Props = {
  * Uses useLayoutEffect to run BEFORE the PlanProvider's useEffect
  * (which would otherwise trigger an unnecessary client-side fetch).
  * This eliminates the "Free" flash by providing plan data immediately.
+ *
+ * Always rendered (never conditionally) to maintain stable hook count
+ * within Suspense boundaries and prevent "Rendered more hooks" errors.
  */
 export function PlanHydrator({ planInfo }: Props) {
   const { hydrate } = usePlan();
@@ -22,7 +25,7 @@ export function PlanHydrator({ planInfo }: Props) {
   // useLayoutEffect runs synchronously before useEffect,
   // ensuring hydration happens before PlanProvider's initial fetch
   useLayoutEffect(() => {
-    if (!didHydrate.current) {
+    if (!didHydrate.current && planInfo) {
       didHydrate.current = true;
       hydrate(planInfo);
     }
