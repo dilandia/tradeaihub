@@ -1,7 +1,18 @@
 import type { NextConfig } from "next";
+import { execSync } from "child_process";
 import { withSentryConfig } from "@sentry/nextjs";
 
+function getDeploymentId(): string {
+  try {
+    return execSync("git rev-parse --short HEAD").toString().trim();
+  } catch {
+    return Date.now().toString();
+  }
+}
+
 const nextConfig: NextConfig = {
+  // Version skew protection: forces hard reload when browser has stale JS
+  deploymentId: getDeploymentId(),
   // Lint is now handled by standalone ESLint CLI (npm run lint)
   // Disable built-in next build lint step to avoid duplicate checks
   eslint: {
