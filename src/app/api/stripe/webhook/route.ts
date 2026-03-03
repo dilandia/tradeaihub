@@ -16,6 +16,7 @@ import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 import { sendPaymentFailedEmail, sendPaymentConfirmationEmail, sendUpgradeConfirmedEmail, sendCancellationEmail } from "@/lib/email/send";
 import { trackEvent } from "@/lib/email/events";
+import { formatCurrencyAmount } from "@/lib/format-currency";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -156,6 +157,7 @@ export async function POST(req: Request) {
           }
         }
 
+        const checkoutCurrency = session.currency ?? session.metadata?.currency ?? "usd";
         await supabase.from("subscriptions").upsert(
           {
             user_id: userId,
@@ -166,6 +168,7 @@ export async function POST(req: Request) {
             stripe_customer_id: session.customer as string,
             current_period_start: periodStart,
             current_period_end: periodEnd,
+            currency: checkoutCurrency,
             status: "active",
             updated_at: new Date().toISOString(),
           },
@@ -202,8 +205,9 @@ export async function POST(req: Request) {
             const nextDate = periodEnd
               ? new Date(periodEnd).toLocaleDateString(profile.locale?.startsWith("pt") ? "pt-BR" : "en-US", { year: "numeric", month: "long", day: "numeric" })
               : "—";
+            const sessionCurrency = session.currency ?? session.metadata?.currency ?? "usd";
             const amount = session.amount_total
-              ? `$${(session.amount_total / 100).toFixed(2)}`
+              ? formatCurrencyAmount(session.amount_total / 100, sessionCurrency)
               : "—";
 
             // Fire-and-forget: don't block webhook
@@ -294,6 +298,7 @@ export async function POST(req: Request) {
                 .maybeSingle();
 
               if (!existingComm && commissionAmount > 0) {
+                const commissionCurrency = session.currency ?? session.metadata?.currency ?? "usd";
                 await supabase.from("affiliate_commissions").insert({
                   affiliate_id: affiliate.id,
                   referral_id: affRef.id,
@@ -301,6 +306,7 @@ export async function POST(req: Request) {
                   payment_amount: paymentAmount,
                   commission_rate: affiliate.commission_rate,
                   commission_amount: commissionAmount,
+                  currency: commissionCurrency,
                   idempotency_key: idempotencyKey,
                   status: "pending",
                 });
@@ -463,6 +469,7 @@ export async function POST(req: Request) {
             .maybeSingle();
 
           if (!existingComm && commissionAmount > 0) {
+            const invoiceCurrency = invoice.currency ?? "usd";
             await supabase.from("affiliate_commissions").insert({
               affiliate_id: affiliate.id,
               referral_id: affRef.id,
@@ -470,6 +477,7 @@ export async function POST(req: Request) {
               payment_amount: paymentAmount,
               commission_rate: affiliate.commission_rate,
               commission_amount: commissionAmount,
+              currency: invoiceCurrency,
               idempotency_key: idempotencyKey,
               status: "pending",
             });

@@ -21,8 +21,33 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/* ─── Plan Config (USD) ─── */
-/* IMPORTANT: All prices are in USD. Stripe checkout is forced to en-US locale. */
+/* ─── Multi-Currency Plan Config ─── */
+
+type Currency = "usd" | "brl" | "eur";
+
+function detectCurrency(locale: string): Currency {
+  if (locale.startsWith("pt")) return "brl";
+  if (locale.startsWith("en")) return "usd";
+  return "eur";
+}
+
+const PLAN_PRICES: Record<string, Record<Currency, { monthly: string; annual: string }>> = {
+  free: {
+    usd: { monthly: "$0", annual: "$0" },
+    brl: { monthly: "R$0", annual: "R$0" },
+    eur: { monthly: "0 EUR", annual: "0 EUR" },
+  },
+  pro: {
+    usd: { monthly: "$14.90", annual: "$149" },
+    brl: { monthly: "R$79,90", annual: "R$769,90" },
+    eur: { monthly: "12,90 EUR", annual: "126,90 EUR" },
+  },
+  elite: {
+    usd: { monthly: "$24.90", annual: "$249" },
+    brl: { monthly: "R$129,90", annual: "R$1.289,90" },
+    eur: { monthly: "21,90 EUR", annual: "209,90 EUR" },
+  },
+};
 
 type Feature = {
   nameKey: string;
@@ -53,8 +78,6 @@ const FEATURES: Feature[] = [
 type PlanDef = {
   id: string;
   nameKey: string;
-  priceMonthly: string;
-  priceAnnual: string;
   periodKey: string;
   descriptionKey: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -66,8 +89,6 @@ const PLANS: PlanDef[] = [
   {
     id: "free",
     nameKey: "plans.free",
-    priceMonthly: "$0",
-    priceAnnual: "$0",
     periodKey: "plans.forever",
     descriptionKey: "plans.freeDesc",
     icon: Zap,
@@ -76,8 +97,6 @@ const PLANS: PlanDef[] = [
   {
     id: "pro",
     nameKey: "plans.pro",
-    priceMonthly: "$14.90",
-    priceAnnual: "$149",
     periodKey: "plans.perMonth",
     descriptionKey: "plans.proDesc",
     icon: Star,
@@ -87,8 +106,6 @@ const PLANS: PlanDef[] = [
   {
     id: "elite",
     nameKey: "plans.elite",
-    priceMonthly: "$24.90",
-    priceAnnual: "$249",
     periodKey: "plans.perYear",
     descriptionKey: "plans.eliteDesc",
     icon: Crown,
@@ -132,6 +149,7 @@ export function SubscriptionSection({ currentPlan, memberSince }: Props) {
   const [billingInterval, setBillingInterval] = useState<"monthly" | "annual">("monthly");
   const [downgradeWarning, setDowngradeWarning] = useState<string | null>(null);
   const plan = PLANS.find((p) => p.id === currentPlan) ?? PLANS[0];
+  const currency = detectCurrency(locale);
 
   const PLAN_ORDER: Record<string, number> = { free: 0, pro: 1, elite: 2 };
 
@@ -155,7 +173,7 @@ export function SubscriptionSection({ currentPlan, memberSince }: Props) {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId, interval: billingInterval }),
+        body: JSON.stringify({ planId, interval: billingInterval, currency }),
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
@@ -240,11 +258,9 @@ export function SubscriptionSection({ currentPlan, memberSince }: Props) {
             </div>
             <div className="text-right">
               <p className="text-2xl font-bold text-foreground">
-                {plan.id === "free"
-                  ? plan.priceMonthly
-                  : billingInterval === "monthly"
-                    ? plan.priceMonthly
-                    : plan.priceAnnual}
+                {billingInterval === "monthly"
+                  ? PLAN_PRICES[plan.id]?.[currency]?.monthly ?? "$0"
+                  : PLAN_PRICES[plan.id]?.[currency]?.annual ?? "$0"}
               </p>
               <p className="text-xs text-muted-foreground">
                 {plan.id === "free" ? t(plan.periodKey) : billingInterval === "monthly" ? t(plan.periodKey) : t("plans.perYear")}
@@ -271,7 +287,12 @@ export function SubscriptionSection({ currentPlan, memberSince }: Props) {
         {PLANS.map((p) => {
           const isCurrent = p.id === currentPlan;
           const PlanIcon = p.icon;
-          const price = p.id === "free" ? p.priceMonthly : billingInterval === "monthly" ? p.priceMonthly : p.priceAnnual;
+          const planPrices = PLAN_PRICES[p.id]?.[currency];
+          const price = p.id === "free"
+            ? planPrices?.monthly ?? "$0"
+            : billingInterval === "monthly"
+              ? planPrices?.monthly ?? "$0"
+              : planPrices?.annual ?? "$0";
           const period = p.id === "free" ? t(p.periodKey) : billingInterval === "monthly" ? t(p.periodKey) : t("plans.perYear");
 
           return (

@@ -1,12 +1,11 @@
 /**
  * POST /api/stripe/checkout-credits
  * Cria sessão de checkout Stripe para compra de pacotes de créditos (one-time).
+ * Supports multi-currency: USD, BRL, EUR.
  *
  * Variáveis de ambiente:
  * - STRIPE_SECRET_KEY
- * - STRIPE_CREDITS_20_PRICE_ID
- * - STRIPE_CREDITS_50_PRICE_ID
- * - STRIPE_CREDITS_100_PRICE_ID
+ * - STRIPE_CREDITS_{20,50,100}_PRICE_ID (USD), _BRL, _EUR
  * - NEXT_PUBLIC_APP_URL
  */
 import { NextResponse } from "next/server";
@@ -14,22 +13,39 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserPlan } from "@/lib/plan";
 import Stripe from "stripe";
+import { SUPPORTED_CURRENCIES } from "@/lib/format-currency";
 
-const CREDIT_PACKS: Record<string, { priceId: string; credits: number; amountUsd: number }> = {
+type Currency = "usd" | "brl" | "eur";
+
+type CreditPackInfo = {
+  priceIds: Record<Currency, string>;
+  credits: number;
+};
+
+const CREDIT_PACKS: Record<string, CreditPackInfo> = {
   "20": {
-    priceId: process.env.STRIPE_CREDITS_20_PRICE_ID ?? "",
+    priceIds: {
+      usd: process.env.STRIPE_CREDITS_20_PRICE_ID ?? "",
+      brl: process.env.STRIPE_CREDITS_20_PRICE_ID_BRL ?? "",
+      eur: process.env.STRIPE_CREDITS_20_PRICE_ID_EUR ?? "",
+    },
     credits: 20,
-    amountUsd: 2.99,
   },
   "50": {
-    priceId: process.env.STRIPE_CREDITS_50_PRICE_ID ?? "",
+    priceIds: {
+      usd: process.env.STRIPE_CREDITS_50_PRICE_ID ?? "",
+      brl: process.env.STRIPE_CREDITS_50_PRICE_ID_BRL ?? "",
+      eur: process.env.STRIPE_CREDITS_50_PRICE_ID_EUR ?? "",
+    },
     credits: 50,
-    amountUsd: 5.99,
   },
   "100": {
-    priceId: process.env.STRIPE_CREDITS_100_PRICE_ID ?? "",
+    priceIds: {
+      usd: process.env.STRIPE_CREDITS_100_PRICE_ID ?? "",
+      brl: process.env.STRIPE_CREDITS_100_PRICE_ID_BRL ?? "",
+      eur: process.env.STRIPE_CREDITS_100_PRICE_ID_EUR ?? "",
+    },
     credits: 100,
-    amountUsd: 9.99,
   },
 };
 
@@ -62,18 +78,27 @@ export async function POST(req: Request) {
     );
   }
 
-  let body: { packId?: string };
+  let body: { packId?: string; currency?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { packId } = body;
-  const pack = packId ? CREDIT_PACKS[packId] : null;
-  if (!pack || !pack.priceId) {
+  const { packId, currency = "usd" } = body;
+  const normalizedCurrency = currency.toLowerCase() as Currency;
+  if (!SUPPORTED_CURRENCIES.includes(normalizedCurrency)) {
     return NextResponse.json(
-      { error: `Invalid or unconfigured pack: ${packId ?? "missing"}` },
+      { error: `Unsupported currency: ${currency}. Supported: ${SUPPORTED_CURRENCIES.join(", ")}` },
+      { status: 400 }
+    );
+  }
+
+  const pack = packId ? CREDIT_PACKS[packId] : null;
+  const priceId = pack?.priceIds[normalizedCurrency];
+  if (!pack || !priceId) {
+    return NextResponse.json(
+      { error: `Invalid or unconfigured pack: ${packId ?? "missing"} / ${normalizedCurrency}` },
       { status: 400 }
     );
   }
@@ -114,15 +139,15 @@ export async function POST(req: Request) {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "payment",
-      locale: "en", // Force checkout in English with USD pricing
-      line_items: [{ price: pack.priceId, quantity: 1 }],
+      locale: "auto",
+      line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${appUrl}/settings/subscription?credits_success=true`,
       cancel_url: `${appUrl}/settings/subscription?credits_canceled=true`,
       metadata: {
         supabase_user_id: user.id,
         credits_type: "purchase",
         credits_amount: String(pack.credits),
-        credits_amount_usd: String(pack.amountUsd),
+        currency: normalizedCurrency,
       },
     });
 
