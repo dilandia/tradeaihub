@@ -110,12 +110,20 @@ export async function POST(req: Request) {
                 .eq("user_id", userId);
             }
 
-            await supabase.from("credit_purchases").insert({
+            const { error: insertError } = await supabase.from("credit_purchases").insert({
               user_id: userId,
               credits_amount: creditsAmount,
               amount_paid_usd: amountUsd,
               stripe_payment_intent_id: paymentIntentId ?? null,
             });
+
+            // Handle duplicate key (UNIQUE constraint on stripe_payment_intent_id)
+            // This is a safety net in case the application-level idempotency check above
+            // was bypassed by a race condition between concurrent webhook retries
+            if (insertError?.code === "23505") {
+              console.log("[stripe/webhook] Duplicate credit purchase caught by DB constraint:", paymentIntentId);
+              return NextResponse.json({ received: true, deduplicated: true });
+            }
           }
           break;
         }
