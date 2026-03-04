@@ -68,7 +68,7 @@ const FEATURES: Feature[] = [
   { nameKey: "plans.features.autoSync", free: false, pro: true, elite: true },
   { nameKey: "plans.features.economicCalendar", free: true, pro: true, elite: true },
   { nameKey: "plans.features.tags", free: "3", pro: "50", elite: "plans.unlimited" },
-  { nameKey: "plans.features.aiAgents", free: false, pro: "60/mês", elite: "150/mês" },
+  { nameKey: "plans.features.aiAgents", free: false, pro: "30/mês", elite: "60/mês" },
   { nameKey: "plans.features.buyCredits", free: false, pro: true, elite: true },
   { nameKey: "plans.features.exportPdf", free: false, pro: true, elite: true },
   { nameKey: "plans.features.apiAccess", free: false, pro: false, elite: true },
@@ -106,7 +106,7 @@ const PLANS: PlanDef[] = [
   {
     id: "elite",
     nameKey: "plans.elite",
-    periodKey: "plans.perYear",
+    periodKey: "plans.perMonth",
     descriptionKey: "plans.eliteDesc",
     icon: Crown,
     color: "text-amber-400",
@@ -325,9 +325,16 @@ export function SubscriptionSection({ currentPlan, memberSince }: Props) {
                   <span className="text-sm text-muted-foreground"> {period}</span>
                 </div>
 
-                <p className="mb-4 text-xs text-muted-foreground">
+                <p className="mb-3 text-xs text-muted-foreground">
                   {t(p.descriptionKey)}
                 </p>
+
+                {p.id !== "free" && (
+                  <div className="mb-4 flex items-center gap-1.5 rounded-lg bg-score/10 px-3 py-2 text-xs font-semibold text-score">
+                    <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                    {p.id === "pro" ? "30" : "60"} {t("plans.features.aiAgents")} / mês
+                  </div>
+                )}
 
                 <ul className="mb-4 space-y-2">
                   {FEATURES.slice(0, 6).map((f) => {

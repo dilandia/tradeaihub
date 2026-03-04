@@ -175,7 +175,7 @@ export async function POST(req: Request) {
           { onConflict: "user_id" }
         );
 
-        const creditsPerMonth = plan === "pro" ? 60 : plan === "elite" ? 150 : 0;
+        const creditsPerMonth = plan === "pro" ? 30 : plan === "elite" ? 60 : 0;
         if (creditsPerMonth > 0 && periodStart && periodEnd) {
           await supabase.from("ai_credits").upsert(
             {

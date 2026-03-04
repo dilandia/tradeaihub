@@ -494,7 +494,11 @@
     "downgradeWarning": "You'll lose access to premium features at the end of your current billing period.",
     "noPaymentMethod": "No payment method on file",
     "noBillingScheduled": "No upcoming charges",
-    "errorLoading": "Unable to load billing info. Please try again."
+    "errorLoading": "Unable to load billing info. Please try again.",
+    "currentPlan": "Current plan",
+    "upgrade": "Upgrade",
+    "downgrade": "Downgrade",
+    "confirmDowngrade": "Confirm downgrade"
   },
   "na": "—",
   "aiAssistant": {
@@ -1819,12 +1823,5 @@
     "riskOfRuinTitle": "Risk of Ruin",
     "balanceDropTo": "Balance drop to",
     "highestBalance": "Highest Balance"
-  },
-  "billing": {
-    "currentPlan": "Current plan",
-    "upgrade": "Upgrade",
-    "downgrade": "Downgrade",
-    "downgradeWarning": "You'll lose access to premium features at the end of your current billing period.",
-    "confirmDowngrade": "Confirm downgrade"
   }
 }

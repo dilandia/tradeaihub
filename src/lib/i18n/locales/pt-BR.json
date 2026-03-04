@@ -479,22 +479,26 @@
     "yourSubscription": "Sua Assinatura",
     "activePlan": "Ativo",
     "memberSince": "Membro desde",
-    "paymentMethod": "Metodo de Pagamento",
+    "paymentMethod": "Método de Pagamento",
     "cardEnding": "final",
-    "expires": "Expira",
-    "updateCard": "Atualizar Cartao",
-    "nextBilling": "Proximo Pagamento",
-    "nextCharge": "Proxima cobranca",
-    "billingCycle": "Ciclo de cobranca",
+    "expires": "Expira em",
+    "updateCard": "Atualizar cartão",
+    "nextBilling": "Próximo Pagamento",
+    "nextCharge": "Próxima cobrança",
+    "billingCycle": "Ciclo de cobrança",
     "monthly": "Mensal",
     "annual": "Anual",
     "manageOnStripe": "Gerenciar no Stripe",
-    "cancelSubscription": "Cancelar Assinatura",
-    "freePlanMessage": "Voce esta no plano Free. Faca upgrade para desbloquear recursos premium como agentes IA, exportacao PDF e relatorios automatizados.",
-    "downgradeWarning": "Voce perdera acesso aos recursos premium no final do periodo de cobranca atual.",
-    "noPaymentMethod": "Nenhum metodo de pagamento cadastrado",
+    "cancelSubscription": "Cancelar assinatura",
+    "freePlanMessage": "Você está no plano Free. Faça upgrade para desbloquear recursos premium como agentes IA, exportação PDF e relatórios automatizados.",
+    "downgradeWarning": "Você perderá acesso às funcionalidades premium ao final do período atual.",
+    "noPaymentMethod": "Nenhum método de pagamento cadastrado",
     "noBillingScheduled": "Sem cobranças agendadas",
-    "errorLoading": "Nao foi possivel carregar as informacoes de pagamento. Tente novamente."
+    "errorLoading": "Não foi possível carregar as informações de pagamento. Tente novamente.",
+    "currentPlan": "Plano atual",
+    "upgrade": "Fazer upgrade",
+    "downgrade": "Fazer downgrade",
+    "confirmDowngrade": "Confirmar downgrade"
   },
   "na": "—",
   "aiAssistant": {
@@ -1819,12 +1823,5 @@
     "riskOfRuinTitle": "Risco de Ruina",
     "balanceDropTo": "Queda do saldo para",
     "highestBalance": "Maior Saldo"
-  },
-  "billing": {
-    "currentPlan": "Plano atual",
-    "upgrade": "Fazer upgrade",
-    "downgrade": "Fazer downgrade",
-    "downgradeWarning": "Você perderá acesso às funcionalidades premium ao final do período atual.",
-    "confirmDowngrade": "Confirmar downgrade"
   }
 }
