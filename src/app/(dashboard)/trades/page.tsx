@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { TradesPageContent } from "./trades-page-content";
 import { getTradeWithMetaApiInfo, getTradeMetricsRpc } from "@/lib/trades";
 import { getTradesPaginated } from "@/app/actions/trades-pagination";
+import { getUserTags } from "@/app/actions/tags";
 
 export const metadata: Metadata = {
   title: "Trades – TakeZ",
@@ -26,11 +27,16 @@ export default async function TradesPage({
   const pageSize = params.pageSize ?? "20";
 
   // TDR-11: Use pagination for large datasets
-  const paginatedResult = await getTradesPaginated(page, pageSize, importId || undefined, accountId || undefined);
+  // Fetch paginated trades, metrics, and user tags in parallel
+  const [paginatedResult, metrics, userTags] = await Promise.all([
+    getTradesPaginated(page, pageSize, importId || undefined, accountId || undefined),
+    getTradeMetricsRpc(importId || undefined, accountId || undefined),
+    getUserTags().catch((err) => {
+      console.error("[trades] getUserTags failed:", err);
+      return [] as Awaited<ReturnType<typeof getUserTags>>;
+    }),
+  ]);
   const trades = paginatedResult.data as any;
-
-  // Wave 2: Get metrics via RPC (eliminates double-fetch of getTrades)
-  const metrics = await getTradeMetricsRpc(importId || undefined, accountId || undefined);
 
   const selectedTrade = tradeId ? await getTradeWithMetaApiInfo(tradeId) : null;
 
@@ -42,6 +48,7 @@ export default async function TradesPage({
       importId={importId}
       accountId={accountId}
       pagination={paginatedResult.pagination}
+      userTags={userTags}
     />
   );
 }

@@ -1,10 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLanguage } from "@/contexts/language-context";
 import { cn } from "@/lib/utils";
 import type { Metrics, DbTrade } from "@/lib/trades";
+import type { UserTag } from "@/app/actions/tags";
 import { TrendingUp, TrendingDown, Info } from "lucide-react";
 import { PaginationControls } from "@/components/pagination-controls";
 
@@ -20,6 +22,41 @@ interface TradesListViewProps {
     totalCount: number;
     hasMore: boolean;
   };
+  userTags: UserTag[];
+}
+
+/* ─── Tag badges (same pattern as day-trades-table) ─── */
+function TagBadges({
+  tags,
+  tagColorMap,
+}: {
+  tags: string[];
+  tagColorMap: Map<string, string>;
+}) {
+  if (tags.length === 0) return null;
+
+  const visible = tags.slice(0, 3);
+  const remaining = tags.length - 3;
+
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      {visible.map((tag) => {
+        const color = tagColorMap.get(tag.toLowerCase()) ?? "#7C3AED";
+        return (
+          <span
+            key={tag}
+            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium text-white"
+            style={{ backgroundColor: color }}
+          >
+            {tag}
+          </span>
+        );
+      })}
+      {remaining > 0 && (
+        <span className="text-[10px] text-muted-foreground">+{remaining}</span>
+      )}
+    </span>
+  );
 }
 
 function buildTradesUrl(tradeId: string, importId: string | null, accountId: string | null) {
@@ -30,9 +67,20 @@ function buildTradesUrl(tradeId: string, importId: string | null, accountId: str
   return `/trades?${params.toString()}`;
 }
 
-export function TradesListView({ trades, metrics, importId, accountId, pagination }: TradesListViewProps) {
+export function TradesListView({ trades, metrics, importId, accountId, pagination, userTags }: TradesListViewProps) {
   const { t } = useLanguage();
   const router = useRouter();
+
+  const tagColorMap = useMemo(
+    () => new Map((userTags ?? []).map((ut) => [ut.name.toLowerCase(), ut.color])),
+    [userTags]
+  );
+
+  /* Check if any trade on the current page has tags */
+  const anyTradeHasTags = useMemo(
+    () => trades.some((t) => t.tags && t.tags.length > 0),
+    [trades]
+  );
 
   return (
     <div className="space-y-6">
@@ -132,6 +180,9 @@ export function TradesListView({ trades, metrics, importId, accountId, paginatio
                   <th className="px-3 py-3 font-medium sm:px-4">{t("trades.openDate")}</th>
                   <th className="px-3 py-3 font-medium sm:px-4">{t("trades.symbol")}</th>
                   <th className="px-3 py-3 font-medium sm:px-4">{t("trades.status")}</th>
+                  {anyTradeHasTags && (
+                    <th className="hidden px-3 py-3 font-medium sm:table-cell sm:px-4">Tags</th>
+                  )}
                   <th className="hidden px-4 py-3 font-medium md:table-cell">{t("trades.closeDate")}</th>
                   <th className="hidden px-4 py-3 font-medium text-right lg:table-cell">{t("trades.entryPrice")}</th>
                   <th className="hidden px-4 py-3 font-medium text-right lg:table-cell">{t("trades.exitPrice")}</th>
@@ -141,7 +192,7 @@ export function TradesListView({ trades, metrics, importId, accountId, paginatio
               <tbody>
                 {trades.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={anyTradeHasTags ? 8 : 7} className="px-4 py-12 text-center text-muted-foreground">
                       {t("trades.noTrades")}
                     </td>
                   </tr>
@@ -181,6 +232,11 @@ export function TradesListView({ trades, metrics, importId, accountId, paginatio
                             {row.is_win ? "WIN" : "LOSS"}
                           </span>
                         </td>
+                        {anyTradeHasTags && (
+                          <td className="hidden px-3 py-3 sm:table-cell sm:px-4">
+                            <TagBadges tags={row.tags ?? []} tagColorMap={tagColorMap} />
+                          </td>
+                        )}
                         <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">{dateFmt}</td>
                         <td className="hidden px-4 py-3 text-right text-muted-foreground lg:table-cell">
                           ${Number(row.entry_price).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 5 })}

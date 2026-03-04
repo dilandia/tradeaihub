@@ -2,6 +2,7 @@
 
 import { useLanguage } from "@/contexts/language-context";
 import type { DbTrade, Metrics, TradeWithMetaApi } from "@/lib/trades";
+import type { UserTag } from "@/app/actions/tags";
 import { TradesListView } from "./trades-list-view";
 import { TradeDetailView } from "./trade-detail-view";
 
@@ -18,6 +19,7 @@ type Props = {
     totalCount: number;
     hasMore: boolean;
   };
+  userTags: UserTag[];
 };
 
 export function TradesPageContent({
@@ -27,6 +29,7 @@ export function TradesPageContent({
   importId,
   accountId,
   pagination,
+  userTags,
 }: Props) {
   const { t } = useLanguage();
 
@@ -47,6 +50,7 @@ export function TradesPageContent({
           importId={importId}
           accountId={accountId}
           pagination={pagination}
+          userTags={userTags}
         />
       )}
     </div>
