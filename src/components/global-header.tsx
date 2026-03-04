@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,7 +15,7 @@ import {
 import { LanguageSelector } from "@/components/language-selector";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { signOut } from "@/app/actions/auth";
-import { syncTradingAccount } from "@/app/actions/trading-accounts";
+import { createClient } from "@/lib/supabase/client";
 
 type Props = {
   userName: string | null;
@@ -29,6 +29,22 @@ export function GlobalHeader({ userName, lastSyncAt }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const [isSyncing, setIsSyncing] = useState(false);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stepIntervalsRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
+
+  // Cleanup all intervals on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      for (const interval of stepIntervalsRef.current.values()) {
+        clearInterval(interval);
+      }
+      stepIntervalsRef.current.clear();
+    };
+  }, []);
 
   const handleManualSync = useCallback(async () => {
     if (isSyncing) return;
@@ -44,59 +60,135 @@ export function GlobalHeader({ userName, lastSyncAt }: Props) {
     }
 
     setIsSyncing(true);
+    const toastId = "header-sync";
 
-    const syncSteps = [
-      t("settings.accountsPage.syncStep1"),
-      t("settings.accountsPage.syncStep2"),
-      t("settings.accountsPage.syncStep3"),
-      t("settings.accountsPage.syncStep4"),
-      t("settings.accountsPage.syncStep5"),
-      t("settings.accountsPage.syncStep6"),
-      t("settings.accountsPage.syncStep7"),
-    ];
+    try {
+      const res = await fetch("/api/smart-sync?force=true", { method: "POST" });
+      const body = await res.json();
 
-    let totalSuccess = 0;
-    let totalFailed = 0;
-
-    for (const account of accounts) {
-      const toastId = `header-sync-${account.id}`;
-      let stepIndex = 0;
-      toast.loading(syncSteps[0], { id: toastId, description: account.name });
-
-      const interval = setInterval(() => {
-        stepIndex = Math.min(stepIndex + 1, syncSteps.length - 1);
-        toast.loading(syncSteps[stepIndex], { id: toastId, description: account.name });
-      }, 3000);
-
-      try {
-        const result = await syncTradingAccount(account.id);
-        clearInterval(interval);
-
-        if (result.success) {
-          totalSuccess++;
-          toast.success(t("settings.accountsPage.syncSuccess"), {
-            id: toastId,
-            description: account.name,
-          });
-        } else {
-          totalFailed++;
-          toast.error(t("settings.accountsPage.syncFailed"), {
-            id: toastId,
-            description: result.error ?? account.name,
-          });
-        }
-      } catch {
-        clearInterval(interval);
-        totalFailed++;
-        toast.error(t("common.syncError"), { id: toastId, description: account.name });
+      // Non-202: API error
+      if (!res.ok && res.status !== 200) {
+        toast.error(t("settings.accountsPage.syncFailed"), { id: toastId });
+        setIsSyncing(false);
+        return;
       }
-    }
 
-    if (totalSuccess > 0) {
-      router.refresh();
-    }
+      // Skipped responses (200 with skipped: true)
+      if (body.skipped) {
+        const msg =
+          body.reason === "no_accounts"
+            ? t("common.syncNoAccounts")
+            : body.reason === "free_plan"
+              ? t("common.syncProOnly")
+              : t("settings.accountsPage.syncFailed");
+        toast.info(msg, { id: toastId });
+        setIsSyncing(false);
+        return;
+      }
 
-    setIsSyncing(false);
+      // 202 triggered — start polling
+      const accountIds: string[] = body.accounts ?? [];
+      if (accountIds.length === 0) {
+        setIsSyncing(false);
+        return;
+      }
+
+      // Build name map from context accounts for toast messages
+      const nameMap = new Map<string, string>();
+      for (const a of accounts) {
+        nameMap.set(a.id, a.name);
+      }
+
+      const syncSteps = [
+        t("settings.accountsPage.syncStep1"),
+        t("settings.accountsPage.syncStep2"),
+        t("settings.accountsPage.syncStep3"),
+        t("settings.accountsPage.syncStep4"),
+        t("settings.accountsPage.syncStep5"),
+        t("settings.accountsPage.syncStep6"),
+        t("settings.accountsPage.syncStep7"),
+      ];
+
+      // Start per-account toasts with rotating step messages (same UX as settings page)
+      const stepIndexes = new Map<string, number>();
+      for (const accountId of accountIds) {
+        const accountName = nameMap.get(accountId) ?? accountId;
+        stepIndexes.set(accountId, 0);
+        toast.loading(syncSteps[0], {
+          id: `header-sync-${accountId}`,
+          description: accountName,
+        });
+        const stepInterval = setInterval(() => {
+          const idx = stepIndexes.get(accountId) ?? 0;
+          const next = Math.min(idx + 1, syncSteps.length - 1);
+          stepIndexes.set(accountId, next);
+          toast.loading(syncSteps[next], {
+            id: `header-sync-${accountId}`,
+            description: accountName,
+          });
+        }, 3000);
+        stepIntervalsRef.current.set(accountId, stepInterval);
+      }
+
+      const finishedAccounts = new Set<string>();
+      const supabase = createClient();
+
+      pollIntervalRef.current = setInterval(async () => {
+        try {
+          const { data } = await supabase
+            .from("trading_accounts")
+            .select("id, status, account_name, error_message")
+            .in("id", accountIds)
+            .is("deleted_at", null);
+
+          if (!data) return;
+
+          for (const row of data) {
+            if (finishedAccounts.has(row.id)) continue;
+
+            const accountName = nameMap.get(row.id) ?? row.account_name ?? row.id;
+
+            if (row.status === "connected" || row.status === "error") {
+              // Stop rotating steps for this account
+              const stepInterval = stepIntervalsRef.current.get(row.id);
+              if (stepInterval) {
+                clearInterval(stepInterval);
+                stepIntervalsRef.current.delete(row.id);
+              }
+              finishedAccounts.add(row.id);
+
+              if (row.status === "connected") {
+                toast.success(t("settings.accountsPage.syncSuccess"), {
+                  id: `header-sync-${row.id}`,
+                  description: accountName,
+                });
+              } else {
+                toast.error(t("settings.accountsPage.syncFailed"), {
+                  id: `header-sync-${row.id}`,
+                  description: row.error_message ?? accountName,
+                });
+              }
+            }
+            // status === "syncing" → still in progress, keep rotating
+          }
+
+          // All accounts finished
+          if (finishedAccounts.size >= accountIds.length) {
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            setIsSyncing(false);
+            router.refresh();
+          }
+        } catch {
+          // Polling error — silently retry on next interval
+        }
+      }, 5000);
+    } catch {
+      toast.error(t("settings.accountsPage.syncFailed"), { id: toastId });
+      setIsSyncing(false);
+    }
   }, [isSyncing, accounts, planInfo, t, router]);
 
   const plan = planInfo?.plan ?? "free";
