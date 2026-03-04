@@ -39,7 +39,7 @@ type AiCopilotContentProps = {
 
 export function AiCopilotContent({ compact }: AiCopilotContentProps = {}) {
   const { t, locale } = useLanguage();
-  const { planInfo } = usePlan();
+  const { planInfo, refetch: refetchPlan } = usePlan();
   const params = useAiApiParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -152,6 +152,8 @@ export function AiCopilotContent({ compact }: AiCopilotContentProps = {}) {
       ]);
       setStreamingContent("");
       loadConversations();
+      // Atualiza créditos no contexto após mensagem bem-sucedida (fire-and-forget)
+      refetchPlan().catch(() => {});
     } catch (e) {
       if (isPlanGateError(e)) {
         setPlanGateModal({
@@ -210,6 +212,8 @@ export function AiCopilotContent({ compact }: AiCopilotContentProps = {}) {
           onClose={() => setPlanGateModal(null)}
           message={planGateModal.message}
           variant={planGateModal.variant}
+          creditsRemaining={planInfo?.aiCreditsRemaining}
+          creditsTotal={planInfo?.aiCreditsPerMonth}
         />
       )}
       <div

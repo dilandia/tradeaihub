@@ -760,6 +760,7 @@
     "subheading": "MAIS ANÁLISES COM IA",
     "heading": "Compre créditos extras",
     "description": "Continue usando os agentes de IA sem interrupções.",
+    "usedAll": "Você usou {used} de {total} créditos neste mês",
     "feature1": "Pacotes de 20, 50 ou 100 créditos",
     "feature2": "Créditos não expiram no período",
     "upgradeCta": "Comprar créditos"

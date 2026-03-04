@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { AiResponseContent } from "./ai-response-content";
 import { UpgradePlanModal } from "./upgrade-plan-modal";
 import { useLanguage } from "@/contexts/language-context";
+import { usePlan } from "@/contexts/plan-context";
 import { isPlanGateError } from "@/lib/ai/plan-gate-error";
 
 /** Chaves i18n para mensagens que alternam durante o loading (ex: "common.aiAnalyzingPatterns") */
@@ -33,6 +34,7 @@ export function AiAgentCard({
   className,
 }: Props) {
   const { t } = useLanguage();
+  const { planInfo, refetch: refetchPlan } = usePlan();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +63,8 @@ export function AiAgentCard({
       const raw = await onGenerate();
       const text = typeof raw === "string" ? raw : typeof raw === "object" ? JSON.stringify(raw) : String(raw ?? "");
       setResult(text);
+      // Atualiza créditos no contexto após análise bem-sucedida (fire-and-forget)
+      refetchPlan().catch(() => {});
     } catch (e) {
       if (isPlanGateError(e)) {
         setPlanGateModal({
@@ -84,6 +88,8 @@ export function AiAgentCard({
           onClose={() => setPlanGateModal(null)}
           message={planGateModal.message}
           variant={planGateModal.variant}
+          creditsRemaining={planInfo?.aiCreditsRemaining}
+          creditsTotal={planInfo?.aiCreditsPerMonth}
         />
       )}
     <motion.div

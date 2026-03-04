@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/language-context";
+import { usePlan } from "@/contexts/plan-context";
 import { isPlanGateError } from "@/lib/ai/plan-gate-error";
 import { UpgradePlanModal } from "./upgrade-plan-modal";
 
@@ -21,6 +22,7 @@ type Props = {
 
 export function AiInsightButton({ onGenerate, onResult, loadingMessageKeys, className }: Props) {
   const { t } = useLanguage();
+  const { planInfo } = usePlan();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +76,8 @@ export function AiInsightButton({ onGenerate, onResult, loadingMessageKeys, clas
           onClose={() => setPlanGateModal(null)}
           message={planGateModal.message}
           variant={planGateModal.variant}
+          creditsRemaining={planInfo?.aiCreditsRemaining}
+          creditsTotal={planInfo?.aiCreditsPerMonth}
         />
       )}
       <button

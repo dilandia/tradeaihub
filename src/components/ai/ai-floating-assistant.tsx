@@ -81,6 +81,8 @@ export function AiFloatingAssistant({ visible = true }: Props) {
           onClose={() => setPlanGateModal(null)}
           message={planGateModal.message}
           variant={planGateModal.variant}
+          creditsRemaining={planInfo?.aiCreditsRemaining}
+          creditsTotal={planInfo?.aiCreditsPerMonth}
         />
       )}
       <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2 sm:bottom-6 sm:right-6">

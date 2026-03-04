@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Shield,
   BarChart3,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,10 @@ type Props = {
   message: string;
   /** "plan" = precisa upgrade; "credits" = precisa comprar créditos */
   variant?: "plan" | "credits";
+  /** Créditos restantes (para variant="credits") */
+  creditsRemaining?: number;
+  /** Total de créditos do plano no período (para variant="credits") */
+  creditsTotal?: number;
 };
 
 const PLAN_FEATURES = [
@@ -42,7 +47,7 @@ const REASSURANCE = [
   { key: "upgradeModal.securePayment", icon: Shield },
 ] as const;
 
-export function UpgradePlanModal({ open, onClose, message, variant = "plan" }: Props) {
+export function UpgradePlanModal({ open, onClose, message, variant = "plan", creditsRemaining, creditsTotal }: Props) {
   const { t } = useLanguage();
   const [mounted, setMounted] = useState(false);
 
@@ -117,6 +122,29 @@ export function UpgradePlanModal({ open, onClose, message, variant = "plan" }: P
           <p className="mt-3 text-center text-sm text-muted-foreground">
             {isCredits ? t("creditsModal.description") : t("upgradeModal.description")}
           </p>
+
+          {/* Bloco de créditos esgotados (só variant=credits) */}
+          {isCredits && creditsTotal != null && (
+            <div className="mt-5 rounded-xl border border-loss/20 bg-loss/5 p-4">
+              <div className="mb-2 flex items-center justify-between text-xs font-medium">
+                <span className="flex items-center gap-1.5 text-loss">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  {t("creditsModal.usedAll", { used: creditsTotal - (creditsRemaining ?? 0), total: creditsTotal })}
+                </span>
+                <span className="text-muted-foreground">
+                  {creditsRemaining ?? 0}/{creditsTotal}
+                </span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted/40">
+                <div
+                  className="h-full rounded-full bg-loss transition-all duration-500"
+                  style={{
+                    width: `${creditsTotal > 0 ? Math.round(((creditsTotal - (creditsRemaining ?? 0)) / creditsTotal) * 100) : 100}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Lista de features */}
           <ul className="mt-6 space-y-3">

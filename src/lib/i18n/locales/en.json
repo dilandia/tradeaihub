@@ -760,6 +760,7 @@
     "subheading": "MORE AI ANALYSES",
     "heading": "Buy extra credits",
     "description": "Keep using AI agents without interruption.",
+    "usedAll": "You used {used} of {total} credits this month",
     "feature1": "Packs of 20, 50 or 100 credits",
     "feature2": "Credits don't expire in the period",
     "upgradeCta": "Buy credits"
