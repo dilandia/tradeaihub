@@ -10,6 +10,8 @@ interface SupabaseSession {
   user?: Record<string, unknown>;
 }
 
+// SupabaseSession used in parseSessionFromCookies
+
 interface JwtPayload {
   sub?: string;
   email?: string;
@@ -118,84 +120,9 @@ function parseSessionFromCookies(
   }
 }
 
-/**
- * Refresh the access token directly via Supabase REST API.
- * Does NOT use @supabase/ssr to avoid the internal GoTrueClient lock.
- * Uses Promise.race with a 5-second timeout to prevent hangs on both
- * the fetch() and the response.json() calls.
- */
-async function refreshTokenDirect(
-  refreshToken: string,
-  supabaseUrl: string,
-  anonKey: string
-): Promise<SupabaseSession | null> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-  try {
-    const response = await fetch(
-      `${supabaseUrl}/auth/v1/token?grant_type=refresh_token`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: anonKey,
-        },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-        signal: controller.signal,
-      }
-    );
-    clearTimeout(timeoutId);
-    if (!response.ok) return null;
-    const data = (await response.json()) as SupabaseSession;
-    if (!data.access_token || !data.refresh_token) return null;
-    return data;
-  } catch {
-    clearTimeout(timeoutId);
-    return null;
-  }
-}
-
-/**
- * Store a Supabase session in the response cookies.
- * Splits into chunks if the JSON exceeds 3800 bytes (cookie size limit ~4096 bytes).
- */
-function setSessionCookies(
-  response: NextResponse,
-  cookieName: string,
-  session: SupabaseSession,
-  isProd: boolean
-): void {
-  const cookieOptions = {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: "lax" as const,
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365, // 1 year (Supabase manages actual expiry)
-  };
-
-  const sessionJson = JSON.stringify(session);
-
-  // Clear old chunked cookies first (in case they existed)
-  for (let i = 0; i < 10; i++) {
-    response.cookies.delete(`${cookieName}.${i}`);
-  }
-
-  if (sessionJson.length <= 3800) {
-    response.cookies.set(cookieName, sessionJson, cookieOptions);
-  } else {
-    // Chunk the session into pieces
-    response.cookies.delete(cookieName);
-    const chunkSize = 3800;
-    for (let i = 0; i * chunkSize < sessionJson.length; i++) {
-      response.cookies.set(
-        `${cookieName}.${i}`,
-        sessionJson.slice(i * chunkSize, (i + 1) * chunkSize),
-        cookieOptions
-      );
-    }
-  }
-}
+// NOTE: refreshTokenDirect and setSessionCookies were removed.
+// Middleware MUST NOT make network calls (Edge Runtime connection pool exhaustion → 502).
+// Token refresh is now handled client-side via /auth/refresh page.
 
 // ─── Main middleware function ─────────────────────────────────────────────────
 
@@ -253,7 +180,8 @@ export async function updateSession(request: NextRequest) {
     path === "/login" ||
     path === "/register" ||
     path === "/forgot-password" ||
-    path === "/reset-password";
+    path === "/reset-password" ||
+    path === "/auth/refresh";
   const isAuthCallback = path === "/auth/callback";
 
   const isSelfAuthApi =
@@ -296,14 +224,6 @@ export async function updateSession(request: NextRequest) {
   // _emitInitialSession to hold the lock while making slow network requests,
   // causing getUser() to wait 9s+ and Cloudflare to return 502.
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-  if (!url || !anonKey) {
-    // Env vars missing — can't validate, pass through
-    return NextResponse.next({ request: { headers: request.headers } });
-  }
-
   const parsed = parseSessionFromCookies(request.cookies.getAll());
 
   // No session at all (includes malformed/unparseable cookies)
@@ -318,7 +238,7 @@ export async function updateSession(request: NextRequest) {
     return emergencyClearAndRedirect(request);
   }
 
-  const { session, cookieName } = parsed;
+  const { session } = parsed;
   const payload = decodeJwtPayload(session.access_token);
 
   // Invalid JWT structure in cookie
@@ -327,92 +247,42 @@ export async function updateSession(request: NextRequest) {
     return emergencyClearAndRedirect(request);
   }
 
-  let user: {
-    id: string;
-    email: string;
-    app_metadata: Record<string, unknown>;
-  } | null = null;
-
   const isExpired =
     typeof payload.exp !== "number" || payload.exp * 1000 < Date.now();
 
-  if (!isExpired) {
-    // Token is still valid — use local data (no network call)
-    user = {
-      id: payload.sub,
-      email: (payload.email as string) ?? "",
-      app_metadata: (payload.app_metadata as Record<string, unknown>) ?? {},
-    };
-  } else {
-    // Token expired — try to refresh directly (bypasses @supabase/ssr lock)
-    console.log("[Middleware] Access token expired, refreshing directly...");
-    const newSession = await refreshTokenDirect(
-      session.refresh_token,
-      url,
-      anonKey
-    );
-
-    if (newSession) {
-      const newPayload = decodeJwtPayload(newSession.access_token);
-      if (newPayload?.sub) {
-        user = {
-          id: newPayload.sub,
-          email: (newPayload.email as string) ?? "",
-          app_metadata:
-            (newPayload.app_metadata as Record<string, unknown>) ?? {},
-        };
-        // Store refreshed session in cookies for subsequent requests
-        const response = NextResponse.next({ request: { headers: request.headers } });
-        setSessionCookies(response, cookieName, newSession, isProd);
-        // Apply routing decisions below before returning
-        // (we'll return this response after routing checks)
-
-        // Apply routing logic
-        if (isAuthPage) {
-          return NextResponse.redirect(new URL("/dashboard", request.url));
-        }
-        if (path === "/" && user) {
-          return NextResponse.redirect(new URL("/dashboard", request.url));
-        }
-        if (path.startsWith("/admin")) {
-          const isAdmin =
-            user.app_metadata?.role === "admin" ||
-            user.app_metadata?.role === "super_admin";
-          if (!isAdmin) {
-            return NextResponse.redirect(new URL("/dashboard", request.url));
-          }
-        }
-        return response;
-      }
+  // Token expired — redirect to /auth/refresh page for client-side refresh.
+  // CRITICAL: Do NOT make network calls from middleware (Edge Runtime connection
+  // pool exhaustion causes accumulated hanging fetches → 502 cascade).
+  if (isExpired) {
+    if (isAuthPage || isAuthCallback) {
+      // Already on an auth page — let it through (avoid redirect loop)
+      return NextResponse.next({ request: { headers: request.headers } });
     }
-
-    // Refresh failed — session is dead
-    console.warn("[Middleware] Token refresh failed — clearing session");
-    if (!isAuthPage && !isAuthCallback && !isApiRoute) {
-      return emergencyClearAndRedirect(request);
+    if (isApiRoute) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    // Auth pages and API routes: continue without user
+    const returnPath = request.nextUrl.pathname + request.nextUrl.search;
+    const refreshUrl = new URL("/auth/refresh", request.url);
+    refreshUrl.searchParams.set("next", returnPath);
+    return NextResponse.redirect(refreshUrl);
   }
 
-  // ── Routing decisions ─────────────────────────────────────────────────────
+  // Token is valid — decode user locally (zero network calls)
+  const user = {
+    id: payload.sub!,
+    email: (payload.email as string) ?? "",
+    app_metadata: (payload.app_metadata as Record<string, unknown>) ?? {},
+  };
+
+  // ── Routing decisions (user is always authenticated at this point) ─────────
 
   // Logged-in user on auth page → dashboard
-  if (isAuthPage && user) {
+  if (isAuthPage) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // API routes: 401 JSON for unauthenticated
-  if (isApiRoute && !user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // Protected routes: redirect to login if no user
-  if (!isAuthPage && !isAuthCallback && !user) {
-    return emergencyClearAndRedirect(request);
-  }
-
   // Admin protection
-  if (path.startsWith("/admin") && user) {
+  if (path.startsWith("/admin")) {
     const isAdmin =
       user.app_metadata?.role === "admin" ||
       user.app_metadata?.role === "super_admin";
@@ -422,7 +292,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   // app.tradeaihub.com: root with logged-in user → dashboard
-  if (path === "/" && user) {
+  if (path === "/") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
