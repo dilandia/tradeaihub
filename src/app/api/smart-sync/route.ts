@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlanInfo } from "@/lib/plan";
 import { syncAccountWithMetaApi } from "@/lib/metaapi-sync";
+import { syncLogger } from "@/lib/logger";
 
 const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
 const STALE_SYNC_MS = 10 * 60 * 1000; // 10 min — auto-recover stuck "syncing" status
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
       if (a.status === "syncing" && a.updated_at) {
         const stuckFor = now - new Date(a.updated_at).getTime();
         if (stuckFor > STALE_SYNC_MS) {
-          console.log(`[smart-sync] Auto-recovering stale sync for ${a.account_name} (stuck ${Math.round(stuckFor / 60000)}min)`);
+          syncLogger.warn({ accountName: a.account_name, stuckMinutes: Math.round(stuckFor / 60000) }, "Auto-recovering stale sync");
           await admin
             .from("trading_accounts")
             .update({ status: "error", error_message: "Sync interrompido (recuperação automática)", updated_at: new Date().toISOString() })
@@ -118,7 +119,7 @@ export async function POST(request: Request) {
           }
           // On success, syncAccountWithMetaApi already updates status to "connected"
         } catch (err) {
-          console.error("[smart-sync] Background sync failed for", account.id, err);
+          syncLogger.error({ accountId: account.id, error: err instanceof Error ? err.message : String(err) }, "Background sync failed");
           await admin
             .from("trading_accounts")
             .update({
@@ -130,11 +131,11 @@ export async function POST(request: Request) {
             .eq("user_id", userId);
         }
       }
-      console.log("[smart-sync] Background sync complete for", accountIds.length, "accounts");
+      syncLogger.info({ accountCount: accountIds.length }, "Background sync complete");
     };
 
     runSequentialSync().catch((err) =>
-      console.error("[smart-sync] Sequential sync rejected:", err)
+      syncLogger.error({ error: err instanceof Error ? err.message : String(err) }, "Sequential sync rejected")
     );
 
     return NextResponse.json(
@@ -142,7 +143,7 @@ export async function POST(request: Request) {
       { status: 202 }
     );
   } catch (err) {
-    console.error("[smart-sync] Route error:", err);
+    syncLogger.error({ error: err instanceof Error ? err.message : String(err) }, "Smart-sync route error");
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

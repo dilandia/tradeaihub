@@ -10,6 +10,7 @@
 
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { decrypt } from "@/lib/crypto";
+import { syncLogger } from "@/lib/logger";
 
 /* ─── Constants ─── */
 
@@ -104,13 +105,13 @@ async function metaFetchRetry(
     if (res.status === 429) {
       const rawRetry = parseInt(res.headers.get("Retry-After") || "5", 10);
       const retryAfter = Number.isNaN(rawRetry) || rawRetry <= 0 ? 5 : rawRetry;
-      console.warn(`[metaApi] 429 rate limited, retrying in ${retryAfter}s...`);
+      syncLogger.warn({ status: 429, retryAfter }, "Rate limited, retrying");
       await sleep(retryAfter * 1000);
       continue;
     }
 
     if (res.status >= 500 && attempt < retries - 1) {
-      console.warn(`[metaApi] ${res.status}, retrying in 3s...`);
+      syncLogger.warn({ status: res.status }, "Server error, retrying in 3s");
       await sleep(3000);
       continue;
     }
@@ -141,7 +142,7 @@ async function listMetaApiAccounts(query?: string): Promise<MetaApiAccount[]> {
   const url = `${PROVISIONING_BASE}/users/current/accounts?${params.toString()}`;
   const res = await metaFetchRetry(url);
   if (!res.ok) {
-    console.error("[metaApi] listAccounts failed:", res.status);
+    syncLogger.error({ status: res.status }, "listAccounts failed");
     return [];
   }
   const data = await res.json();
@@ -169,9 +170,7 @@ async function createMetaApiAccount(params: {
     type: "cloud-g2",
   };
 
-  if (process.env.NODE_ENV === "development") {
-    console.log("[metaApi] Creating account...");
-  }
+  syncLogger.debug("Creating MetaApi account");
 
   let res = await metaFetch(`${PROVISIONING_BASE}/users/current/accounts`, {
     method: "POST",
@@ -185,7 +184,7 @@ async function createMetaApiAccount(params: {
     const raw = parseInt(res.headers.get("Retry-After") || "10", 10);
     const retryAfterSec = Number.isNaN(raw) || raw <= 0 ? 10 : raw;
     const waitMs = Math.min(retryAfterSec * 1000, 30_000);
-    console.log(`[metaApi] 202 Accepted, retrying in ${retryAfterSec}s...`);
+    syncLogger.info({ retryAfterSec }, "202 Accepted, retrying");
     await sleep(waitMs);
 
     res = await metaFetch(`${PROVISIONING_BASE}/users/current/accounts`, {
@@ -198,7 +197,7 @@ async function createMetaApiAccount(params: {
 
   if (res.status === 201 || res.status === 200) {
     const data = await res.json();
-    console.log("[metaApi] Account created:", data.id);
+    syncLogger.info({ accountId: data.id }, "Account created");
 
     // Enable MetaStats API on the new account (required for metrics endpoint)
     try {
@@ -207,12 +206,12 @@ async function createMetaApiAccount(params: {
         { method: "POST" }
       );
       if (enableRes.status === 204 || enableRes.status === 200) {
-        console.log("[metaApi] MetaStats API enabled for account", data.id);
+        syncLogger.info({ accountId: data.id }, "MetaStats API enabled");
       } else {
-        console.warn("[metaApi] Failed to enable MetaStats:", enableRes.status);
+        syncLogger.warn({ status: enableRes.status }, "Failed to enable MetaStats");
       }
     } catch (err) {
-      console.warn("[metaApi] MetaStats enable failed (non-blocking):", err);
+      syncLogger.warn({ error: err }, "MetaStats enable failed (non-blocking)");
     }
 
     return { id: data.id };
@@ -221,7 +220,7 @@ async function createMetaApiAccount(params: {
   const errBody = await res
     .json()
     .catch(() => ({ message: `HTTP ${res.status}` }));
-  console.error("[metaApi] Create error:", errBody.message ?? `HTTP ${res.status}`);
+  syncLogger.error({ status: res.status, message: errBody.message }, "Account create error");
   return {
     error: errBody.message || `Erro MetaApi ao criar conta (${res.status})`,
   };
@@ -235,7 +234,7 @@ async function getMetaApiAccount(
     `${PROVISIONING_BASE}/users/current/accounts/${accountId}`
   );
   if (!res.ok) {
-    console.error("[metaApi] getAccount failed:", res.status);
+    syncLogger.error({ status: res.status }, "getAccount failed");
     return null;
   }
   return res.json();
@@ -243,25 +242,21 @@ async function getMetaApiAccount(
 
 /** Deploy account */
 async function deployAccount(accountId: string): Promise<boolean> {
-  if (process.env.NODE_ENV === "development") {
-    console.log("[metaApi] Deploying account...");
-  }
+  syncLogger.debug("Deploying account");
   const res = await metaFetchRetry(
     `${PROVISIONING_BASE}/users/current/accounts/${accountId}/deploy`,
     { method: "POST" }
   );
   const ok = res.status === 204 || res.ok;
   if (!ok) {
-    console.error("[metaApi] Deploy failed:", res.status);
+    syncLogger.error({ status: res.status }, "Deploy failed");
   }
   return ok;
 }
 
 /** Undeploy account (economia de custos) */
 export async function undeployAccount(accountId: string): Promise<void> {
-  if (process.env.NODE_ENV === "development") {
-    console.log("[metaApi] Undeploying account...");
-  }
+  syncLogger.debug("Undeploying account");
   await metaFetchRetry(
     `${PROVISIONING_BASE}/users/current/accounts/${accountId}/undeploy`,
     { method: "POST" }
@@ -274,18 +269,16 @@ async function waitConnected(
   timeoutMs = 120_000
 ): Promise<boolean> {
   const start = Date.now();
-  console.log("[metaApi] Waiting for connection...");
+  syncLogger.info({ accountId }, "Waiting for connection");
 
   while (Date.now() - start < timeoutMs) {
     const acc = await getMetaApiAccount(accountId);
     if (!acc) return false;
 
-    console.log(
-      `[metaApi] state=${acc.state} connectionStatus=${acc.connectionStatus}`
-    );
+    syncLogger.debug({ state: acc.state, connectionStatus: acc.connectionStatus }, "Connection poll");
 
     if (acc.connectionStatus === "CONNECTED") {
-      console.log("[metaApi] Connected!");
+      syncLogger.info({ accountId }, "Connected");
       return true;
     }
 
@@ -296,7 +289,7 @@ async function waitConnected(
     await sleep(5_000);
   }
 
-  console.error("[metaApi] Connection timeout after", timeoutMs / 1000, "s");
+  syncLogger.error({ timeoutSec: timeoutMs / 1000 }, "Connection timeout");
   return false;
 }
 
@@ -351,21 +344,19 @@ async function getDeals(
   let offset = 0;
   const limit = 1000;
 
-  if (process.env.NODE_ENV === "development") {
-    console.log("[metaApi] Fetching deals...");
-  }
+  syncLogger.debug({ accountId }, "Fetching deals");
 
   while (true) {
     const url = `${base}/users/current/accounts/${accountId}/history-deals/time/${startTime}/${endTime}?offset=${offset}&limit=${limit}`;
     const res = await metaFetchRetry(url);
 
     if (!res.ok) {
-      console.error("[metaApi] getDeals status", res.status);
+      syncLogger.error({ status: res.status }, "getDeals failed");
       break;
     }
 
     const deals: MetaDeal[] = await res.json();
-    console.log(`[metaApi] Got ${deals.length} deals (offset ${offset})`);
+    syncLogger.info({ count: deals.length, offset }, "Fetched deals batch");
     allDeals.push(...deals);
 
     if (deals.length < limit) break;
@@ -425,13 +416,13 @@ async function getMetaStatsHistoricalTrades(
   const res = await metaFetchRetry(url);
 
   if (res.status === 403) {
-    console.log("[metaApi] MetaStats não habilitado para esta conta (403)");
+    syncLogger.info({ accountId }, "MetaStats not enabled for account (403)");
     return [];
   }
   if (res.status === 202) {
     const rawMs = parseInt(res.headers.get("retry-after") || "5", 10);
     const retryAfter = Number.isNaN(rawMs) || rawMs <= 0 ? 5 : rawMs;
-    console.log("[metaApi] MetaStats processando... retry em", retryAfter, "s");
+    syncLogger.info({ retryAfter }, "MetaStats processing, retrying");
     await sleep(retryAfter * 1000);
     return getMetaStatsHistoricalTrades(accountId, startTime, endTime, region);
   }
@@ -451,7 +442,7 @@ async function getAccountInfo(
 
   const res = await metaFetchRetry(url);
   if (!res.ok) {
-    console.error("[metaApi] getAccountInfo failed:", res.status);
+    syncLogger.error({ status: res.status }, "getAccountInfo failed");
     return null;
   }
   return res.json();
@@ -552,8 +543,8 @@ function dealsToTrades(
     const totalProfit = group.reduce((s, d) => s + dealProfit(d), 0);
 
     // Log para debug quando trade tem P&L zerado mas há deals (possível problema de sync)
-    if (totalProfit === 0 && group.length > 0 && process.env.NODE_ENV === "development") {
-      console.warn("[metaApi] Trade com P&L zerado — count:", group.length);
+    if (totalProfit === 0 && group.length > 0) {
+      syncLogger.warn({ dealCount: group.length, positionId: posId }, "Trade with zero P&L");
     }
 
     const entryPrice = entry.price;
@@ -611,7 +602,7 @@ function dealsToTrades(
     });
   }
 
-  console.log(`[metaApi] Converted ${trades.length} trades from ${deals.length} deals`);
+  syncLogger.info({ tradesCount: trades.length, dealsCount: deals.length }, "Converted deals to trades");
   return trades;
 }
 
@@ -711,9 +702,7 @@ export async function syncAccountWithMetaApi(
       return { success: false, error: "Conta não encontrada." };
     }
 
-    if (process.env.NODE_ENV === "development") {
-      console.log("[sync] Starting sync...");
-    }
+    syncLogger.debug({ tradingAccountId }, "Starting sync");
 
     // 2) Descriptografar senha
     let password: string;
@@ -737,9 +726,7 @@ export async function syncAccountWithMetaApi(
 
       if (match) {
         metaApiId = match._id ?? match.id ?? "";
-        if (process.env.NODE_ENV === "development") {
-          console.log("[metaApi] Reusing existing account");
-        }
+        syncLogger.debug({ metaApiId }, "Reusing existing MetaApi account");
       }
 
       if (!metaApiId) {
@@ -776,7 +763,7 @@ export async function syncAccountWithMetaApi(
           { method: "POST" }
         );
         if (enableRes.status === 204 || enableRes.status === 200) {
-          console.log("[sync] MetaStats API enabled for account", metaApiId);
+          syncLogger.info({ metaApiId }, "MetaStats API enabled for account");
         }
       } catch {
         // Non-blocking
@@ -804,18 +791,18 @@ export async function syncAccountWithMetaApi(
     // 6.5) Aguardar sincronização do terminal state
     // MetaApi precisa de tempo para sincronizar o histórico do broker
     // Especialmente para contas novas com muito histórico
-    console.log("[sync] Waiting 10s for terminal history to sync...");
+    syncLogger.info("Waiting 10s for terminal history to sync");
     await sleep(10_000);
 
     // 7) Get account info (usa URL regional) — com retry
     let accInfo = await getAccountInfo(metaApiId!, region);
     if (!accInfo) {
-      console.log("[sync] accountInfo failed, retrying in 10s...");
+      syncLogger.info("accountInfo failed, retrying in 10s");
       await sleep(10_000);
       accInfo = await getAccountInfo(metaApiId!, region);
     }
-    if (accInfo && process.env.NODE_ENV === "development") {
-      console.log("[sync] Account info OK");
+    if (accInfo) {
+      syncLogger.debug("Account info OK");
     }
 
     // 8) Get deals (usa URL regional)
@@ -849,14 +836,7 @@ export async function syncAccountWithMetaApi(
       const expandedStart = new Date(minDate + "T00:00:00.000Z");
       expandedStart.setDate(expandedStart.getDate() - 1); // 1 dia antes
       startTime = expandedStart.toISOString();
-      console.log(
-        "[sync] Expandindo range para re-buscar",
-        zeroProfitInDb.length,
-        "trades zerados — min date:",
-        minDate,
-        "startTime:",
-        startTime
-      );
+      syncLogger.info({ zeroProfitCount: zeroProfitInDb.length, minDate, startTime }, "Expanding range to re-fetch zero-profit trades");
     } else if (lastSync && hasExistingTrades) {
       startTime = lastSync;
     } else {
@@ -866,14 +846,14 @@ export async function syncAccountWithMetaApi(
     // endTime exclusivo na API — adicionar 2 min para capturar deals recentes
     const endTime = new Date(Date.now() + 2 * 60 * 1000).toISOString();
 
-    console.log("[sync] Fetching deals from", startTime, "to", endTime, hasExistingTrades ? "(incremental)" : "(full history)");
+    syncLogger.info({ startTime, endTime, mode: hasExistingTrades ? "incremental" : "full_history" }, "Fetching deals");
 
     let deals = await getDeals(metaApiId!, startTime, endTime, region);
 
     // Se retornou 0 deals na primeira tentativa (história pode não estar sincronizada),
     // aguardar mais e tentar novamente
     if (deals.length === 0 && !hasExistingTrades) {
-      console.log("[sync] 0 deals on first attempt. Waiting 15s for history sync...");
+      syncLogger.info("0 deals on first attempt, waiting 15s for history sync");
       await sleep(15_000);
       deals = await getDeals(metaApiId!, startTime, endTime, region);
     }
@@ -881,7 +861,7 @@ export async function syncAccountWithMetaApi(
     // 8.4) Fallback: quando há trades zerados no DB e time-range retornou 0 deals,
     // buscar por positionId (ticket) — ignora o filtro de tempo da API
     if (deals.length === 0 && zeroProfitInDb.length > 0) {
-      console.log("[sync] 0 deals no range — buscando por positionId dos", zeroProfitInDb.length, "trades zerados");
+      syncLogger.info({ zeroProfitCount: zeroProfitInDb.length }, "0 deals in range, fetching by positionId");
       const seen = new Set<string>();
       for (const row of zeroProfitInDb.slice(0, 20) as { ticket: string }[]) {
         const ticket = row.ticket?.trim();
@@ -894,7 +874,7 @@ export async function syncAccountWithMetaApi(
           }
         }
       }
-      console.log("[sync] getDealsByPosition retornou", deals.length, "deals");
+      syncLogger.info({ count: deals.length }, "getDealsByPosition returned deals");
     }
 
     // 8.5) Enriquecer deals: para posições com P&L zerado, buscar por position (API pode retornar dados incompletos)
@@ -915,7 +895,7 @@ export async function syncAccountWithMetaApi(
       if (total === 0 && group.length > 0) zeroProfitPositions.push(posId);
     }
     if (zeroProfitPositions.length > 0) {
-      console.log("[sync] Enriquecendo", zeroProfitPositions.length, "posições com P&L zerado via getDealsByPosition");
+      syncLogger.info({ count: zeroProfitPositions.length }, "Enriching zero-profit positions via getDealsByPosition");
       const seen = new Set(deals.map((d) => d.id));
       for (const posId of zeroProfitPositions.slice(0, 20)) {
         const extra = await getDealsByPosition(metaApiId!, posId, region);
@@ -934,7 +914,7 @@ export async function syncAccountWithMetaApi(
     // 9.5) Fallback MetaStats: quando há trades com P&L zerado, buscar via MetaStats (dados agregados do broker)
     const zeroProfitTrades = newTrades.filter((t) => t.profit_dollar === 0);
     if (zeroProfitTrades.length > 0) {
-      console.log("[sync] Fallback MetaStats para", zeroProfitTrades.length, "trades com P&L zerado");
+      syncLogger.info({ count: zeroProfitTrades.length }, "Fallback MetaStats for zero-profit trades");
       const metaStatsTrades = await getMetaStatsHistoricalTrades(
         metaApiId!,
         startTime,
@@ -949,9 +929,7 @@ export async function syncAccountWithMetaApi(
         const profit = toNum(ms.profit);
         const pips = ms.pips != null ? toNum(ms.pips) : t.pips;
         const isWin = ms.success === "won" || profit > 0;
-        if (process.env.NODE_ENV === "development") {
-          console.log("[sync] MetaStats corrigiu trade");
-        }
+        syncLogger.debug({ ticket: t.ticket }, "MetaStats corrected trade");
         return {
           ...t,
           profit_dollar: Math.round(profit * 100) / 100,
@@ -1022,14 +1000,14 @@ export async function syncAccountWithMetaApi(
         }
 
         if (upgradedTickets.size > 0) {
-          console.log(`[sync] Upgraded ${upgradedTickets.size} import trades to sync (cross-source dedup)`);
+          syncLogger.info({ count: upgradedTickets.size }, "Upgraded import trades to sync (cross-source dedup)");
           // Remove upgraded trades from newTrades to avoid duplicate insert
           newTrades = newTrades.filter((t) => !upgradedTickets.has(t.ticket));
         }
       }
     } catch (dedupErr) {
       // Non-blocking: if cross-source dedup fails, proceed with normal upsert
-      console.warn("[sync] Cross-source dedup failed (non-blocking):", dedupErr);
+      syncLogger.warn({ error: dedupErr }, "Cross-source dedup failed (non-blocking)");
     }
 
     // 9.9) Before upserting trades, verify account wasn't deleted during sync
@@ -1040,7 +1018,7 @@ export async function syncAccountWithMetaApi(
       .single();
 
     if (!stillActive || stillActive.deleted_at) {
-      console.log("[metaapi-sync] Account was deleted during sync, aborting");
+      syncLogger.warn({ tradingAccountId }, "Account was deleted during sync, aborting");
       if (metaApiId) {
         try { await undeployAccount(metaApiId); } catch {}
       }
@@ -1076,7 +1054,7 @@ export async function syncAccountWithMetaApi(
           const batch = toInsert.slice(i, i + 100);
           const { error: insertErr } = await sb.from("trades").insert(batch);
           if (insertErr) {
-            console.error("[sync] Insert error:", insertErr.message);
+            syncLogger.error({ error: insertErr.message }, "Insert error");
           }
         }
         imported = toInsert.length;
@@ -1112,7 +1090,7 @@ export async function syncAccountWithMetaApi(
       const maxDate = dates.reduce((a, b) => (a > b ? a : b));
       const fixStart = `${minDate}T00:00:00.000Z`;
       const fixEnd = new Date(new Date(maxDate).getTime() + 86400000 * 2).toISOString();
-      console.log("[sync] Corrigindo", zeroInDb.length, "trades zerados no DB via MetaStats");
+      syncLogger.info({ count: zeroInDb.length }, "Fixing zero-profit trades in DB via MetaStats");
       const msTrades = await getMetaStatsHistoricalTrades(
         metaApiId!,
         fixStart,
@@ -1145,20 +1123,18 @@ export async function syncAccountWithMetaApi(
           .eq("ticket", row.ticket);
         if (!updErr) {
           imported++;
-          if (process.env.NODE_ENV === "development") {
-            console.log("[sync] MetaStats corrigiu trade existente");
-          }
+          syncLogger.debug({ ticket: row.ticket }, "MetaStats corrected existing trade");
         }
       }
     }
 
-    console.log("[sync] Trades imported:", imported);
+    syncLogger.info({ imported, tradingAccountId }, "Trades imported");
 
     // 10.9) Fetch MetaStats metrics while account is still deployed (zero extra cost)
     let metastatsMetrics: Record<string, unknown> | null = null;
     try {
       const metricsUrl = `${metastatsBase(region)}/users/current/accounts/${metaApiId}/metrics`;
-      console.log(`[sync] MetaStats URL: ${metricsUrl}`);
+      syncLogger.debug({ metricsUrl }, "Fetching MetaStats metrics");
       let metricsRes = await metaFetchRetry(metricsUrl);
 
       // Handle 202 (calculating) — max 3 retries
@@ -1166,7 +1142,7 @@ export async function syncAccountWithMetaApi(
       while (metricsRes.status === 202 && metricsRetries < 3) {
         const rawWait = parseInt(metricsRes.headers.get("retry-after") || "5", 10);
         const waitSec = Number.isNaN(rawWait) || rawWait <= 0 ? 5 : rawWait;
-        console.log(`[sync] MetaStats calculating... retry in ${waitSec}s`);
+        syncLogger.info({ waitSec }, "MetaStats calculating, retrying");
         await sleep(waitSec * 1000);
         metricsRes = await metaFetchRetry(metricsUrl);
         metricsRetries++;
@@ -1174,13 +1150,13 @@ export async function syncAccountWithMetaApi(
 
       if (metricsRes.status === 200) {
         metastatsMetrics = await metricsRes.json();
-        console.log("[sync] MetaStats metrics fetched successfully, keys:", Object.keys(metastatsMetrics as Record<string, unknown>).length);
+        syncLogger.info({ keys: Object.keys(metastatsMetrics as Record<string, unknown>).length }, "MetaStats metrics fetched successfully");
       } else {
         const errBody = await metricsRes.text().catch(() => "");
-        console.warn(`[sync] MetaStats returned ${metricsRes.status}: ${errBody.slice(0, 200)}`);
+        syncLogger.warn({ status: metricsRes.status, body: errBody.slice(0, 200) }, "MetaStats returned non-200");
       }
     } catch (metricsErr) {
-      console.error("[sync] MetaStats fetch failed (non-blocking):", metricsErr);
+      syncLogger.error({ error: metricsErr }, "MetaStats fetch failed (non-blocking)");
       // Non-blocking — sync continues without metrics
     }
 
@@ -1198,9 +1174,9 @@ export async function syncAccountWithMetaApi(
           trades_count: (metricsInner as Record<string, unknown>).trades ?? imported,
           updated_at: new Date().toISOString(),
         }, { onConflict: "trading_account_id" });
-        console.log("[sync] MetaStats metrics stored");
+        syncLogger.info("MetaStats metrics stored");
       } catch (storeErr) {
-        console.error("[sync] Failed to store MetaStats metrics:", storeErr);
+        syncLogger.error({ error: storeErr }, "Failed to store MetaStats metrics");
       }
     }
 
@@ -1238,15 +1214,15 @@ export async function syncAccountWithMetaApi(
     };
   } catch (err) {
     const cid = crypto.randomUUID();
-    console.error(`[${cid}] [syncAccountWithMetaApi] Error:`, err instanceof Error ? err.message : "Unknown");
+    syncLogger.error({ correlationId: cid, error: err instanceof Error ? err.message : "Unknown" }, "syncAccountWithMetaApi error");
 
     // Attempt to undeploy MetaApi account on error (cleanup)
     if (metaApiId) {
       try {
         await undeployAccount(metaApiId);
-        console.log("[metaapi-sync] Undeployed account after error");
+        syncLogger.info({ metaApiId }, "Undeployed account after error");
       } catch (undeployErr) {
-        console.error("[metaapi-sync] Failed to undeploy after error:", undeployErr);
+        syncLogger.error({ error: undeployErr, metaApiId }, "Failed to undeploy after error");
       }
     }
 

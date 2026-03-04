@@ -13,6 +13,7 @@ import {
 import { trackEvent } from "@/lib/email/events";
 import { sendImportCompletedEmail } from "@/lib/email/send";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 /* ─────────────────────────────────────────────
  * Criar trade manualmente
@@ -22,6 +23,12 @@ export async function createTrade(formData: FormData): Promise<{ error?: string 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado." };
+
+  // Rate limit: 60 trades per minute per user
+  const rateCheck = checkRateLimit(user.id, "create-trade", { max: 60, windowMs: 60 * 1000 });
+  if (!rateCheck.allowed) {
+    return { error: `Muitas tentativas. Tente novamente em ${rateCheck.retryAfterSeconds}s.` };
+  }
 
   // TDW3-03: Validate FormData with Zod schema
   const validation = validateTradeFormData(formData);
@@ -72,6 +79,13 @@ export async function importTradesFromFile(formData: FormData): Promise<{
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado." };
+
+  // Rate limit: 10 imports per hour per user
+  const rateCheck = checkRateLimit(user.id, "import-trades", { max: 10, windowMs: 60 * 60 * 1000 });
+  if (!rateCheck.allowed) {
+    const minutes = Math.ceil(rateCheck.retryAfterSeconds / 60);
+    return { error: `Muitas importações. Tente novamente em ${minutes} minuto${minutes > 1 ? "s" : ""}.` };
+  }
 
   const planInfo = await getPlanInfo(user.id);
   if (planInfo) {
