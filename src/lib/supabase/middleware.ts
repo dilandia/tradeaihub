@@ -129,34 +129,31 @@ async function refreshTokenDirect(
   supabaseUrl: string,
   anonKey: string
 ): Promise<SupabaseSession | null> {
-  // Timeout covers both fetch() and response.json() via Promise.race
-  const timeout = new Promise<null>((resolve) =>
-    setTimeout(() => resolve(null), 5000)
-  );
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-  const fetchAttempt = (async (): Promise<SupabaseSession | null> => {
-    try {
-      const response = await fetch(
-        `${supabaseUrl}/auth/v1/token?grant_type=refresh_token`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: anonKey,
-          },
-          body: JSON.stringify({ refresh_token: refreshToken }),
-        }
-      );
-      if (!response.ok) return null;
-      const data = (await response.json()) as SupabaseSession;
-      if (!data.access_token || !data.refresh_token) return null;
-      return data;
-    } catch {
-      return null;
-    }
-  })();
-
-  return Promise.race([fetchAttempt, timeout]);
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/auth/v1/token?grant_type=refresh_token`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: anonKey,
+        },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timeoutId);
+    if (!response.ok) return null;
+    const data = (await response.json()) as SupabaseSession;
+    if (!data.access_token || !data.refresh_token) return null;
+    return data;
+  } catch {
+    clearTimeout(timeoutId);
+    return null;
+  }
 }
 
 /**
