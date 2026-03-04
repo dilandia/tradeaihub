@@ -201,15 +201,17 @@ export async function importTradesFromFile(formData: FormData): Promise<{
       const byComposite = new Map<string, boolean>();
       for (const st of syncTrades) {
         if (st.ticket) byTicket.set(String(st.ticket), true);
-        const key = `${st.pair}|${st.trade_date}|${st.entry_price}|${st.exit_price}`;
+        const normPair = (st.pair ?? "").replace(/\.[a-z]+$/i, "").replace(/[_\-\s]/g, "").toUpperCase();
+        const key = `${normPair}|${st.trade_date}|${st.entry_price}|${st.exit_price}`;
         byComposite.set(key, true);
       }
 
       uniqueTrades = trades.filter((t) => {
         // Level 1: ticket match
         if (t.ticket && byTicket.has(String(t.ticket))) return false;
-        // Level 2: composite match
-        const key = `${t.pair}|${t.trade_date}|${t.entry_price}|${t.exit_price}`;
+        // Level 2: composite match (normalize pair to strip broker suffixes like .c, .pro, .m, .ecn)
+        const normPair = (t.pair ?? "").replace(/\.[a-z]+$/i, "").replace(/[_\-\s]/g, "").toUpperCase();
+        const key = `${normPair}|${t.trade_date}|${t.entry_price}|${t.exit_price}`;
         if (byComposite.has(key)) return false;
         return true;
       });

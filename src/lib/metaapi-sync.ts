@@ -994,7 +994,8 @@ export async function syncAccountWithMetaApi(
 
           // Level 2: composite match
           if (!matchId) {
-            const key = `${t.pair}|${t.trade_date}|${t.entry_price}|${t.exit_price}`;
+            const normSyncPair = (t.pair ?? "").replace(/\.[a-z]+$/i, "").replace(/[_\-\s]/g, "").toUpperCase();
+            const key = `${normSyncPair}|${t.trade_date}|${t.entry_price}|${t.exit_price}`;
             const match = importByComposite.get(key);
             if (match) matchId = match.id;
           }
