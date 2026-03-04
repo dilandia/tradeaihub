@@ -5,8 +5,9 @@ export async function middleware(request: NextRequest) {
   // Global timeout safety net: if the entire middleware takes >9s, redirect to login.
   // This is the last line of defense against Supabase hangs causing 502.
   // (Cloudflare times out at 100s, but we fail fast to keep UX responsive)
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
   const globalTimeoutPromise = new Promise<NextResponse>((resolve) => {
-    setTimeout(() => {
+    timeoutId = setTimeout(() => {
       console.error("[Middleware] Global 9s timeout hit — forcing login redirect");
       const r = NextResponse.redirect(new URL("/login", request.url));
       r.headers.set("Clear-Site-Data", '"cache", "cookies", "storage"');
@@ -15,8 +16,11 @@ export async function middleware(request: NextRequest) {
   });
 
   try {
-    return await Promise.race([updateSession(request), globalTimeoutPromise]);
+    const result = await Promise.race([updateSession(request), globalTimeoutPromise]);
+    if (timeoutId !== null) clearTimeout(timeoutId);
+    return result;
   } catch (error) {
+    if (timeoutId !== null) clearTimeout(timeoutId);
     // SAFETY NET: If middleware crashes for ANY reason, never return 500.
     // Clear all auth cookies and redirect to /login so the user can start fresh.
     // This prevents the 502 that Cloudflare shows when origin returns 500.

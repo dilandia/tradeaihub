@@ -1534,7 +1534,19 @@
     "linkAccount": "Vincular Conta",
     "linkAccountDesc": "Conecte sua conta MT4/MT5 para sync automático",
     "goToImport": "Ir para importação",
-    "manageAccounts": "Gerenciar contas"
+    "manageAccounts": "Gerenciar contas",
+    "readyToImport": "Pronto para importar",
+    "removeFile": "Remover arquivo",
+    "processingTitle": "Importando seus trades...",
+    "stepReading": "Lendo arquivo",
+    "stepProcessing": "Processando trades",
+    "stepSaving": "Salvando no banco",
+    "processingPatience": "Isso pode levar até 30 segundos. Não feche esta página.",
+    "processingAriaLabel": "Importação em andamento",
+    "saving": "Salvando...",
+    "successTitle": "Importação concluída!",
+    "viewTrades": "Ver seus trades",
+    "importAnother": "Importar outro"
   },
   "reportsGate": {
     "subheading": "DECISÕES DE TRADING COM DADOS",

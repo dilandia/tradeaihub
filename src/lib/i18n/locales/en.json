@@ -1534,7 +1534,19 @@
     "linkAccount": "Link Account",
     "linkAccountDesc": "Connect your MT4/MT5 account for automatic sync",
     "goToImport": "Go to import",
-    "manageAccounts": "Manage accounts"
+    "manageAccounts": "Manage accounts",
+    "readyToImport": "Ready to import",
+    "removeFile": "Remove file",
+    "processingTitle": "Importing your trades...",
+    "stepReading": "Reading file",
+    "stepProcessing": "Processing trades",
+    "stepSaving": "Saving to database",
+    "processingPatience": "This may take up to 30 seconds. Do not close this page.",
+    "processingAriaLabel": "Import in progress",
+    "saving": "Saving...",
+    "successTitle": "Import complete!",
+    "viewTrades": "View your trades",
+    "importAnother": "Import another"
   },
   "reportsGate": {
     "subheading": "DATA-DRIVEN TRADING DECISIONS",
