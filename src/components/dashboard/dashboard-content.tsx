@@ -62,6 +62,7 @@ import { BrokerByHourWidget } from "@/components/dashboard/broker-by-hour-widget
 import { BrokerAdvancedRiskWidget } from "@/components/dashboard/broker-advanced-risk-widget";
 import { useSmartSync } from "@/hooks/use-smart-sync";
 import type { TradingAccountSafe } from "@/lib/trading-accounts";
+import type { UserTag } from "@/app/actions/tags";
 
 /* ─── Cálculos ─── */
 import {
@@ -123,6 +124,8 @@ type Props = {
   brokerMetrics?: MetricsSummary | null;
   /** Smart Sync: trading accounts for auto-sync on dashboard open */
   tradingAccounts?: TradingAccountSafe[];
+  /** User-defined tags with colors for enriching recent trades display */
+  userTags?: UserTag[];
 };
 
 /* ─── Formatters ─── */
@@ -195,6 +198,7 @@ export function DashboardContent({
   serverDrawdownCurve = null,
   brokerMetrics = null,
   tradingAccounts = [],
+  userTags = [],
 }: Props) {
   // Smart Sync: auto-sync disabled — user triggers manually via header refresh button
   // useSmartSync(tradingAccounts);
@@ -267,6 +271,12 @@ export function DashboardContent({
   );
   const metrics = useServerData ? serverMetrics : clientMetrics;
 
+  /* ─── Tag color lookup (name → color) ─── */
+  const tagColorMap = useMemo(
+    () => new Map((userTags ?? []).map((ut) => [ut.name.toLowerCase(), { color: ut.color, description: ut.description }])),
+    [userTags]
+  );
+
   /* ─── RecentTrades derivados dos filtrados ─── */
   const recentTrades = useMemo(() => {
     return filteredTrades.slice(0, 20).map((t) => ({
@@ -277,8 +287,17 @@ export function DashboardContent({
       profitDollar: t.profit_dollar ?? null,
       rr: t.risk_reward ?? 0,
       win: t.is_win,
+      tags: t.tags ?? [],
+      tag_details: (t.tags ?? []).map((name) => {
+        const info = tagColorMap.get(name.toLowerCase());
+        return {
+          name,
+          color: info?.color ?? "#7C3AED",
+          description: info?.description ?? null,
+        };
+      }),
     }));
-  }, [filteredTrades]);
+  }, [filteredTrades, tagColorMap]);
 
   /* ─── Memoized computations (todos usam filteredTrades) ─── */
   const calendarData = useMemo(

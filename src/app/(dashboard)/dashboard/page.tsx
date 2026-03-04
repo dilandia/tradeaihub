@@ -17,6 +17,7 @@ import {
   getCachedDrawdownAnalysis,
   getCachedDrawdownCurve,
 } from "@/app/actions/dashboard";
+import { getUserTags } from "@/app/actions/tags";
 import { createClient } from "@/lib/supabase/server";
 import { getPrimaryMetrics } from "@/lib/account-metrics";
 import type { MetricsSummary } from "@/lib/account-metrics";
@@ -38,11 +39,15 @@ export default async function DashboardPage({
   } = await supabase.auth.getUser();
   const userId = user?.id ?? "";
 
-  const [summaries, trades, tradingAccounts, rpcMetrics, rpcEquityCurve, rpcDrawdown, rpcDrawdownCurve, brokerMetrics] =
+  const [summaries, trades, tradingAccounts, userTags, rpcMetrics, rpcEquityCurve, rpcDrawdown, rpcDrawdownCurve, brokerMetrics] =
     await Promise.all([
       getImportSummaries(),
       getTrades(selectedImportId, selectedAccountId),
       getUserTradingAccounts(),
+      getUserTags().catch((err) => {
+        console.error("[dashboard] getUserTags failed:", err);
+        return [] as Awaited<ReturnType<typeof getUserTags>>;
+      }),
       // W2-03: Parallel RPC calls for server-side aggregation
       userId
         ? getCachedDashboardMetrics(
@@ -179,6 +184,7 @@ export default async function DashboardPage({
       serverDrawdownCurve={useDemoData ? null : rpcDrawdownCurve}
       brokerMetrics={useDemoData ? null : (brokerMetrics as MetricsSummary | null)}
       tradingAccounts={tradingAccounts}
+      userTags={userTags}
     />
   );
 }
