@@ -202,18 +202,31 @@ export async function deleteTradingAccount(
       }
     }
 
+    // Use admin client to bypass RLS — the SELECT policy (deleted_at IS NULL)
+    // conflicts with setting deleted_at via regular client.
+    // Ownership still enforced via .eq("user_id", user.id) filters.
+    const adminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const { createClient: createAdmin } = await import("@supabase/supabase-js");
+    const admin = createAdmin(adminUrl, adminKey);
+
     const now = new Date().toISOString();
 
     // 1) Soft-delete trades vinculados
-    await supabase
+    const { error: tradesError } = await admin
       .from("trades")
       .update({ deleted_at: now })
       .eq("trading_account_id", accountId)
       .eq("user_id", user.id)
       .is("deleted_at", null);
 
+    if (tradesError) {
+      console.error("[deleteTradingAccount] trades soft-delete:", tradesError.message);
+      return { success: false, error: "Erro ao deletar trades vinculados." };
+    }
+
     // 2) Soft-delete conta
-    const { error } = await supabase
+    const { error } = await admin
       .from("trading_accounts")
       .update({ deleted_at: now, updated_at: now })
       .eq("id", accountId)
