@@ -21,6 +21,7 @@ type Props = {
   columns: ColumnKey[];
   strategies?: Strategy[];
   userTags?: UserTag[];
+  userTimezone?: string;
 };
 
 function fmtMoney(val: number): string {
@@ -29,7 +30,7 @@ function fmtMoney(val: number): string {
   return `-$${abs.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export function DayCard({ date, trades, expanded, onToggle, columns, strategies = [], userTags = [] }: Props) {
+export function DayCard({ date, trades, expanded, onToggle, columns, strategies = [], userTags = [], userTimezone = "server" }: Props) {
   const { locale, t } = useLanguage();
   const [editingTrade, setEditingTrade] = useState<CalendarTrade | null>(null);
 
@@ -162,6 +163,7 @@ export function DayCard({ date, trades, expanded, onToggle, columns, strategies 
                 columns={columns}
                 strategies={strategies}
                 userTags={userTags}
+                userTimezone={userTimezone}
                 onEditTrade={(trade) => setEditingTrade(trade)}
               />
             </div>

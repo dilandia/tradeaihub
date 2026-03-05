@@ -9,6 +9,7 @@ import { DayCard } from "./day-card";
 import type { ColumnKey } from "./column-selector";
 import type { Strategy } from "@/app/actions/strategies";
 import type { UserTag } from "@/app/actions/tags";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 
 function fmtMoney(val: number): string {
   const abs = Math.abs(val);
@@ -42,6 +43,7 @@ export function WeekSection({
   userTags = [],
 }: Props) {
   const { t } = useLanguage();
+  const userTimezone = useUserTimezone();
 
   const weekStats = useMemo(() => {
     let totalPnl = 0;
@@ -95,6 +97,7 @@ export function WeekSection({
                 columns={columns}
                 strategies={strategies}
                 userTags={userTags}
+                userTimezone={userTimezone}
               />
             </div>
           ))}

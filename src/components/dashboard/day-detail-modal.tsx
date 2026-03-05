@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage } from "@/contexts/language-context";
 import { formatDate } from "@/lib/i18n/date-utils";
 import { cn } from "@/lib/utils";
+import { formatTimeWithUserTimezone } from "@/lib/timezone-utils";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { DayCell, DayTradeDetail } from "@/lib/calendar-utils";
 
 type Props = {
@@ -36,6 +38,7 @@ function StatBox({ label, value, className }: { label: string; value: string; cl
 export function DayDetailModal({ open, onClose, date, dayData, trades, privacy = false }: Props) {
   const { t, locale } = useLanguage();
   const router = useRouter();
+  const userTimezone = useUserTimezone();
   const searchParams = useSearchParams();
   const importId = searchParams.get("import") ?? "";
   const accountId = searchParams.get("account") ?? "";
@@ -183,7 +186,7 @@ export function DayDetailModal({ open, onClose, date, dayData, trades, privacy =
                     }}
                     title={t("trades.viewTrade")}
                   >
-                    <td className="py-2.5 pr-3 text-foreground">{trade.time}</td>
+                    <td className="py-2.5 pr-3 text-foreground">{formatTimeWithUserTimezone(trade.time, date, userTimezone)}</td>
                     <td className="py-2.5 pr-3">
                       <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-foreground">
                         {trade.pair}

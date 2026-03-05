@@ -575,6 +575,7 @@
     "preferences": "Preferences",
     "timezone": "Timezone",
     "timezoneDesc": "To display dates and times in your local timezone",
+    "timezoneServer": "Server (no conversion)",
     "currency": "Preferred currency",
     "currencyDesc": "For monetary value display",
     "language": "Language",

@@ -9,6 +9,7 @@ import type { CalendarTrade, DayCell } from "@/lib/calendar-utils";
 import { ChevronLeft, ChevronRight, TrendingUp, BarChart3, Target, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePdfExport } from "@/hooks/use-pdf-export";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import { ExportPdfButton } from "@/components/reports/export-pdf-button";
 import { DayCard } from "@/components/day-view/day-card";
 import { DEFAULT_COLUMNS } from "@/components/day-view/column-selector";
@@ -38,6 +39,7 @@ function fmtMoneyShort(val: number): string {
 
 export function CalendarReportContent({ trades }: Props) {
   const { locale, t } = useLanguage();
+  const userTimezone = useUserTimezone();
   const { exportRef, handleExport, isExporting, canExport } = usePdfExport("Calendar-Report");
   const monthNames = useMemo(() => getMonthNamesShort(locale), [locale]);
   const dayNames = useMemo(() => getWeekdayNames(locale, "short"), [locale]);
@@ -326,6 +328,7 @@ export function CalendarReportContent({ trades }: Props) {
               columns={columns}
               strategies={strategies}
               userTags={userTags}
+              userTimezone={userTimezone}
             />
           </CardContent>
         </Card>

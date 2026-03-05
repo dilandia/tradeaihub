@@ -575,6 +575,7 @@
     "preferences": "Preferências",
     "timezone": "Fuso horário",
     "timezoneDesc": "Para exibir datas e horários no seu fuso local",
+    "timezoneServer": "Servidor (sem conversão)",
     "currency": "Moeda preferida",
     "currencyDesc": "Para exibição de valores monetários",
     "language": "Idioma",

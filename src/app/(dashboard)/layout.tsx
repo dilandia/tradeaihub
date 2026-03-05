@@ -21,7 +21,8 @@ export default async function DashboardLayout({
 
   /* Buscar dados compartilhados entre todas as páginas */
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
 
   const [summaries, tradingAccounts, userName, planInfo] = await Promise.all([
     getImportSummaries(),

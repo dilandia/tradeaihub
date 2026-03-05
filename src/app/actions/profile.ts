@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 /* ─── Types ─── */
@@ -33,9 +32,10 @@ export type ProfileUpdatePayload = {
 export async function getProfile(): Promise<ProfileData | null> {
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.user) return null;
+  const user = session.user;
 
   const { data, error } = await supabase
     .from("profiles")
@@ -52,7 +52,7 @@ export async function getProfile(): Promise<ProfileData | null> {
     avatar_url: data.avatar_url ?? null,
     phone: data.phone ?? null,
     bio: data.bio ?? null,
-    timezone: data.timezone ?? "America/Sao_Paulo",
+    timezone: data.timezone ?? "server",
     preferred_currency: data.preferred_currency ?? "USD",
     language: data.language ?? "pt-BR",
     created_at: data.created_at,
@@ -67,9 +67,10 @@ export async function updateProfile(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "Não autenticado." };
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.user) return { success: false, error: "Não autenticado." };
+  const user = session.user;
 
   const { error } = await supabase
     .from("profiles")
@@ -84,15 +85,13 @@ export async function updateProfile(
     return { success: false, error: "Erro ao atualizar perfil. Tente novamente." };
   }
 
-  // Atualizar metadata do auth também (para o nome aparecer no header)
+  // Atualizar metadata do auth também (fire-and-forget para não bloquear)
   if (payload.full_name !== undefined) {
-    await supabase.auth.updateUser({
+    supabase.auth.updateUser({
       data: { full_name: payload.full_name },
-    });
+    }).catch(() => { /* non-critical */ });
   }
 
-  revalidatePath("/settings/profile");
-  revalidatePath("/", "layout");
   return { success: true };
 }
 
@@ -101,9 +100,10 @@ export async function updateAvatar(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "Não autenticado." };
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.user) return { success: false, error: "Não autenticado." };
+  const user = session.user;
 
   const { error } = await supabase
     .from("profiles")
@@ -115,7 +115,6 @@ export async function updateAvatar(
     return { success: false, error: "Erro ao atualizar avatar. Tente novamente." };
   }
 
-  revalidatePath("/settings/profile");
   return { success: true };
 }
 
@@ -125,9 +124,10 @@ export async function deleteAvatar(): Promise<{
 }> {
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "Não autenticado." };
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.user) return { success: false, error: "Não autenticado." };
+  const user = session.user;
 
   const { error } = await supabase
     .from("profiles")
@@ -139,6 +139,5 @@ export async function deleteAvatar(): Promise<{
     return { success: false, error: "Erro ao remover avatar. Tente novamente." };
   }
 
-  revalidatePath("/settings/profile");
   return { success: true };
 }

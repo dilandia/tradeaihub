@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useLanguage } from "@/contexts/language-context";
 import { formatDate } from "@/lib/i18n/date-utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,7 +30,8 @@ import { usePlan } from "@/contexts/plan-context";
 
 /* ─── Constants ─── */
 
-const TIMEZONES = [
+const TIMEZONE_OPTIONS = [
+  { value: "server", labelKey: "profile.timezoneServer", fallback: "Servidor (sem conversão)" },
   { value: "America/Sao_Paulo", label: "Brasília (UTC-3)" },
   { value: "America/New_York", label: "New York (UTC-5)" },
   { value: "America/Chicago", label: "Chicago (UTC-6)" },
@@ -96,7 +97,7 @@ type Props = { profile: ProfileData };
 export function ProfileForm({ profile }: Props) {
   const { t, locale } = useLanguage();
   const { planInfo, isLoading: isPlanLoading } = usePlan();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -116,8 +117,9 @@ export function ProfileForm({ profile }: Props) {
     currency !== profile.preferred_currency ||
     language !== profile.language;
 
-  function handleSave() {
+  async function handleSave() {
     setStatus("idle");
+    setIsPending(true);
     const payload: ProfileUpdatePayload = {
       full_name: fullName.trim(),
       phone: phone.trim() || undefined,
@@ -127,7 +129,7 @@ export function ProfileForm({ profile }: Props) {
       language,
     };
 
-    startTransition(async () => {
+    try {
       const result = await updateProfile(payload);
       if (result.success) {
         setStatus("success");
@@ -136,13 +138,23 @@ export function ProfileForm({ profile }: Props) {
         setStatus("error");
         setErrorMsg(result.error ?? t("profile.saveError"));
       }
-    });
+    } catch {
+      setStatus("error");
+      setErrorMsg(t("profile.saveError") ?? "Erro ao salvar perfil.");
+    } finally {
+      setIsPending(false);
+    }
   }
 
-  function handleDeleteAvatar() {
-    startTransition(async () => {
+  async function handleDeleteAvatar() {
+    setIsPending(true);
+    try {
       await deleteAvatar();
-    });
+    } catch {
+      // silent
+    } finally {
+      setIsPending(false);
+    }
   }
 
   const inputClass =
@@ -290,9 +302,9 @@ export function ProfileForm({ profile }: Props) {
                 onChange={(e) => setTimezone(e.target.value)}
                 className={selectClass}
               >
-                {TIMEZONES.map((tz) => (
+                {TIMEZONE_OPTIONS.map((tz) => (
                   <option key={tz.value} value={tz.value}>
-                    {tz.label}
+                    {"labelKey" in tz ? (t(tz.labelKey) ?? tz.fallback) : tz.label}
                   </option>
                 ))}
               </select>

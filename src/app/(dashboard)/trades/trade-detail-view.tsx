@@ -15,6 +15,8 @@ import { TradeChartLightweight } from "@/components/trades/trade-chart-lightweig
 import { TradeRunningPnlChart } from "@/components/trades/trade-running-pnl-chart";
 import { TagAutocomplete } from "@/components/trades/tag-autocomplete";
 import { StrategySelector } from "@/components/trades/strategy-selector";
+import { formatTimeWithUserTimezone } from "@/lib/timezone-utils";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 
 interface TradeDetailViewProps {
   trade: TradeWithMetaApi;
@@ -42,6 +44,7 @@ function inferIsLong(trade: DbTrade): boolean {
 export function TradeDetailView({ trade, importId, accountId }: TradeDetailViewProps) {
   const { t } = useLanguage();
   const router = useRouter();
+  const userTimezone = useUserTimezone();
   const [notes, setNotes] = useState(trade.notes ?? "");
   const [tags, setTags] = useState<string[]>(trade.tags ?? []);
   const [strategyId, setStrategyId] = useState<string | null>(trade.strategy_id ?? null);
@@ -146,7 +149,7 @@ export function TradeDetailView({ trade, importId, accountId }: TradeDetailViewP
               <div className="text-sm">
                 <p className="text-xs text-muted-foreground">{t("trades.entryExit")}</p>
                 <p className="font-medium">
-                  {trade.entry_time.slice(0, 5)} → {trade.exit_time?.slice(0, 5) ?? "—"}
+                  {formatTimeWithUserTimezone(trade.entry_time, trade.trade_date, userTimezone).slice(0, 5)} → {formatTimeWithUserTimezone(trade.exit_time, trade.trade_date, userTimezone).slice(0, 5)}
                 </p>
               </div>
             )}

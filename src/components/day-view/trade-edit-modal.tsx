@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { updateTradeNotesAndTags } from "@/app/actions/trades";
 import { TagAutocomplete } from "@/components/trades/tag-autocomplete";
 import { StrategySelector } from "@/components/trades/strategy-selector";
+import { formatTimeWithUserTimezone } from "@/lib/timezone-utils";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 import type { Strategy } from "@/app/actions/strategies";
 import type { UserTag } from "@/app/actions/tags";
@@ -24,6 +26,7 @@ interface TradeEditModalProps {
 export function TradeEditModal({ open, onClose, trade, strategies, userTags }: TradeEditModalProps) {
   const { t } = useLanguage();
   const router = useRouter();
+  const userTimezone = useUserTimezone();
   const [notes, setNotes] = useState(trade.notes ?? "");
   const [tags, setTags] = useState<string[]>(trade.tags ?? []);
   const [strategyId, setStrategyId] = useState<string | null>(trade.strategy_id ?? null);
@@ -80,7 +83,7 @@ export function TradeEditModal({ open, onClose, trade, strategies, userTags }: T
                     {t("dayView.editTrade")}
                   </h2>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {trade.pair} &middot; {trade.entry_time ?? trade.time}
+                    {trade.pair} &middot; {formatTimeWithUserTimezone(trade.entry_time ?? trade.time, trade.date, userTimezone)}
                   </p>
                 </div>
                 <button

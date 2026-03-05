@@ -3,6 +3,7 @@
 import { Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/language-context";
+import { formatTimeWithUserTimezone } from "@/lib/timezone-utils";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 import type { ColumnKey } from "./column-selector";
 import type { Strategy } from "@/app/actions/strategies";
@@ -13,6 +14,7 @@ type Props = {
   columns: ColumnKey[];
   strategies?: Strategy[];
   userTags?: UserTag[];
+  userTimezone?: string;
   onEditTrade?: (trade: CalendarTrade) => void;
 };
 
@@ -114,15 +116,20 @@ function CellValue({
   trade,
   strategies,
   userTags,
+  userTimezone = "server",
 }: {
   col: ColumnKey;
   trade: CalendarTrade;
   strategies: Strategy[];
   userTags: UserTag[];
+  userTimezone?: string;
 }) {
   switch (col) {
-    case "open_time":
-      return <span className="text-muted-foreground">{trade.entry_time ?? trade.time ?? "\u2014"}</span>;
+    case "open_time": {
+      const time = trade.entry_time ?? trade.time ?? "\u2014";
+      const formattedTime = formatTimeWithUserTimezone(time === "\u2014" ? null : time, trade.date, userTimezone);
+      return <span className="text-muted-foreground">{formattedTime}</span>;
+    }
     case "ticker":
       return <span className="font-medium text-score">{trade.pair}</span>;
     case "side": {
@@ -175,7 +182,7 @@ function CellValue({
   }
 }
 
-export function DayTradesTable({ trades, columns, strategies = [], userTags = [], onEditTrade }: Props) {
+export function DayTradesTable({ trades, columns, strategies = [], userTags = [], userTimezone = "server", onEditTrade }: Props) {
   const { t } = useLanguage();
 
   if (trades.length === 0) {
@@ -236,7 +243,7 @@ export function DayTradesTable({ trades, columns, strategies = [], userTags = []
                     COLUMN_CONFIG[col]?.align === "right" && "text-right"
                   )}
                 >
-                  <CellValue col={col} trade={trade} strategies={strategies} userTags={userTags} />
+                  <CellValue col={col} trade={trade} strategies={strategies} userTags={userTags} userTimezone={userTimezone} />
                 </td>
               ))}
               {showStrategy && (
