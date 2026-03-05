@@ -285,6 +285,30 @@ export function CompareContent() {
         </Card>
       </div>
 
+      {/* Selected periods summary */}
+      {isValid && (
+        <Card>
+          <CardContent className="py-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 text-xs font-bold text-blue-400">A</span>
+                <span className="text-muted-foreground">{periodALabel || t("compare.periodA")}:</span>
+                <span className="font-medium text-foreground">{periodA.start}</span>
+                <span className="text-muted-foreground">→</span>
+                <span className="font-medium text-foreground">{periodA.end}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-400">B</span>
+                <span className="text-muted-foreground">{periodBLabel || t("compare.periodB")}:</span>
+                <span className="font-medium text-foreground">{periodB.start}</span>
+                <span className="text-muted-foreground">→</span>
+                <span className="font-medium text-foreground">{periodB.end}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* AI Compare Card */}
       {isValid ? (
         <AiAgentCard

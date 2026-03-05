@@ -11,6 +11,27 @@ import { getCorsHeaders, handleCorsPrelight } from "@/lib/cors";
 import { trackEvent } from "@/lib/email/events";
 import type { CalendarTrade } from "@/lib/calendar-utils";
 
+function getTopPairs(trades: CalendarTrade[], limit: number) {
+  const counts = new Map<string, { total: number; wins: number; pnl: number }>();
+  for (const t of trades) {
+    const p = t.pair || "Unknown";
+    const entry = counts.get(p) ?? { total: 0, wins: 0, pnl: 0 };
+    entry.total++;
+    if (t.is_win) entry.wins++;
+    entry.pnl += t.profit_dollar ?? t.pips;
+    counts.set(p, entry);
+  }
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1].total - a[1].total)
+    .slice(0, limit)
+    .map(([pair, stats]) => ({
+      pair,
+      trades: stats.total,
+      winRate: stats.total > 0 ? Math.round((stats.wins / stats.total) * 100) : 0,
+      pnl: Math.round(stats.pnl * 100) / 100,
+    }));
+}
+
 export async function OPTIONS(req: NextRequest) {
   return handleCorsPrelight(req.headers.get("origin"));
 }
@@ -43,19 +64,14 @@ export async function POST(req: NextRequest) {
     } = validation.data;
 
     const supabase = await createClient();
-    let user = null;
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error) user = data.user;
-    } catch {
-      // Auth check failed silently — user remains null
-    }
-    if (!user) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401, headers: corsHeaders }
       );
     }
+    const user = session.user;
 
     // TDR-06: Rate limiting check
     const { allowed: rateLimitAllowed, remaining, resetIn } = checkRateLimit(user.id);
@@ -87,27 +103,27 @@ export async function POST(req: NextRequest) {
     const trades1 = toCalendarTrades(trades1Raw);
     const trades2 = toCalendarTrades(trades2Raw);
 
-    if (trades1.length === 0 && trades2.length === 0) {
-      const msg = locale?.startsWith("pt")
-        ? "Nenhum trade encontrado em ambos os periodos. Adicione ou importe trades para comparar."
-        : "No trades found in either period. Add or import trades to compare.";
-      return NextResponse.json(
-        { analysis: msg },
-        { headers: corsHeaders }
-      );
-    }
-
-    // Cache check — use date ranges as cache key parts
+    // Cache check — use date ranges + trade counts as cache key parts
     const cacheParams = {
       importId,
       accountId,
-      period: `compare:${period1Start}:${period1End}:${period2Start}:${period2End}`,
+      period: `compare:${period1Start}:${period1End}:${period2Start}:${period2End}:t${trades1Raw.length}:t${trades2Raw.length}`,
       locale,
     };
     const cached = await getCachedInsight("compare", cacheParams);
     if (cached) {
       return NextResponse.json(
         { analysis: cached, cached: true },
+        { headers: corsHeaders }
+      );
+    }
+
+    if (trades1.length === 0 && trades2.length === 0) {
+      const msg = locale?.startsWith("pt")
+        ? `Nenhum trade encontrado em ambos os periodos selecionados (${period1Start} a ${period1End} e ${period2Start} a ${period2End}). Verifique se voce tem trades importados/registrados nessas datas e tente novamente.`
+        : `No trades found in either period (${period1Start} to ${period1End} and ${period2Start} to ${period2End}). Check if you have trades imported/registered in those dates and try again.`;
+      return NextResponse.json(
+        { analysis: msg },
         { headers: corsHeaders }
       );
     }
@@ -127,33 +143,35 @@ export async function POST(req: NextRequest) {
     const label1 = period1Label || `${period1Start} to ${period1End}`;
     const label2 = period2Label || `${period2Start} to ${period2End}`;
 
+    // Build enriched metrics with more context for the AI
+    const buildEnrichedMetrics = (metrics: typeof metrics1, trades: typeof trades1, start: string, end: string) => ({
+      dateRange: { start, end },
+      tradesCount: trades.length,
+      tradingDays: new Set(trades.map(t => t.date)).size,
+      wins: metrics.wins,
+      losses: metrics.losses,
+      winRate: metrics.winRate,
+      profitFactor: metrics.profitFactor,
+      totalTrades: metrics.totalTrades,
+      netPnl: metrics.netPnl,
+      grossProfit: Math.round(metrics.avgWinDollar * metrics.wins * 100) / 100,
+      grossLoss: Math.round(metrics.avgLossDollar * metrics.losses * 100) / 100,
+      maxConsecutiveLosses: metrics.maxConsecutiveLosses,
+      maxConsecutiveWins: metrics.maxConsecutiveWins,
+      avgWinDollar: metrics.avgWinDollar,
+      avgLossDollar: metrics.avgLossDollar,
+      tradeExpectancy: metrics.tradeExpectancy,
+      avgDailyWinPct: metrics.avgDailyWinPct,
+      largestProfitableTrade: metrics.largestProfitableTrade,
+      largestLosingTrade: metrics.largestLosingTrade,
+      maxDailyDrawdown: metrics.maxDailyDrawdown,
+      avgHoldTimeMinutes: metrics.avgHoldTimeMinutes,
+      topPairs: getTopPairs(trades, 5),
+    });
+
     const analysis = await generateCompareAnalysis({
-      period1Metrics: {
-        winRate: metrics1.winRate,
-        profitFactor: metrics1.profitFactor,
-        totalTrades: metrics1.totalTrades,
-        netPnl: metrics1.netPnl,
-        maxConsecutiveLosses: metrics1.maxConsecutiveLosses,
-        maxConsecutiveWins: metrics1.maxConsecutiveWins,
-        avgWinDollar: metrics1.avgWinDollar,
-        avgLossDollar: metrics1.avgLossDollar,
-        tradeExpectancy: metrics1.tradeExpectancy,
-        avgDailyWinPct: metrics1.avgDailyWinPct,
-        tradesCount: trades1.length,
-      },
-      period2Metrics: {
-        winRate: metrics2.winRate,
-        profitFactor: metrics2.profitFactor,
-        totalTrades: metrics2.totalTrades,
-        netPnl: metrics2.netPnl,
-        maxConsecutiveLosses: metrics2.maxConsecutiveLosses,
-        maxConsecutiveWins: metrics2.maxConsecutiveWins,
-        avgWinDollar: metrics2.avgWinDollar,
-        avgLossDollar: metrics2.avgLossDollar,
-        tradeExpectancy: metrics2.tradeExpectancy,
-        avgDailyWinPct: metrics2.avgDailyWinPct,
-        tradesCount: trades2.length,
-      },
+      period1Metrics: buildEnrichedMetrics(metrics1, trades1, period1Start, period1End),
+      period2Metrics: buildEnrichedMetrics(metrics2, trades2, period2Start, period2End),
       period1Label: label1,
       period2Label: label2,
       locale,

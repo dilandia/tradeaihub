@@ -21,6 +21,6 @@ export async function generateCompareAnalysis(
   );
   return chatCompletion(
     [{ role: "user", content: prompt }],
-    { maxTokens: 1024 }
+    { maxTokens: 2048 }
   );
 }
