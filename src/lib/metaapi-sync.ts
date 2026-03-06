@@ -468,6 +468,7 @@ type TradeInsert = {
   tags: string[];
   notes: string | null;
   source: string;
+  broker_time?: string | null;
 };
 
 /**
@@ -540,6 +541,11 @@ function dealsToTrades(
     const entryTime = new Date(entry.time);
     const exitTime = exit ? new Date(exit.time) : null;
 
+    // Use brokerTime (what MT5 shows) for trade_date/entry_time/exit_time
+    // Fall back to UTC time if brokerTime not available
+    const brokerEntryStr = entry.brokerTime ?? entryTime.toISOString();
+    const brokerExitStr = exit?.brokerTime ?? (exitTime ? exitTime.toISOString() : null);
+
     const totalProfit = group.reduce((s, d) => s + dealProfit(d), 0);
 
     // Log para debug quando trade tem P&L zerado mas há deals (possível problema de sync)
@@ -577,9 +583,9 @@ function dealsToTrades(
         ) / 10;
     }
 
-    const tradeDate = entryTime.toISOString().slice(0, 10);
-    const entryTimeStr = entryTime.toISOString().slice(11, 19);
-    const exitTimeStr = exitTime ? exitTime.toISOString().slice(11, 19) : null;
+    const tradeDate = brokerEntryStr.slice(0, 10);
+    const entryTimeStr = brokerEntryStr.slice(11, 19);
+    const exitTimeStr = brokerExitStr ? brokerExitStr.slice(11, 19) : null;
 
     trades.push({
       user_id: userId,
@@ -599,6 +605,7 @@ function dealsToTrades(
       tags: [],
       notes: null,
       source: "sync",
+      broker_time: entry.brokerTime ?? null,
     });
   }
 
