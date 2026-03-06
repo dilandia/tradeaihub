@@ -182,6 +182,24 @@ export async function GET(req: NextRequest) {
         highCount += counts.HIGH
         totalEvents += grantResult.issues
         allEvents.push(...grantResult.events)
+
+        // AUTO-FIX: Revoke dangerous grants from anon role
+        for (const evt of grantResult.events) {
+          if (evt.severity === "HIGH" && evt.details) {
+            const details = evt.details as { table?: string; privilege?: string; grantee?: string }
+            if (details.table && details.privilege && details.grantee === "anon") {
+              try {
+                await supabase.rpc("exec_sql_admin", {
+                  query: `REVOKE ${details.privilege} ON TABLE public.${details.table} FROM anon`,
+                })
+                autoFixesApplied++
+                evt.auto_action_taken = `REVOKE ${details.privilege} on ${details.table} from anon`
+              } catch {
+                // exec_sql_admin may not exist, log and continue
+              }
+            }
+          }
+        }
       }
 
       // ============================================================
@@ -195,6 +213,27 @@ export async function GET(req: NextRequest) {
         mediumCount += counts.MEDIUM
         totalEvents += funcResult.issues
         allEvents.push(...funcResult.events)
+
+        // AUTO-FIX: Set search_path on functions missing it
+        for (const evt of funcResult.events) {
+          if (evt.check_name === "missing_search_path" && evt.details) {
+            const details = evt.details as { function?: string; args?: string }
+            if (details.function) {
+              try {
+                const sig = details.args
+                  ? `${details.function}(${details.args})`
+                  : `${details.function}()`
+                await supabase.rpc("exec_sql_admin", {
+                  query: `ALTER FUNCTION public.${sig} SET search_path = public`,
+                })
+                autoFixesApplied++
+                evt.auto_action_taken = `SET search_path = public on ${details.function}`
+              } catch {
+                // exec_sql_admin may not exist, log and continue
+              }
+            }
+          }
+        }
       }
     }
 

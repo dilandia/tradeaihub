@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
   const supabase = await createServerClient()
   let user = null
   try {
-    const { data, error } = await supabase.auth.getUser()
-    if (!error) user = data.user
+    const { data: { session } } = await supabase.auth.getSession()
+    user = session?.user ?? null
   } catch {
     // Auth check failed silently — user remains null
   }
