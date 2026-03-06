@@ -1,4 +1,3 @@
-import { unstable_cache } from "next/cache";
 import {
   Activity,
   Database,
@@ -18,6 +17,8 @@ import {
 import { getServiceClient, verifyAdmin } from "@/lib/admin-auth";
 import { StatCard } from "@/components/admin/stat-card";
 import { GuardianScanButton } from "@/components/admin/guardian-scan-button";
+
+export const dynamic = "force-dynamic";
 
 interface RlsRow {
   tablename: string;
@@ -83,37 +84,29 @@ interface GuardianStatus {
   recent_events: GuardianEvent[];
 }
 
-const getSystemHealth = unstable_cache(
-  async (): Promise<SystemHealthData | null> => {
-    const supabase = getServiceClient();
-    const { data, error } = await supabase.rpc("admin_get_system_health");
+async function getSystemHealth(): Promise<SystemHealthData | null> {
+  const supabase = getServiceClient();
+  const { data, error } = await supabase.rpc("admin_get_system_health");
 
-    if (error) {
-      console.error("[admin/system] RPC error:", error);
-      return null;
-    }
+  if (error) {
+    console.error("[admin/system] RPC error:", error);
+    return null;
+  }
 
-    return data as SystemHealthData;
-  },
-  ["admin-system"],
-  { revalidate: 30 }
-);
+  return data as SystemHealthData;
+}
 
-const getGuardianStatus = unstable_cache(
-  async (): Promise<GuardianStatus | null> => {
-    const supabase = getServiceClient();
-    const { data, error } = await supabase.rpc("guardian_get_scan_status");
+async function getGuardianStatus(): Promise<GuardianStatus | null> {
+  const supabase = getServiceClient();
+  const { data, error } = await supabase.rpc("guardian_get_scan_status");
 
-    if (error) {
-      console.error("[admin/system] Guardian status error:", error);
-      return null;
-    }
+  if (error) {
+    console.error("[admin/system] Guardian status error:", error);
+    return null;
+  }
 
-    return data as GuardianStatus;
-  },
-  ["guardian-status"],
-  { revalidate: 15 }
-);
+  return data as GuardianStatus;
+}
 
 function formatNumber(n: number): string {
   return n.toLocaleString();
