@@ -9,9 +9,9 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { LanguageSelector } from "@/components/language-selector";
 import { useLanguage } from "@/contexts/language-context";
 
-type Props = { message?: string };
+type Props = { message?: string; token?: string };
 
-export function ResetPasswordForm({ message }: Props) {
+export function ResetPasswordForm({ message, token }: Props) {
   const { t } = useLanguage();
   const formRef = useRef<HTMLFormElement>(null);
   const [passwordState, setPasswordState] = useState<FieldState>("idle");
@@ -128,6 +128,7 @@ export function ResetPasswordForm({ message }: Props) {
             />
           )}
           <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-5">
+            {token && <input type="hidden" name="token" value={token} />}
             <FormField
               id="password"
               name="password"

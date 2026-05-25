@@ -2,6 +2,7 @@
 import { betterAuth } from 'better-auth';
 import { Pool } from 'pg';
 import { magicLink } from 'better-auth/plugins';
+import { nextCookies } from 'better-auth/next-js';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -70,6 +71,8 @@ export const auth = betterAuth({
         });
       },
     }),
+    // MUST be last — handles cookie setting in Next.js server actions
+    nextCookies(),
   ],
 
   trustedOrigins: [
