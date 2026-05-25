@@ -9,15 +9,15 @@ export async function verifyAdmin() {
     redirect("/login");
   }
 
-  // Verificar role de admin diretamente no banco
+  // Verificar role de admin na tabela better_auth_user (fonte da verdade para roles)
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT role FROM profiles WHERE id = $1`,
+    `SELECT role FROM better_auth_user WHERE id = $1`,
     [user.id]
   );
-  const profile = rows[0];
+  const authUser = rows[0];
   const isAdmin =
-    profile?.role === "admin" || profile?.role === "super_admin";
+    authUser?.role === "admin" || authUser?.role === "super_admin";
 
   if (!isAdmin) {
     redirect("/dashboard");
