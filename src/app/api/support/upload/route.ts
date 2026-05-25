@@ -30,10 +30,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Check if user is admin
+  // Check if user is admin — role lives in better_auth_user, not profiles
   const pool = getPool();
   const { rows: profileRows } = await pool.query(
-    `SELECT role FROM profiles WHERE id = $1`,
+    `SELECT role FROM better_auth_user WHERE id = $1`,
     [user.id]
   );
   const isAdmin =

@@ -1,6 +1,6 @@
 "use server"
 
-import { createAdminClient } from "@/lib/supabase/admin"
+import { getPool } from "@/lib/db"
 
 /**
  * Email category mapping for preference checks.
@@ -62,56 +62,45 @@ export async function canSendEmail(
   emailType: string
 ): Promise<boolean> {
   try {
-    const supabase = createAdminClient()
+    const pool = getPool()
     const category = EMAIL_CATEGORY_MAP[emailType] || "marketing"
 
-    // Transactional emails always pass
-    if (category === "transactional") {
-      // Still check dedup for transactional
-      const { count: existing } = await supabase
-        .from("email_sends")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("email_type", emailType)
+    // Check dedup — has this email already been sent?
+    const { rows: existingRows } = await pool.query(
+      `SELECT COUNT(*) AS cnt FROM email_sends WHERE user_id = $1 AND email_type = $2`,
+      [userId, emailType]
+    )
+    const existing = parseInt(existingRows[0]?.cnt ?? "0", 10)
 
-      return (existing ?? 0) === 0
+    // Transactional: only dedup check
+    if (category === "transactional") {
+      return existing === 0
     }
 
-    // 1. Check dedup — has this email already been sent?
-    const { count: existing } = await supabase
-      .from("email_sends")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("email_type", emailType)
+    if (existing > 0) return false
 
-    if ((existing ?? 0) > 0) return false
-
-    // 2. Check user preferences
-    const { data: prefs } = await supabase
-      .from("email_preferences")
-      .select("onboarding, marketing, product_updates")
-      .eq("user_id", userId)
-      .single()
-
+    // Check user preferences
+    const { rows: prefRows } = await pool.query(
+      `SELECT onboarding, marketing, product_updates FROM email_preferences WHERE user_id = $1 LIMIT 1`,
+      [userId]
+    )
+    const prefs = prefRows[0]
     if (prefs) {
       if (category === "onboarding" && !prefs.onboarding) return false
       if (category === "marketing" && !prefs.marketing) return false
       if (category === "product_updates" && !prefs.product_updates) return false
     }
 
-    // 3. Check weekly frequency cap (non-transactional)
+    // Check weekly frequency cap
     const weekAgo = new Date()
     weekAgo.setDate(weekAgo.getDate() - 7)
+    const { rows: recentRows } = await pool.query(
+      `SELECT COUNT(*) AS cnt FROM email_sends WHERE user_id = $1 AND sent_at >= $2`,
+      [userId, weekAgo.toISOString()]
+    )
+    const recentCount = parseInt(recentRows[0]?.cnt ?? "0", 10)
 
-    const { count: recentCount } = await supabase
-      .from("email_sends")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .gte("sent_at", weekAgo.toISOString())
-
-    if ((recentCount ?? 0) >= MAX_NON_TRANSACTIONAL_PER_WEEK) return false
-
-    return true
+    return recentCount < MAX_NON_TRANSACTIONAL_PER_WEEK
   } catch (err) {
     console.error(`[Email Scheduler] canSendEmail error for ${emailType}:`, err)
     return false
@@ -127,22 +116,15 @@ export async function recordSend(
   metadata?: Record<string, unknown>
 ): Promise<void> {
   try {
-    const supabase = createAdminClient()
-    const { error } = await supabase
-      .from("email_sends")
-      .upsert(
-        {
-          user_id: userId,
-          email_type: emailType,
-          sent_at: new Date().toISOString(),
-          metadata: metadata || {},
-        },
-        { onConflict: "user_id,email_type" }
-      )
-
-    if (error) {
-      console.error(`[Email Scheduler] recordSend error for ${emailType}:`, error.message)
-    }
+    const pool = getPool()
+    await pool.query(
+      `INSERT INTO email_sends (user_id, email_type, sent_at, metadata)
+       VALUES ($1, $2, NOW(), $3)
+       ON CONFLICT (user_id, email_type) DO UPDATE SET
+         sent_at = EXCLUDED.sent_at,
+         metadata = EXCLUDED.metadata`,
+      [userId, emailType, JSON.stringify(metadata || {})]
+    )
   } catch (err) {
     console.error(`[Email Scheduler] recordSend exception:`, err)
   }

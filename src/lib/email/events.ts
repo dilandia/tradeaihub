@@ -1,6 +1,6 @@
 "use server"
 
-import { createAdminClient } from "@/lib/supabase/admin"
+import { getPool } from "@/lib/db"
 
 /**
  * Supported event types for email lifecycle triggers.
@@ -31,20 +31,14 @@ export async function trackEvent(
   eventData?: Record<string, unknown>
 ): Promise<void> {
   try {
-    const supabase = createAdminClient()
-    const { error } = await supabase
-      .from("user_events")
-      .insert({
-        user_id: userId,
-        event_type: eventType,
-        event_data: eventData || {},
-      })
-
-    if (error) {
-      console.error(`[Email Events] Failed to track ${eventType}:`, error.message)
-    }
+    const pool = getPool()
+    await pool.query(
+      `INSERT INTO user_events (user_id, event_type, event_data)
+       VALUES ($1, $2, $3)`,
+      [userId, eventType, JSON.stringify(eventData || {})]
+    )
   } catch (err) {
-    console.error(`[Email Events] Exception tracking ${eventType}:`, err)
+    console.error(`[Email Events] Failed to track ${eventType}:`, err)
   }
 }
 
@@ -56,19 +50,12 @@ export async function hasEvent(
   eventType: EmailEventType
 ): Promise<boolean> {
   try {
-    const supabase = createAdminClient()
-    const { count, error } = await supabase
-      .from("user_events")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("event_type", eventType)
-
-    if (error) {
-      console.error(`[Email Events] Failed to check ${eventType}:`, error.message)
-      return false
-    }
-
-    return (count ?? 0) > 0
+    const pool = getPool()
+    const { rows } = await pool.query(
+      `SELECT COUNT(*) AS cnt FROM user_events WHERE user_id = $1 AND event_type = $2`,
+      [userId, eventType]
+    )
+    return parseInt(rows[0]?.cnt ?? "0", 10) > 0
   } catch {
     return false
   }
