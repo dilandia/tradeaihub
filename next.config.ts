@@ -13,6 +13,10 @@ function getDeploymentId(): string {
 const nextConfig: NextConfig = {
   // Version skew protection: forces hard reload when browser has stale JS
   deploymentId: getDeploymentId(),
+  experimental: {
+    // Permite middleware rodar no runtime Node.js (necessário para better-auth + pg)
+    nodeMiddleware: true,
+  },
   // Lint is now handled by standalone ESLint CLI (npm run lint)
   // Disable built-in next build lint step to avoid duplicate checks
   eslint: {
