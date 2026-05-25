@@ -13,14 +13,14 @@ export const auth = betterAuth({
   database: pool,
   // Mapear para nossas tabelas com prefixo better_auth_
   user: {
-    tableName: 'better_auth_user',
+    modelName: 'better_auth_user',
     additionalFields: {
       role: { type: 'string', defaultValue: 'user' },
     },
   },
-  session: { tableName: 'better_auth_session' },
-  account: { tableName: 'better_auth_account' },
-  verification: { tableName: 'better_auth_verification' },
+  session: { modelName: 'better_auth_session' },
+  account: { modelName: 'better_auth_account' },
+  verification: { modelName: 'better_auth_verification' },
 
   advanced: {
     // Usar UUIDs como IDs de usuário (compatível com FKs existentes)
