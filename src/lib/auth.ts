@@ -9,10 +9,8 @@ const pool = new Pool({
 });
 
 export const auth = betterAuth({
-  database: {
-    db: pool,
-    type: 'pg',
-  },
+  // Pass pool directly — better-auth detects 'connect' method → PostgresDialect
+  database: pool,
   // Mapear para nossas tabelas com prefixo better_auth_
   user: {
     tableName: 'better_auth_user',
