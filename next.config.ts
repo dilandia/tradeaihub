@@ -53,7 +53,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com data:",
               "img-src 'self' data: blob: https:",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.posthog.com https://us.i.posthog.com https://*.sentry.io https://api.stripe.com https://metaapi.cloud https://*.metaapi.cloud",
+              "connect-src 'self' https://*.posthog.com https://us.i.posthog.com https://*.sentry.io https://api.stripe.com https://metaapi.cloud https://*.metaapi.cloud",
               "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
               "worker-src 'self' blob:",
               "media-src 'self'",
