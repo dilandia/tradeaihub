@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
 import { getTrades, getTradesByDateRange, toCalendarTrades } from "@/lib/trades";
 import {
   buildPerformanceMetrics,
@@ -97,14 +97,7 @@ export async function POST(req: NextRequest) {
       locale,
     } = validation.data;
 
-    const supabase = await createClient();
-    let user = null;
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error) user = data.user;
-    } catch {
-      // Auth check failed silently — user remains null
-    }
+    const { user } = await getServerSession();
     if (!user) {
       return NextResponse.json(
         { error: "Unauthorized" },

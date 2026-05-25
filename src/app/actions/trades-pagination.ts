@@ -4,7 +4,7 @@
 
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createCompatClient } from "@/lib/supabase/server-compat";
 import {
   calculateOffset,
   buildPaginatedResult,
@@ -40,7 +40,7 @@ export async function getTradesPaginated(
   filterTag?: string,
   include_deleted?: boolean
 ): Promise<PaginatedResult<Trade>> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
 
   // Get user
   const {
@@ -130,7 +130,7 @@ export async function getTradeCount(
   importId?: string,
   accountId?: string
 ): Promise<number> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
 
   const {
     data: { user },

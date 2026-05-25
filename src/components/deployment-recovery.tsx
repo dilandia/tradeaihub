@@ -1,35 +1,26 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect } from "react"
 import {
   isStaleDeploymentError,
   attemptAutoRecovery,
   storeBuildId,
   checkBuildVersion,
 } from "@/lib/deployment-recovery"
-import { createClient } from "@/lib/supabase/client"
-
-import type { SupabaseClient } from "@supabase/supabase-js"
+import { getSession } from "@/lib/auth-client"
 
 /**
- * Global listener for stale deployment errors + build version monitor + session refresh.
+ * Global listener for stale deployment errors + build version monitor + session check.
  *
  * Layer 1: Catches ChunkLoadError, Server Action mismatch → auto-reload
- * Layer 2: On tab focus, refreshes auth session (prevents 502 after idle) + checks build version
+ * Layer 2: On tab focus, checks auth session (Better Auth handles refresh automatically)
+ *          + checks build version
  * Layer 3: On mount, stores current build ID for future comparisons
  *
  * Mount once in root layout.
  */
 export function DeploymentRecovery() {
-  const supabaseRef = useRef<SupabaseClient | null>(null)
-
   useEffect(() => {
-    // Lazily create a single supabase client for this component's lifetime
-    if (!supabaseRef.current) {
-      supabaseRef.current = createClient()
-    }
-    const supabase = supabaseRef.current
-
     // Layer 1: Error listeners
     const handleError = (event: ErrorEvent) => {
       if (isStaleDeploymentError(event.message || "")) {
@@ -49,7 +40,8 @@ export function DeploymentRecovery() {
     window.addEventListener("error", handleError)
     window.addEventListener("unhandledrejection", handleRejection)
 
-    // Layer 2: Session refresh + build version check on tab focus
+    // Layer 2: Session check + build version check on tab focus
+    // Better Auth handles token refresh automatically via its session management
     let lastCheck = 0
     const MIN_CHECK_INTERVAL = 60_000 // Don't check more than once per minute
 
@@ -59,17 +51,17 @@ export function DeploymentRecovery() {
       if (now - lastCheck < MIN_CHECK_INTERVAL) return
       lastCheck = now
 
-      // Step 1: Refresh auth session before any API calls
-      // This prevents 502s when JWT expired during idle (mobile tab switch, sleep)
+      // Step 1: Verify session is still valid
+      // Better Auth refreshes tokens automatically — we only redirect if there's no session
       try {
-        const { error } = await supabase.auth.getSession()
-        if (error) {
+        const { data, error } = await getSession()
+        if (error || !data?.session) {
           // Session unrecoverable — redirect to login cleanly
           window.location.href = "/login"
           return
         }
       } catch {
-        // Network error or supabase unreachable — skip silently,
+        // Network error — skip silently,
         // user will hit the error on next interaction anyway
       }
 

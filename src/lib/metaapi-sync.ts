@@ -8,7 +8,7 @@
  * Roda APENAS server-side.
  */
 
-import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
+import { getPool } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
 import { syncLogger } from "@/lib/logger";
 
@@ -45,9 +45,7 @@ function getToken(): string {
 }
 
 function adminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  return createSupabaseAdmin(url, key);
+  return getPool();
 }
 
 /* ─── MetaApi REST helpers ─── */
@@ -691,21 +689,20 @@ export async function syncAccountWithMetaApi(
   tradingAccountId: string,
   userId: string
 ): Promise<SyncResult> {
-  const sb = adminClient();
+  const pool = adminClient();
 
   // Declare metaApiId outside try so it's accessible in catch for cleanup
   let metaApiId: string | null = null;
 
   try {
     // 1) Buscar conta no DB
-    const { data: account, error: accErr } = await sb
-      .from("trading_accounts")
-      .select("*")
-      .eq("id", tradingAccountId)
-      .eq("user_id", userId)
-      .single();
+    const accRes = await pool.query(
+      `SELECT * FROM trading_accounts WHERE id = $1 AND user_id = $2 LIMIT 1`,
+      [tradingAccountId, userId]
+    );
+    const account = accRes.rows[0] ?? null;
 
-    if (accErr || !account) {
+    if (!account) {
       return { success: false, error: "Conta não encontrada." };
     }
 
@@ -752,10 +749,10 @@ export async function syncAccountWithMetaApi(
         metaApiId = createResult.id;
       }
 
-      await sb
-        .from("trading_accounts")
-        .update({ metaapi_account_id: metaApiId })
-        .eq("id", tradingAccountId);
+      await pool.query(
+        `UPDATE trading_accounts SET metaapi_account_id = $1 WHERE id = $2`,
+        [metaApiId, tradingAccountId]
+      );
     }
 
     // 4) Obter detalhes da conta (para saber a região)
@@ -815,16 +812,16 @@ export async function syncAccountWithMetaApi(
     // 8) Get deals (usa URL regional)
     // Se last_sync_at existe E já temos trades, buscar só novos.
     // Caso contrário, buscar histórico completo (2 anos).
-    const { data: existingTradesData } = await sb
-      .from("trades")
-      .select("id, ticket, trade_date, profit_dollar")
-      .eq("trading_account_id", tradingAccountId)
-      .eq("user_id", userId);
-
-    const hasExistingTrades = (existingTradesData ?? []).length > 0;
-    const zeroProfitInDb = (existingTradesData ?? []).filter(
-      (t: { profit_dollar: number }) => t.profit_dollar === 0
+    const existingTradesRes = await pool.query<{ id: string; ticket: string; trade_date: string; profit_dollar: number }>(
+      `SELECT id, ticket, trade_date, profit_dollar
+       FROM trades
+       WHERE trading_account_id = $1 AND user_id = $2`,
+      [tradingAccountId, userId]
     );
+    const existingTradesData = existingTradesRes.rows;
+
+    const hasExistingTrades = existingTradesData.length > 0;
+    const zeroProfitInDb = existingTradesData.filter((t) => t.profit_dollar === 0);
 
     let startTime: string;
     const twoYearsAgo = new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString();
@@ -838,7 +835,7 @@ export async function syncAccountWithMetaApi(
       const minDate = zeroProfitInDb.reduce(
         (a: string, t: { trade_date: string }) =>
           (t.trade_date < a ? t.trade_date : a),
-        (zeroProfitInDb[0] as { trade_date: string }).trade_date
+        zeroProfitInDb[0].trade_date
       );
       const expandedStart = new Date(minDate + "T00:00:00.000Z");
       expandedStart.setDate(expandedStart.getDate() - 1); // 1 dia antes
@@ -870,7 +867,7 @@ export async function syncAccountWithMetaApi(
     if (deals.length === 0 && zeroProfitInDb.length > 0) {
       syncLogger.info({ zeroProfitCount: zeroProfitInDb.length }, "0 deals in range, fetching by positionId");
       const seen = new Set<string>();
-      for (const row of zeroProfitInDb.slice(0, 20) as { ticket: string }[]) {
+      for (const row of zeroProfitInDb.slice(0, 20)) {
         const ticket = row.ticket?.trim();
         if (!ticket || seen.has(ticket)) continue;
         seen.add(ticket);
@@ -951,14 +948,15 @@ export async function syncAccountWithMetaApi(
 
     // 9.8) Phase 2: Cross-source dedup — when sync finds matching import trades, UPDATE them
     try {
-      const { data: importTrades } = await sb
-        .from("trades")
-        .select("id, pair, trade_date, entry_price, exit_price, profit_dollar, ticket, source")
-        .eq("user_id", userId)
-        .eq("source", "import")
-        .is("deleted_at", null);
+      const importRes = await pool.query<{ id: string; pair: string; trade_date: string; entry_price: number; exit_price: number; profit_dollar: number; ticket: string | null; source: string }>(
+        `SELECT id, pair, trade_date, entry_price, exit_price, profit_dollar, ticket, source
+         FROM trades
+         WHERE user_id = $1 AND source = 'import' AND deleted_at IS NULL`,
+        [userId]
+      );
+      const importTrades = importRes.rows;
 
-      if (importTrades && importTrades.length > 0 && newTrades.length > 0) {
+      if (importTrades.length > 0 && newTrades.length > 0) {
         const importByComposite = new Map<string, { id: string; ticket: string | null }>();
         for (const it of importTrades) {
           const normPair = (it.pair ?? "").replace(/\.[a-z]+$/i, "").replace(/[_\-\s]/g, "").toUpperCase();
@@ -988,20 +986,22 @@ export async function syncAccountWithMetaApi(
           if (matchId) {
             // UPDATE the import trade with sync data (sync is authoritative)
             // Preserve import-only fields: risk_reward, tags, notes, strategy_id
-            await sb.from("trades").update({
-              source: "sync",
-              ticket: t.ticket,
-              trading_account_id: t.trading_account_id,
-              profit_dollar: t.profit_dollar,
-              pips: t.pips,
-              is_win: t.is_win,
-              pair: t.pair,
-              entry_time: t.entry_time,
-              exit_time: t.exit_time,
-              duration_minutes: t.duration_minutes,
-              // DO NOT overwrite: risk_reward, tags, notes, strategy_id
-            }).eq("id", matchId);
-
+            await pool.query(
+              `UPDATE trades SET
+                source = 'sync',
+                ticket = $1,
+                trading_account_id = $2,
+                profit_dollar = $3,
+                pips = $4,
+                is_win = $5,
+                pair = $6,
+                entry_time = $7,
+                exit_time = $8,
+                duration_minutes = $9
+               WHERE id = $10`,
+              [t.ticket, t.trading_account_id, t.profit_dollar, t.pips, t.is_win,
+               t.pair, t.entry_time, t.exit_time, t.duration_minutes, matchId]
+            );
             upgradedTickets.add(t.ticket);
           }
         }
@@ -1018,11 +1018,11 @@ export async function syncAccountWithMetaApi(
     }
 
     // 9.9) Before upserting trades, verify account wasn't deleted during sync
-    const { data: stillActive } = await sb
-      .from("trading_accounts")
-      .select("id, deleted_at")
-      .eq("id", tradingAccountId)
-      .single();
+    const stillActiveRes = await pool.query<{ id: string; deleted_at: string | null }>(
+      `SELECT id, deleted_at FROM trading_accounts WHERE id = $1 LIMIT 1`,
+      [tradingAccountId]
+    );
+    const stillActive = stillActiveRes.rows[0] ?? null;
 
     if (!stillActive || stillActive.deleted_at) {
       syncLogger.warn({ tradingAccountId }, "Account was deleted during sync, aborting");
@@ -1034,19 +1034,11 @@ export async function syncAccountWithMetaApi(
 
     // 10) Upsert trades (usar ticket como chave única)
     let imported = 0;
-    const { data: existing } = await sb
-      .from("trades")
-      .select("ticket, profit_dollar, trade_date")
-      .eq("trading_account_id", tradingAccountId)
-      .eq("user_id", userId);
-
     const existingByTicket = new Map(
-      (existing ?? []).map(
-        (t: { ticket: string; profit_dollar: number; trade_date: string }) => [
-          t.ticket,
-          { profit_dollar: t.profit_dollar, trade_date: t.trade_date },
-        ]
-      )
+      existingTradesData.map((t) => [
+        t.ticket,
+        { profit_dollar: t.profit_dollar, trade_date: t.trade_date },
+      ])
     );
 
     if (newTrades.length > 0) {
@@ -1059,40 +1051,45 @@ export async function syncAccountWithMetaApi(
       if (toInsert.length > 0) {
         for (let i = 0; i < toInsert.length; i += 100) {
           const batch = toInsert.slice(i, i + 100);
-          const { error: insertErr } = await sb.from("trades").insert(batch);
-          if (insertErr) {
-            syncLogger.error({ error: insertErr.message }, "Insert error");
+          // Build bulk insert
+          const cols = Object.keys(batch[0]) as (keyof TradeInsert)[];
+          const placeholders = batch.map((_, ri) =>
+            `(${cols.map((_, ci) => `$${ri * cols.length + ci + 1}`).join(", ")})`
+          ).join(", ");
+          const values = batch.flatMap((t) => cols.map((c) => t[c]));
+          try {
+            await pool.query(
+              `INSERT INTO trades (${cols.join(", ")}) VALUES ${placeholders}`,
+              values
+            );
+          } catch (insertErr) {
+            syncLogger.error({ error: (insertErr as Error).message }, "Insert error");
           }
         }
         imported = toInsert.length;
       }
 
       for (const t of toUpdate) {
-        const { error: updErr } = await sb
-          .from("trades")
-          .update({
-            profit_dollar: t.profit_dollar,
-            pips: t.pips,
-            is_win: t.is_win,
-            exit_price: t.exit_price,
-            exit_time: t.exit_time,
-            duration_minutes: t.duration_minutes,
-          })
-          .eq("trading_account_id", tradingAccountId)
-          .eq("user_id", userId)
-          .eq("ticket", t.ticket);
-        if (!updErr) imported++;
+        try {
+          await pool.query(
+            `UPDATE trades SET
+              profit_dollar = $1, pips = $2, is_win = $3,
+              exit_price = $4, exit_time = $5, duration_minutes = $6
+             WHERE trading_account_id = $7 AND user_id = $8 AND ticket = $9`,
+            [t.profit_dollar, t.pips, t.is_win, t.exit_price, t.exit_time,
+             t.duration_minutes, tradingAccountId, userId, t.ticket]
+          );
+          imported++;
+        } catch {
+          // Log but continue
+        }
       }
     }
 
     // 10.5) Corrigir trades já no DB com P&L zerado via MetaStats (ex: 19/fev)
-    const zeroInDb = (existing ?? []).filter(
-      (t: { profit_dollar: number }) => t.profit_dollar === 0
-    );
+    const zeroInDb = existingTradesData.filter((t) => t.profit_dollar === 0);
     if (zeroInDb.length > 0) {
-      const dates = zeroInDb.map(
-        (t: { trade_date: string }) => t.trade_date
-      ) as string[];
+      const dates = zeroInDb.map((t) => t.trade_date);
       const minDate = dates.reduce((a, b) => (a < b ? a : b));
       const maxDate = dates.reduce((a, b) => (a > b ? a : b));
       const fixStart = `${minDate}T00:00:00.000Z`;
@@ -1105,32 +1102,32 @@ export async function syncAccountWithMetaApi(
         region
       );
       const msByPos = new Map(msTrades.map((t) => [t.positionId, t]));
-      for (const row of zeroInDb as { ticket: string; profit_dollar: number }[]) {
+      for (const row of zeroInDb) {
         const ms = msByPos.get(row.ticket);
         if (!ms || ms.profit === 0) continue;
         const profit = toNum(ms.profit);
         const isWin = ms.success === "won" || profit > 0;
         const pips = ms.pips != null ? toNum(ms.pips) : 0;
-        const { error: updErr } = await sb
-          .from("trades")
-          .update({
-            profit_dollar: Math.round(profit * 100) / 100,
-            pips,
-            is_win: isWin,
-            ...(ms.closePrice != null && { exit_price: ms.closePrice }),
-            ...(ms.closeTime && {
-              exit_time: ms.closeTime.slice(11, 19),
-            }),
-            ...(ms.durationInMinutes != null && {
-              duration_minutes: ms.durationInMinutes,
-            }),
-          })
-          .eq("trading_account_id", tradingAccountId)
-          .eq("user_id", userId)
-          .eq("ticket", row.ticket);
-        if (!updErr) {
+        try {
+          await pool.query(
+            `UPDATE trades SET
+              profit_dollar = $1, pips = $2, is_win = $3
+              ${ms.closePrice != null ? ", exit_price = $7" : ""}
+              ${ms.closeTime ? ", exit_time = $8" : ""}
+              ${ms.durationInMinutes != null ? ", duration_minutes = $9" : ""}
+             WHERE trading_account_id = $4 AND user_id = $5 AND ticket = $6`,
+            [
+              Math.round(profit * 100) / 100, pips, isWin,
+              tradingAccountId, userId, row.ticket,
+              ...(ms.closePrice != null ? [ms.closePrice] : []),
+              ...(ms.closeTime ? [ms.closeTime.slice(11, 19)] : []),
+              ...(ms.durationInMinutes != null ? [ms.durationInMinutes] : []),
+            ]
+          );
           imported++;
           syncLogger.debug({ ticket: row.ticket }, "MetaStats corrected existing trade");
+        } catch {
+          // Log but continue
         }
       }
     }
@@ -1173,14 +1170,25 @@ export async function syncAccountWithMetaApi(
         // MetaStats API returns { metrics: { gain, profitFactor, ... } }
         const metricsInner = (metastatsMetrics as Record<string, unknown>).metrics ?? metastatsMetrics;
         const summary = extractMetricsSummary(metricsInner as Record<string, unknown>);
-        await sb.from("account_metrics").upsert({
-          trading_account_id: tradingAccountId,
-          user_id: userId,
-          metrics_data: metastatsMetrics,
-          metrics_summary: summary,
-          trades_count: (metricsInner as Record<string, unknown>).trades ?? imported,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "trading_account_id" });
+        await pool.query(
+          `INSERT INTO account_metrics
+             (trading_account_id, user_id, metrics_data, metrics_summary, trades_count, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (trading_account_id) DO UPDATE SET
+             user_id = EXCLUDED.user_id,
+             metrics_data = EXCLUDED.metrics_data,
+             metrics_summary = EXCLUDED.metrics_summary,
+             trades_count = EXCLUDED.trades_count,
+             updated_at = EXCLUDED.updated_at`,
+          [
+            tradingAccountId,
+            userId,
+            JSON.stringify(metastatsMetrics),
+            JSON.stringify(summary),
+            (metricsInner as Record<string, unknown>).trades ?? imported,
+            new Date().toISOString(),
+          ]
+        );
         syncLogger.info("MetaStats metrics stored");
       } catch (storeErr) {
         syncLogger.error({ error: storeErr }, "Failed to store MetaStats metrics");
@@ -1193,22 +1201,31 @@ export async function syncAccountWithMetaApi(
     const now = new Date().toISOString();
     const shouldUpdateSyncTime = imported > 0 || hasExistingTrades;
 
-    await sb
-      .from("trading_accounts")
-      .update({
-        status: "connected",
-        auto_sync_enabled: true,
-        last_sync_at: shouldUpdateSyncTime ? now : null,
-        balance: accInfo?.balance ?? account.balance,
-        equity: accInfo?.equity ?? account.equity,
-        currency: accInfo?.currency ?? account.currency,
-        leverage: accInfo?.leverage ?? account.leverage,
-        error_message: imported === 0 && !hasExistingTrades
+    await pool.query(
+      `UPDATE trading_accounts SET
+        status = 'connected',
+        auto_sync_enabled = true,
+        last_sync_at = $1,
+        balance = $2,
+        equity = $3,
+        currency = $4,
+        leverage = $5,
+        error_message = $6,
+        updated_at = $7
+       WHERE id = $8`,
+      [
+        shouldUpdateSyncTime ? now : null,
+        accInfo?.balance ?? account.balance,
+        accInfo?.equity ?? account.equity,
+        accInfo?.currency ?? account.currency,
+        accInfo?.leverage ?? account.leverage,
+        imported === 0 && !hasExistingTrades
           ? "Sync OK mas 0 deals encontrados. Verifique se há histórico na conta."
           : null,
-        updated_at: now,
-      })
-      .eq("id", tradingAccountId);
+        now,
+        tradingAccountId,
+      ]
+    );
 
     // 12) Undeploy (economia de custo)
     await undeployAccount(metaApiId!);

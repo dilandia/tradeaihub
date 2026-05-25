@@ -1,18 +1,11 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
 import { listConversations } from "@/lib/ai/copilot-conversations";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function GET() {
   try {
-    const supabase = await createClient();
-    let user = null;
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error) user = data.user;
-    } catch {
-      // Auth check failed silently — user remains null
-    }
+    const { user } = await getServerSession();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

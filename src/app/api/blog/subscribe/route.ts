@@ -3,15 +3,10 @@
  * Subscribes an email to the blog newsletter.
  * No auth required — public endpoint.
  * Rate limit: 1 request per email per hour (in-memory).
- * Uses service_role for the insert (RLS bypass).
+ * Uses direct DB pool (bypasses RLS).
  */
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { getPool } from "@/lib/db"
 
 // ─── In-memory rate limiter (single-server VPS) ───────────────────────────────
 const rateLimitMap = new Map<string, number>()
@@ -80,23 +75,14 @@ export async function POST(request: NextRequest) {
         ? locale
         : "en"
 
-    const { error } = await supabase.from("blog_subscribers").upsert(
-      {
-        email: normalizedEmail,
-        locale: validLocale,
-        subscribed_at: new Date().toISOString(),
-        unsubscribed_at: null,
-      },
-      { onConflict: "email" }
+    const pool = getPool()
+    await pool.query(
+      `INSERT INTO blog_subscribers (email, locale, subscribed_at, unsubscribed_at)
+       VALUES ($1, $2, $3, NULL)
+       ON CONFLICT (email) DO UPDATE SET
+         locale = $2, subscribed_at = $3, unsubscribed_at = NULL`,
+      [normalizedEmail, validLocale, new Date().toISOString()]
     )
-
-    if (error) {
-      console.error("[blog/subscribe] Supabase error:", error)
-      return NextResponse.json(
-        { error: "Failed to subscribe. Please try again." },
-        { status: 500 }
-      )
-    }
 
     return NextResponse.json({ success: true })
   } catch (err) {

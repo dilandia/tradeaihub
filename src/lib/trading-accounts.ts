@@ -3,7 +3,7 @@
  * Roda server-side apenas.
  */
 import { cache } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { createCompatClient } from "@/lib/supabase/server-compat";
 
 export type DbTradingAccount = {
   id: string;
@@ -37,7 +37,7 @@ export type TradingAccountSafe = Omit<DbTradingAccount, "password_encrypted">;
 
 /** Busca todas as contas do usuário (excludes soft-deleted via RLS + explicit filter) - cached per request */
 export const getUserTradingAccounts = cache(async (): Promise<TradingAccountSafe[]> => {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -65,7 +65,7 @@ export const getUserTradingAccounts = cache(async (): Promise<TradingAccountSafe
 export async function getTradingAccountFull(
   accountId: string
 ): Promise<DbTradingAccount | null> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

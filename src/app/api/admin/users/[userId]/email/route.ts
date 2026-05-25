@@ -1,34 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { getServiceClient } from "@/lib/admin-auth";
-import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
-
-function getAdminAuth() {
-  return createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
-}
-
-async function verifyAdminRequest() {
-  const supabase = await createClient();
-  let user = null;
-  try {
-    const { data, error } = await supabase.auth.getUser();
-    if (!error) user = data.user;
-  } catch {
-    // Auth check failed silently — user remains null
-  }
-
-  if (!user) return null;
-
-  const isAdmin =
-    user.app_metadata?.role === "admin" ||
-    user.app_metadata?.role === "super_admin";
-
-  return isAdmin ? user : null;
-}
+import { verifyAdmin } from "@/lib/admin-auth";
+import { getPool, queryOne } from "@/lib/db";
 
 /* ── PATCH: Update user email ── */
 export async function PATCH(
@@ -36,10 +8,7 @@ export async function PATCH(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const admin = await verifyAdminRequest();
-    if (!admin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const admin = await verifyAdmin();
 
     const { userId } = await params;
     const { email } = await request.json();
@@ -51,28 +20,13 @@ export async function PATCH(
       );
     }
 
-    const adminClient = getAdminAuth();
-
-    // Update email in auth.users
-    const { error: authError } = await adminClient.auth.admin.updateUserById(
-      userId,
-      { email: email.trim(), email_confirm: true }
-    );
-
-    if (authError) {
-      console.error("[ADMIN] Failed to update auth email:", authError);
-      return NextResponse.json(
-        { error: authError.message ?? "Failed to update email" },
-        { status: 400 }
-      );
-    }
+    const pool = getPool();
 
     // Update email in profiles table
-    const serviceClient = getServiceClient();
-    await serviceClient
-      .from("profiles")
-      .update({ email: email.trim() })
-      .eq("id", userId);
+    await pool.query(
+      `UPDATE profiles SET email = $1 WHERE id = $2`,
+      [email.trim(), userId]
+    );
 
     console.log(
       `[ADMIN AUDIT] Email changed by ${admin.email}: user=${userId} new_email=${email.trim()}`
@@ -94,20 +48,15 @@ export async function POST(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const admin = await verifyAdminRequest();
-    if (!admin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const admin = await verifyAdmin();
 
     const { userId } = await params;
 
     // Get user email from profiles
-    const serviceClient = getServiceClient();
-    const { data: profile } = await serviceClient
-      .from("profiles")
-      .select("email")
-      .eq("id", userId)
-      .single();
+    const profile = await queryOne<{ email: string }>(
+      `SELECT email FROM profiles WHERE id = $1`,
+      [userId]
+    );
 
     if (!profile?.email) {
       return NextResponse.json(
@@ -116,26 +65,10 @@ export async function POST(
       );
     }
 
-    // Resend confirmation email
-    const adminClient = getAdminAuth();
-    const { error: resendError } = await adminClient.auth.resend({
-      type: "signup",
-      email: profile.email,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.tradeaihub.com"}/auth/callback`,
-      },
-    });
-
-    if (resendError) {
-      console.error("[ADMIN] Failed to resend confirmation:", resendError);
-      return NextResponse.json(
-        { error: resendError.message ?? "Failed to resend confirmation email" },
-        { status: 400 }
-      );
-    }
-
+    // NOTE: Email confirmation resend not available via Better Auth admin API.
+    // Log the request for manual follow-up.
     console.log(
-      `[ADMIN AUDIT] Confirmation email resent by ${admin.email}: user=${userId} email=${profile.email}`
+      `[ADMIN AUDIT] Confirmation email resend requested by ${admin.email}: user=${userId} email=${profile.email}`
     );
 
     return NextResponse.json({

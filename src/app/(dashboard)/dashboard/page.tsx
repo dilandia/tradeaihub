@@ -18,7 +18,7 @@ import {
   getCachedDrawdownCurve,
 } from "@/app/actions/dashboard";
 import { getUserTags } from "@/app/actions/tags";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
 import { getPrimaryMetrics } from "@/lib/account-metrics";
 import type { MetricsSummary } from "@/lib/account-metrics";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
@@ -33,10 +33,7 @@ export default async function DashboardPage({
   const selectedAccountId = params.account ?? null;
 
   // Get user ID for cache key isolation (RPCs read user from session internally)
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await getServerSession();
   const userId = user?.id ?? "";
 
   const [summaries, trades, tradingAccounts, userTags, rpcMetrics, rpcEquityCurve, rpcDrawdown, rpcDrawdownCurve, brokerMetrics] =

@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { getTrades, getTradesByDateRange, toCalendarTrades } from "@/lib/trades";
 import { periodToDateRange } from "@/lib/date-utils";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
 import { getPrimaryMetrics } from "@/lib/account-metrics";
 import { OverviewContent } from "./overview-content";
 
@@ -22,8 +22,7 @@ export default async function OverviewPage({
   const selectedAccountId = params.account ?? null;
   const period = params.period ?? "all";
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { user } = await getServerSession();
   const userId = user?.id ?? "";
 
   // W3-02: Server-side date filtering — push period filter to DB

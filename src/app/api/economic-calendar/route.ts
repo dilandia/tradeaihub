@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
 
 /** Cache 6h – eventos econômicos não mudam com frequência */
 const CACHE_REVALIDATE_SEC = 21600;
@@ -125,14 +125,7 @@ async function fetchEconomicCalendar(from: string, to: string): Promise<Economic
 }
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  let user = null;
-  try {
-    const { data, error } = await supabase.auth.getUser();
-    if (!error) user = data.user;
-  } catch {
-    // Auth check failed silently — user remains null
-  }
+  const { user } = await getServerSession();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

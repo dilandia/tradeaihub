@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConversationMessages, updateConversationTitle } from "@/lib/ai/copilot-conversations";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function GET(
@@ -13,14 +13,7 @@ export async function GET(
       return NextResponse.json({ error: "Conversation ID required" }, { status: 400 });
     }
 
-    const supabase = await createClient();
-    let user = null;
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error) user = data.user;
-    } catch {
-      // Auth check failed silently — user remains null
-    }
+    const { user } = await getServerSession();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -61,14 +54,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
     }
 
-    const supabase = await createClient();
-    let user = null;
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error) user = data.user;
-    } catch {
-      // Auth check failed silently — user remains null
-    }
+    const { user } = await getServerSession();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

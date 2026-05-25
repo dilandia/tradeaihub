@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
-import { createClient } from "@supabase/supabase-js"
+import { getPool } from "@/lib/db"
 import { Resend } from "resend"
 import { tradingReportEmailHtml } from "@/lib/email/templates/trading-report"
 
@@ -32,24 +32,19 @@ export async function GET(req: NextRequest) {
 
   const frequency = req.nextUrl.searchParams.get("frequency") || "weekly"
 
-  // Use service role client for admin queries (bypasses RLS)
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const pool = getPool()
 
   // Find users who opted in
-  const { data: users, error: usersError } = await supabase
-    .from("profiles")
-    .select(
-      "id, email, full_name, email_reports_last_sent"
-    )
-    .eq("email_reports_enabled", true)
-    .eq("email_report_frequency", frequency)
+  const { rows: users } = await pool.query(
+    `SELECT id, email, full_name, email_reports_last_sent
+     FROM profiles
+     WHERE email_reports_enabled = true AND email_report_frequency = $1`,
+    [frequency]
+  )
 
-  if (usersError || !users) {
+  if (!users || users.length === 0) {
     return NextResponse.json(
-      { error: usersError?.message || "No users" },
+      { error: "No users" },
       { status: 500 }
     )
   }
@@ -81,15 +76,11 @@ export async function GET(req: NextRequest) {
   for (const user of eligibleUsers) {
     try {
       // Fetch metrics using the RPC (5-param version)
-      const { data: metricsData } = await supabase.rpc("get_trade_metrics", {
-        p_user_id: user.id,
-        p_import_id: null,
-        p_account_id: null,
-        p_start_date: startDate,
-        p_end_date: endDate,
-      })
-
-      const m = metricsData?.[0]
+      const { rows: metricsRows } = await pool.query(
+        `SELECT * FROM get_trade_metrics($1, $2, $3, $4, $5)`,
+        [user.id, null, null, startDate, endDate]
+      )
+      const m = metricsRows?.[0]
       if (!m || m.total_trades === 0) continue // Skip users with no trades
 
       // Compute derived metrics from RPC raw data
@@ -145,10 +136,10 @@ export async function GET(req: NextRequest) {
 
       if (!sendError) {
         // Update last sent timestamp
-        await supabase
-          .from("profiles")
-          .update({ email_reports_last_sent: now.toISOString() })
-          .eq("id", user.id)
+        await pool.query(
+          `UPDATE profiles SET email_reports_last_sent = $1 WHERE id = $2`,
+          [now.toISOString(), user.id]
+        )
         sent++
       } else {
         console.error(

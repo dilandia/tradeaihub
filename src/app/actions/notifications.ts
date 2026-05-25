@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { createCompatClient } from "@/lib/supabase/server-compat"
 
 export type NotificationPrefs = {
   emailReportsEnabled: boolean
@@ -8,7 +8,7 @@ export type NotificationPrefs = {
 }
 
 export async function getNotificationPrefs(): Promise<NotificationPrefs> {
-  const supabase = await createClient()
+  const supabase = await createCompatClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -31,7 +31,7 @@ export async function getNotificationPrefs(): Promise<NotificationPrefs> {
 export async function updateNotificationPrefs(
   prefs: NotificationPrefs
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient()
+  const supabase = await createCompatClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()

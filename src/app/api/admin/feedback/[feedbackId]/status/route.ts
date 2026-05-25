@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { verifyAdmin } from "@/lib/admin-auth";
+import { getPool } from "@/lib/db";
 
 export async function PATCH(
   request: NextRequest,
@@ -7,28 +8,9 @@ export async function PATCH(
 ) {
   try {
     const { feedbackId } = await params;
-    const supabase = await createClient();
 
     // Verify admin
-    let user = null;
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error) user = data.user;
-    } catch {
-      // Auth check failed silently — user remains null
-    }
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const isAdmin =
-      user.app_metadata?.role === "admin" ||
-      user.app_metadata?.role === "super_admin";
-
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    await verifyAdmin();
 
     const body = await request.json();
     const { status, admin_notes } = body;
@@ -40,21 +22,13 @@ export async function PATCH(
       );
     }
 
-    // Use service client for RPC call
-    const { createClient: createServiceClient } = require("@supabase/supabase-js");
-    const serviceClient = createServiceClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    const pool = getPool();
+    const { rows } = await pool.query(
+      `SELECT * FROM admin_update_feedback($1, $2, $3)`,
+      [feedbackId, status, admin_notes || ""]
     );
 
-    const { data, error } = await serviceClient.rpc("admin_update_feedback", {
-      p_feedback_id: feedbackId,
-      p_status: status,
-      p_admin_notes: admin_notes || "",
-    });
-
-    if (error) {
-      console.error("Failed to update feedback:", error);
+    if (!rows) {
       return NextResponse.json(
         { error: "Failed to update feedback" },
         { status: 500 }

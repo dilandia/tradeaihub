@@ -1,33 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { getServiceClient } from "@/lib/admin-auth";
+import { verifyAdmin } from "@/lib/admin-auth";
+import { getPool } from "@/lib/db";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    // Verify admin
-    const supabase = await createClient();
-    let user = null;
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error) user = data.user;
-    } catch {
-      // Auth check failed silently — user remains null
-    }
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const isAdmin =
-      user.app_metadata?.role === "admin" ||
-      user.app_metadata?.role === "super_admin";
-
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    // Verify admin (throws redirect if not admin)
+    const admin = await verifyAdmin();
 
     const { userId } = await params;
     const body = await request.json();
@@ -47,24 +28,15 @@ export async function POST(
       );
     }
 
-    const serviceClient = getServiceClient();
-    const { data, error } = await serviceClient.rpc("admin_modify_credits", {
-      p_admin_id: user.id,
-      p_user_id: userId,
-      p_amount: amount,
-      p_reason: reason.trim(),
-    });
-
-    if (error) {
-      console.error("Failed to modify credits:", error);
-      return NextResponse.json(
-        { error: error.message ?? "Failed to modify credits" },
-        { status: 400 }
-      );
-    }
+    const pool = getPool();
+    const { rows } = await pool.query(
+      `SELECT * FROM admin_modify_credits($1, $2, $3, $4)`,
+      [admin.id, userId, amount, reason.trim()]
+    );
+    const data = rows[0] ?? null;
 
     console.log(
-      `[ADMIN AUDIT] Credits adjusted by ${user.email}: user=${userId} amount=${amount} reason="${reason}"`
+      `[ADMIN AUDIT] Credits adjusted by ${admin.email}: user=${userId} amount=${amount} reason="${reason}"`
     );
 
     return NextResponse.json(data);

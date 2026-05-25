@@ -1,13 +1,10 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
 import { AiCopilotGate } from "@/components/ai/ai-copilot-gate";
 import { AiCopilotContent } from "@/components/ai/ai-copilot-content";
 
 export default async function AiCopilotPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await getServerSession();
 
   if (!user) {
     redirect("/login");

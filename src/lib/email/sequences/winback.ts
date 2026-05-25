@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@supabase/supabase-js"
+import { query, queryOne } from "@/lib/db"
 import { canSendEmail } from "@/lib/email/scheduler"
 import {
   sendWinbackW1Email,
@@ -90,24 +90,21 @@ async function processWinbackTier(
     userId?: string
   }) => Promise<{ success: boolean; error?: string }>
 ): Promise<WinbackResult> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
   const result: WinbackResult = { processed: 0, sent: 0, skipped: 0, errors: 0 }
 
   const cutoffDate = new Date()
   cutoffDate.setDate(cutoffDate.getDate() - daysInactive)
 
-  // Get all profiles, then filter by last login
-  const { data: profiles, error } = await supabase
-    .from("profiles")
-    .select("id, email, full_name")
-    .lte("updated_at", cutoffDate.toISOString())
-    .limit(200)
+  // Get all users whose updated_at is older than the cutoff
+  const profiles = await query<{ id: string; email: string; name: string | null }>(
+    `SELECT id, email, name FROM better_auth_user
+     WHERE updated_at <= $1
+     LIMIT 200`,
+    [cutoffDate.toISOString()]
+  )
 
-  if (error || !profiles) {
-    console.error(`[Winback ${emailType}] Failed to fetch profiles:`, error?.message)
+  if (!profiles || profiles.length === 0) {
+    console.error(`[Winback ${emailType}] Failed to fetch profiles or none found`)
     return result
   }
 
@@ -115,14 +112,13 @@ async function processWinbackTier(
     result.processed++
     try {
       // Verify last login is truly older than cutoff
-      const { data: lastLogin } = await supabase
-        .from("user_events")
-        .select("created_at")
-        .eq("user_id", profile.id)
-        .eq("event_type", "login")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single()
+      const lastLogin = await queryOne<{ created_at: string }>(
+        `SELECT created_at FROM user_events
+         WHERE user_id = $1 AND event_type = 'login'
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [profile.id]
+      )
 
       // If user has recent login events, skip
       if (lastLogin && new Date(lastLogin.created_at) > cutoffDate) {
@@ -144,7 +140,7 @@ async function processWinbackTier(
 
       const sendResult = await sendFn({
         to: profile.email,
-        userName: profile.full_name || undefined,
+        userName: profile.name || undefined,
         userId: profile.id,
       })
 
@@ -163,24 +159,18 @@ async function processWinbackTier(
  * W3: Last attempt for PAID users who have been inactive 30+ days.
  */
 async function processW3PaidUsers(): Promise<WinbackResult> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
   const result: WinbackResult = { processed: 0, sent: 0, skipped: 0, errors: 0 }
 
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
   // Get paid users (active or past_due subscriptions)
-  const { data: subscriptions, error } = await supabase
-    .from("subscriptions")
-    .select("user_id")
-    .in("status", ["active", "past_due"])
-    .limit(200)
+  const subscriptions = await query<{ user_id: string }>(
+    `SELECT user_id FROM subscriptions WHERE status IN ('active', 'past_due') LIMIT 200`
+  )
 
-  if (error || !subscriptions) {
-    console.error("[Winback W3] Failed to fetch subscriptions:", error?.message)
+  if (!subscriptions || subscriptions.length === 0) {
+    console.error("[Winback W3] Failed to fetch subscriptions or none found")
     return result
   }
 
@@ -191,14 +181,13 @@ async function processW3PaidUsers(): Promise<WinbackResult> {
     result.processed++
     try {
       // Check last login
-      const { data: lastLogin } = await supabase
-        .from("user_events")
-        .select("created_at")
-        .eq("user_id", userId)
-        .eq("event_type", "login")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single()
+      const lastLogin = await queryOne<{ created_at: string }>(
+        `SELECT created_at FROM user_events
+         WHERE user_id = $1 AND event_type = 'login'
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [userId]
+      )
 
       if (!lastLogin || new Date(lastLogin.created_at) > thirtyDaysAgo) {
         result.skipped++
@@ -211,11 +200,10 @@ async function processW3PaidUsers(): Promise<WinbackResult> {
         continue
       }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("email, full_name")
-        .eq("id", userId)
-        .single()
+      const profile = await queryOne<{ email: string; name: string | null }>(
+        `SELECT email, name FROM better_auth_user WHERE id = $1`,
+        [userId]
+      )
 
       if (!profile) {
         result.skipped++
@@ -224,7 +212,7 @@ async function processW3PaidUsers(): Promise<WinbackResult> {
 
       const sendResult = await sendWinbackW3Email({
         to: profile.email,
-        userName: profile.full_name || undefined,
+        userName: profile.name || undefined,
         userId,
       })
 
@@ -243,50 +231,41 @@ async function processW3PaidUsers(): Promise<WinbackResult> {
  * W4: Free reactivation for FREE users inactive 30+ days.
  */
 async function processW4FreeUsers(): Promise<WinbackResult> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
   const result: WinbackResult = { processed: 0, sent: 0, skipped: 0, errors: 0 }
 
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-  // Get all profiles updated more than 30 days ago
-  const { data: profiles, error } = await supabase
-    .from("profiles")
-    .select("id, email, full_name")
-    .lte("updated_at", thirtyDaysAgo.toISOString())
-    .limit(200)
+  // Get all users updated more than 30 days ago, excluding paid users
+  const profiles = await query<{ id: string; email: string; name: string | null }>(
+    `SELECT u.id, u.email, u.name
+     FROM better_auth_user u
+     WHERE u.updated_at <= $1
+       AND NOT EXISTS (
+         SELECT 1 FROM subscriptions s
+         WHERE s.user_id = u.id
+           AND s.status IN ('active', 'past_due', 'trialing')
+       )
+     LIMIT 200`,
+    [thirtyDaysAgo.toISOString()]
+  )
 
-  if (error || !profiles) {
-    console.error("[Winback W4] Failed to fetch profiles:", error?.message)
+  if (!profiles || profiles.length === 0) {
+    console.error("[Winback W4] Failed to fetch profiles or none found")
     return result
   }
 
-  // Get paid user IDs to exclude them
-  const { data: subscriptions } = await supabase
-    .from("subscriptions")
-    .select("user_id")
-    .in("status", ["active", "past_due", "trialing"])
-
-  const paidUserIds = new Set((subscriptions || []).map((s) => s.user_id))
-
   for (const profile of profiles) {
-    // Skip paid users — they get W3 instead
-    if (paidUserIds.has(profile.id)) continue
-
     result.processed++
     try {
       // Verify last login is truly older than 30 days
-      const { data: lastLogin } = await supabase
-        .from("user_events")
-        .select("created_at")
-        .eq("user_id", profile.id)
-        .eq("event_type", "login")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single()
+      const lastLogin = await queryOne<{ created_at: string }>(
+        `SELECT created_at FROM user_events
+         WHERE user_id = $1 AND event_type = 'login'
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [profile.id]
+      )
 
       if (!lastLogin || new Date(lastLogin.created_at) > thirtyDaysAgo) {
         result.skipped++
@@ -301,7 +280,7 @@ async function processW4FreeUsers(): Promise<WinbackResult> {
 
       const sendResult = await sendWinbackW4Email({
         to: profile.email,
-        userName: profile.full_name || undefined,
+        userName: profile.name || undefined,
         userId: profile.id,
       })
 

@@ -6,7 +6,7 @@
 import { getPlanInfo, getUserAiCredits, consumeAiCredits, ensureAiCreditsForPeriod } from "@/lib/plan";
 import { trackEvent } from "@/lib/email/events";
 import { sendCreditsExhaustedEmail, sendConversionC1Email } from "@/lib/email/send";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { queryOne } from "@/lib/db";
 
 export const CREDITS_PER_ANALYSIS = 1;
 export const CREDITS_PER_COPILOT_MESSAGE = 2;
@@ -70,10 +70,15 @@ async function checkCreditThresholds(userId: string): Promise<void> {
     if (creditsRemaining <= 0) {
       trackEvent(userId, "credits_exhausted").catch(() => {})
 
-      const supabase = createAdminClient()
-      const [{ data: profile }, { data: sub }] = await Promise.all([
-        supabase.from("profiles").select("email, full_name, locale").eq("id", userId).single(),
-        supabase.from("subscriptions").select("plan").eq("user_id", userId).single(),
+      const [profile, sub] = await Promise.all([
+        queryOne<{ email: string; full_name: string | null; locale: string | null }>(
+          `SELECT email, full_name, locale FROM profiles WHERE id = $1`,
+          [userId]
+        ),
+        queryOne<{ plan: string }>(
+          `SELECT plan FROM subscriptions WHERE user_id = $1`,
+          [userId]
+        ),
       ])
 
       if (profile?.email) {
@@ -117,12 +122,10 @@ async function fireFeatureGateEmail(userId: string, featureName: string): Promis
   try {
     trackEvent(userId, "feature_gate_hit", { feature: featureName }).catch(() => {})
 
-    const supabase = createAdminClient()
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("email, full_name, locale")
-      .eq("id", userId)
-      .single()
+    const profile = await queryOne<{ email: string; full_name: string | null; locale: string | null }>(
+      `SELECT email, full_name, locale FROM profiles WHERE id = $1`,
+      [userId]
+    )
 
     if (profile?.email) {
       sendConversionC1Email({

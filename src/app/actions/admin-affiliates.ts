@@ -1,15 +1,8 @@
 "use server"
 
-import { createClient } from "@supabase/supabase-js"
+import { getPool } from "@/lib/db"
 import { verifyAdmin } from "@/lib/admin-auth"
 import { sendAffiliateApprovedEmail, sendAffiliateRejectedEmail } from "@/lib/email/send"
-
-function getAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -70,24 +63,20 @@ export async function getAffiliateApplications(
   status?: "pending" | "approved" | "rejected"
 ): Promise<AffiliateApplication[]> {
   await verifyAdmin()
-  const admin = getAdmin()
+  const pool = getPool()
 
-  let query = admin
-    .from("affiliate_applications")
-    .select("*")
-    .order("created_at", { ascending: false })
-
+  const params: unknown[] = []
+  let whereClause = ""
   if (status) {
-    query = query.eq("status", status)
+    params.push(status)
+    whereClause = `WHERE status = $1`
   }
 
-  const { data, error } = await query
-  if (error) {
-    console.error("[admin-affiliates] getAffiliateApplications:", error)
-    return []
-  }
-
-  return (data ?? []) as AffiliateApplication[]
+  const res = await pool.query(
+    `SELECT * FROM affiliate_applications ${whereClause} ORDER BY created_at DESC`,
+    params
+  )
+  return (res.rows ?? []) as AffiliateApplication[]
 }
 
 function generateAffiliateCode(name: string): string {
@@ -105,90 +94,74 @@ export async function approveApplication(
   commissionRate: number = 0.15
 ): Promise<{ success: boolean; error?: string }> {
   await verifyAdmin()
-  const admin = getAdmin()
+  const pool = getPool()
 
   // Get application
-  const { data: app, error: appError } = await admin
-    .from("affiliate_applications")
-    .select("*")
-    .eq("id", applicationId)
-    .single()
-
-  if (appError || !app) {
-    return { success: false, error: "Application not found" }
-  }
-
-  if (app.status !== "pending") {
-    return { success: false, error: "Application is not pending" }
-  }
+  const appRes = await pool.query(
+    `SELECT * FROM affiliate_applications WHERE id = $1 LIMIT 1`,
+    [applicationId]
+  )
+  const app = appRes.rows[0] as AffiliateApplication | undefined
+  if (!app) return { success: false, error: "Application not found" }
+  if (app.status !== "pending") return { success: false, error: "Application is not pending" }
 
   // Check if affiliate already exists for this email
-  const { data: existingAff } = await admin
-    .from("affiliates")
-    .select("id")
-    .eq("email", app.email)
-    .maybeSingle()
-
-  if (existingAff) {
+  const existingRes = await pool.query(
+    `SELECT id FROM affiliates WHERE email = $1 LIMIT 1`,
+    [app.email]
+  )
+  if (existingRes.rows[0]) {
     return { success: false, error: "An affiliate with this email already exists" }
   }
 
-  // Lookup user_id by email via profiles table (O(1) indexed query, scales to any user count)
+  // Lookup user_id by email via profiles table
   let userId: string | null = null
-  const { data: matchedProfile } = await admin
-    .from("profiles")
-    .select("id")
-    .ilike("email", app.email.trim())
-    .maybeSingle()
-  if (matchedProfile) {
-    userId = matchedProfile.id
+  const profileRes = await pool.query(
+    `SELECT id FROM profiles WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+    [app.email.trim()]
+  )
+  if (profileRes.rows[0]) {
+    userId = profileRes.rows[0].id
   }
 
   // Generate unique affiliate code
   let code = generateAffiliateCode(app.full_name)
   let attempts = 0
   while (attempts < 5) {
-    const { data: existing } = await admin
-      .from("affiliates")
-      .select("id")
-      .eq("affiliate_code", code)
-      .maybeSingle()
-    if (!existing) break
+    const codeRes = await pool.query(
+      `SELECT id FROM affiliates WHERE affiliate_code = $1 LIMIT 1`,
+      [code]
+    )
+    if (!codeRes.rows[0]) break
     code = generateAffiliateCode(app.full_name)
     attempts++
   }
 
   // Create affiliate record
-  const { data: newAffiliate, error: createError } = await admin
-    .from("affiliates")
-    .insert({
-      user_id: userId,
-      full_name: app.full_name,
-      email: app.email,
-      whatsapp: app.whatsapp,
-      affiliate_code: code,
-      commission_rate: commissionRate,
-    })
-    .select("id")
-    .single()
-
-  if (createError || !newAffiliate) {
-    console.error("[admin-affiliates] create affiliate:", createError)
+  let newAffiliateId: string | null = null
+  try {
+    const createRes = await pool.query(
+      `INSERT INTO affiliates (user_id, full_name, email, whatsapp, affiliate_code, commission_rate)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id`,
+      [userId, app.full_name, app.email, app.whatsapp, code, commissionRate]
+    )
+    newAffiliateId = createRes.rows[0]?.id ?? null
+  } catch (e) {
+    console.error("[admin-affiliates] create affiliate:", e)
     return { success: false, error: "Failed to create affiliate record" }
   }
 
-  // Update application status
-  const { error: updateError } = await admin
-    .from("affiliate_applications")
-    .update({
-      status: "approved",
-      reviewed_at: new Date().toISOString(),
-      affiliate_id: newAffiliate.id,
-    })
-    .eq("id", applicationId)
+  if (!newAffiliateId) return { success: false, error: "Failed to create affiliate record" }
 
-  if (updateError) {
-    console.error("[admin-affiliates] update application:", updateError)
+  // Update application status
+  try {
+    await pool.query(
+      `UPDATE affiliate_applications SET status = 'approved', reviewed_at = NOW(), affiliate_id = $1 WHERE id = $2`,
+      [newAffiliateId, applicationId]
+    )
+  } catch (e) {
+    console.error("[admin-affiliates] update application:", e)
     return { success: false, error: "Failed to update application status" }
   }
 
@@ -197,7 +170,7 @@ export async function approveApplication(
     to: app.email,
     affiliateName: app.full_name,
     affiliateCode: code,
-    commissionRate: commissionRate,
+    commissionRate,
     locale: app.preferred_locale || undefined,
   }).catch((e) => console.error("[admin-affiliates] approval email error:", e))
 
@@ -209,33 +182,26 @@ export async function rejectApplication(
   reason?: string
 ): Promise<{ success: boolean; error?: string }> {
   await verifyAdmin()
-  const admin = getAdmin()
+  const pool = getPool()
 
   // Get application info for email and status check
-  const { data: app } = await admin
-    .from("affiliate_applications")
-    .select("full_name, email, status, preferred_locale")
-    .eq("id", applicationId)
-    .single()
+  const appRes = await pool.query(
+    `SELECT full_name, email, status, preferred_locale FROM affiliate_applications WHERE id = $1 LIMIT 1`,
+    [applicationId]
+  )
+  const app = appRes.rows[0] as Pick<AffiliateApplication, "full_name" | "email" | "status" | "preferred_locale"> | undefined
 
-  if (!app) {
-    return { success: false, error: "Application not found" }
-  }
-
+  if (!app) return { success: false, error: "Application not found" }
   if (app.status !== "pending") {
     return { success: false, error: `Cannot reject: application is already ${app.status}` }
   }
 
-  const { error } = await admin
-    .from("affiliate_applications")
-    .update({
-      status: "rejected",
-      reviewed_at: new Date().toISOString(),
-      review_notes: reason || null,
-    })
-    .eq("id", applicationId)
-
-  if (error) {
+  try {
+    await pool.query(
+      `UPDATE affiliate_applications SET status = 'rejected', reviewed_at = NOW(), review_notes = $1 WHERE id = $2`,
+      [reason || null, applicationId]
+    )
+  } catch {
     return { success: false, error: "Failed to reject application" }
   }
 
@@ -254,43 +220,33 @@ export async function rejectApplication(
 
 export async function getAffiliatesList(): Promise<AffiliateRecord[]> {
   await verifyAdmin()
-  const admin = getAdmin()
+  const pool = getPool()
 
-  const { data, error } = await admin
-    .from("affiliates")
-    .select("*")
-    .order("total_earned", { ascending: false })
-
-  if (error) {
-    console.error("[admin-affiliates] getAffiliatesList:", error)
-    return []
-  }
-
-  return (data ?? []) as AffiliateRecord[]
+  const res = await pool.query(
+    `SELECT * FROM affiliates ORDER BY total_earned DESC`
+  )
+  return (res.rows ?? []) as AffiliateRecord[]
 }
 
 export async function toggleAffiliateStatus(
   affiliateId: string
 ): Promise<{ success: boolean; error?: string }> {
   await verifyAdmin()
-  const admin = getAdmin()
+  const pool = getPool()
 
-  const { data: current, error: fetchError } = await admin
-    .from("affiliates")
-    .select("is_active")
-    .eq("id", affiliateId)
-    .single()
+  const currentRes = await pool.query(
+    `SELECT is_active FROM affiliates WHERE id = $1 LIMIT 1`,
+    [affiliateId]
+  )
+  const current = currentRes.rows[0] as { is_active: boolean } | undefined
+  if (!current) return { success: false, error: "Affiliate not found" }
 
-  if (fetchError || !current) {
-    return { success: false, error: "Affiliate not found" }
-  }
-
-  const { error } = await admin
-    .from("affiliates")
-    .update({ is_active: !current.is_active, updated_at: new Date().toISOString() })
-    .eq("id", affiliateId)
-
-  if (error) {
+  try {
+    await pool.query(
+      `UPDATE affiliates SET is_active = $1, updated_at = NOW() WHERE id = $2`,
+      [!current.is_active, affiliateId]
+    )
+  } catch {
     return { success: false, error: "Failed to update status" }
   }
 
@@ -302,18 +258,18 @@ export async function updateCommissionRate(
   rate: number
 ): Promise<{ success: boolean; error?: string }> {
   await verifyAdmin()
-  const admin = getAdmin()
+  const pool = getPool()
 
   if (rate < 0 || rate > 1) {
     return { success: false, error: "Rate must be between 0 and 1" }
   }
 
-  const { error } = await admin
-    .from("affiliates")
-    .update({ commission_rate: rate, updated_at: new Date().toISOString() })
-    .eq("id", affiliateId)
-
-  if (error) {
+  try {
+    await pool.query(
+      `UPDATE affiliates SET commission_rate = $1, updated_at = NOW() WHERE id = $2`,
+      [rate, affiliateId]
+    )
+  } catch {
     return { success: false, error: "Failed to update commission rate" }
   }
 
@@ -322,24 +278,17 @@ export async function updateCommissionRate(
 
 export async function getPendingWithdrawals(): Promise<AffiliateWithdrawal[]> {
   await verifyAdmin()
-  const admin = getAdmin()
+  const pool = getPool()
 
-  const { data, error } = await admin
-    .from("affiliate_withdrawals")
-    .select("*, affiliates(full_name, email)")
-    .eq("status", "pending")
-    .order("created_at", { ascending: true })
+  const res = await pool.query(
+    `SELECT w.*, a.full_name AS affiliate_name, a.email AS affiliate_email
+     FROM affiliate_withdrawals w
+     LEFT JOIN affiliates a ON a.id = w.affiliate_id
+     WHERE w.status = 'pending'
+     ORDER BY w.created_at ASC`
+  )
 
-  if (error) {
-    console.error("[admin-affiliates] getPendingWithdrawals:", error)
-    return []
-  }
-
-  return (data ?? []).map((w: Record<string, unknown>) => ({
-    ...(w as unknown as AffiliateWithdrawal),
-    affiliate_name: (w.affiliates as { full_name?: string } | null)?.full_name,
-    affiliate_email: (w.affiliates as { email?: string } | null)?.email,
-  }))
+  return (res.rows ?? []) as AffiliateWithdrawal[]
 }
 
 export async function processWithdrawal(
@@ -347,63 +296,51 @@ export async function processWithdrawal(
   txHash: string
 ): Promise<{ success: boolean; error?: string }> {
   const user = await verifyAdmin()
-  const admin = getAdmin()
+  const pool = getPool()
 
   if (!txHash.trim()) {
     return { success: false, error: "Transaction hash is required" }
   }
 
   // Get withdrawal to know the amount and affiliate
-  const { data: withdrawal, error: fetchError } = await admin
-    .from("affiliate_withdrawals")
-    .select("affiliate_id, amount, status")
-    .eq("id", withdrawalId)
-    .single()
+  const wdRes = await pool.query(
+    `SELECT affiliate_id, amount, status FROM affiliate_withdrawals WHERE id = $1 LIMIT 1`,
+    [withdrawalId]
+  )
+  const withdrawal = wdRes.rows[0] as { affiliate_id: string; amount: number; status: string } | undefined
 
-  if (fetchError || !withdrawal) {
-    return { success: false, error: "Withdrawal not found" }
-  }
-
+  if (!withdrawal) return { success: false, error: "Withdrawal not found" }
   if (withdrawal.status !== "pending") {
     return { success: false, error: "Withdrawal is not in pending status" }
   }
 
   // Mark withdrawal as completed
-  const { error: updateError } = await admin
-    .from("affiliate_withdrawals")
-    .update({
-      status: "completed",
-      tx_hash: txHash.trim(),
-      processed_by: user.id,
-      processed_at: new Date().toISOString(),
-    })
-    .eq("id", withdrawalId)
-
-  if (updateError) {
+  try {
+    await pool.query(
+      `UPDATE affiliate_withdrawals SET status = 'completed', tx_hash = $1, processed_by = $2, processed_at = NOW() WHERE id = $3`,
+      [txHash.trim(), user.id, withdrawalId]
+    )
+  } catch {
     return { success: false, error: "Failed to process withdrawal" }
   }
 
   // Atomically increment total_paid using optimistic locking to prevent race conditions
   for (let retry = 0; retry < 3; retry++) {
-    const { data: aff } = await admin
-      .from("affiliates")
-      .select("total_paid")
-      .eq("id", withdrawal.affiliate_id)
-      .single()
-
+    const affRes = await pool.query(
+      `SELECT total_paid FROM affiliates WHERE id = $1 LIMIT 1`,
+      [withdrawal.affiliate_id]
+    )
+    const aff = affRes.rows[0] as { total_paid: number } | undefined
     if (!aff) break
 
     const currentPaid = Number(aff.total_paid ?? 0)
-    const { error: paidErr, count } = await admin
-      .from("affiliates")
-      .update({
-        total_paid: currentPaid + Number(withdrawal.amount),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", withdrawal.affiliate_id)
-      .eq("total_paid", currentPaid)
+    const newPaid = currentPaid + Number(withdrawal.amount)
 
-    if (!paidErr && count && count > 0) break // Success: row was updated
+    const updateRes = await pool.query(
+      `UPDATE affiliates SET total_paid = $1, updated_at = NOW() WHERE id = $2 AND total_paid = $3`,
+      [newPaid, withdrawal.affiliate_id, currentPaid]
+    )
+    if ((updateRes.rowCount ?? 0) > 0) break // Success: row was updated
   }
 
   return { success: true }
@@ -414,19 +351,14 @@ export async function rejectWithdrawal(
   reason: string
 ): Promise<{ success: boolean; error?: string }> {
   const user = await verifyAdmin()
-  const admin = getAdmin()
+  const pool = getPool()
 
-  const { error } = await admin
-    .from("affiliate_withdrawals")
-    .update({
-      status: "rejected",
-      admin_notes: reason,
-      processed_by: user.id,
-      processed_at: new Date().toISOString(),
-    })
-    .eq("id", withdrawalId)
-
-  if (error) {
+  try {
+    await pool.query(
+      `UPDATE affiliate_withdrawals SET status = 'rejected', admin_notes = $1, processed_by = $2, processed_at = NOW() WHERE id = $3`,
+      [reason, user.id, withdrawalId]
+    )
+  } catch {
     return { success: false, error: "Failed to reject withdrawal" }
   }
 
@@ -469,48 +401,28 @@ export async function getAffiliateDetail(
   id: string
 ): Promise<AffiliateDetail | null> {
   await verifyAdmin()
-  const admin = getAdmin()
+  const pool = getPool()
 
-  const { data: affiliate, error } = await admin
-    .from("affiliates")
-    .select("*")
-    .eq("id", id)
-    .single()
+  const affRes = await pool.query(
+    `SELECT * FROM affiliates WHERE id = $1 LIMIT 1`,
+    [id]
+  )
+  const affiliate = affRes.rows[0] as AffiliateRecord | undefined
+  if (!affiliate) return null
 
-  if (error || !affiliate) return null
-
-  const [appResult, commResult, wdResult, adjResult] = await Promise.all([
-    admin
-      .from("affiliate_applications")
-      .select("*")
-      .eq("affiliate_id", id)
-      .maybeSingle(),
-    admin
-      .from("affiliate_commissions")
-      .select("*")
-      .eq("affiliate_id", id)
-      .order("created_at", { ascending: false })
-      .limit(50),
-    admin
-      .from("affiliate_withdrawals")
-      .select("*")
-      .eq("affiliate_id", id)
-      .order("created_at", { ascending: false })
-      .limit(50),
-    admin
-      .from("affiliate_balance_adjustments")
-      .select("*")
-      .eq("affiliate_id", id)
-      .order("created_at", { ascending: false })
-      .limit(50),
+  const [appRes, commRes, wdRes, adjRes] = await Promise.all([
+    pool.query(`SELECT * FROM affiliate_applications WHERE affiliate_id = $1 LIMIT 1`, [id]),
+    pool.query(`SELECT * FROM affiliate_commissions WHERE affiliate_id = $1 ORDER BY created_at DESC LIMIT 50`, [id]),
+    pool.query(`SELECT * FROM affiliate_withdrawals WHERE affiliate_id = $1 ORDER BY created_at DESC LIMIT 50`, [id]),
+    pool.query(`SELECT * FROM affiliate_balance_adjustments WHERE affiliate_id = $1 ORDER BY created_at DESC LIMIT 50`, [id]),
   ])
 
   return {
-    affiliate: affiliate as AffiliateRecord,
-    application: (appResult.data as AffiliateApplication) ?? null,
-    commissions: (commResult.data ?? []) as AffiliateCommission[],
-    withdrawals: (wdResult.data ?? []) as AffiliateWithdrawal[],
-    adjustments: (adjResult.data ?? []) as AffiliateBalanceAdjustment[],
+    affiliate,
+    application: (appRes.rows[0] as AffiliateApplication) ?? null,
+    commissions: (commRes.rows ?? []) as AffiliateCommission[],
+    withdrawals: (wdRes.rows ?? []) as AffiliateWithdrawal[],
+    adjustments: (adjRes.rows ?? []) as AffiliateBalanceAdjustment[],
   }
 }
 
@@ -519,7 +431,7 @@ export async function updateAffiliateCode(
   newCode: string
 ): Promise<{ success: boolean; error?: string }> {
   await verifyAdmin()
-  const admin = getAdmin()
+  const pool = getPool()
 
   const trimmed = newCode.trim().toUpperCase()
 
@@ -531,23 +443,20 @@ export async function updateAffiliateCode(
   }
 
   // Check uniqueness
-  const { data: existing } = await admin
-    .from("affiliates")
-    .select("id")
-    .eq("affiliate_code", trimmed)
-    .neq("id", affiliateId)
-    .maybeSingle()
-
-  if (existing) {
+  const existingRes = await pool.query(
+    `SELECT id FROM affiliates WHERE affiliate_code = $1 AND id != $2 LIMIT 1`,
+    [trimmed, affiliateId]
+  )
+  if (existingRes.rows[0]) {
     return { success: false, error: "This code is already in use" }
   }
 
-  const { error } = await admin
-    .from("affiliates")
-    .update({ affiliate_code: trimmed, updated_at: new Date().toISOString() })
-    .eq("id", affiliateId)
-
-  if (error) {
+  try {
+    await pool.query(
+      `UPDATE affiliates SET affiliate_code = $1, updated_at = NOW() WHERE id = $2`,
+      [trimmed, affiliateId]
+    )
+  } catch {
     return { success: false, error: "Failed to update code" }
   }
 
@@ -562,7 +471,7 @@ export async function adjustAffiliateBalance(
   reason: string
 ): Promise<{ success: boolean; error?: string }> {
   const user = await verifyAdmin()
-  const admin = getAdmin()
+  const pool = getPool()
 
   if (amount <= 0 || amount > 999999.99) {
     return { success: false, error: "Amount must be between 0.01 and 999,999.99" }
@@ -572,46 +481,36 @@ export async function adjustAffiliateBalance(
     return { success: false, error: "Reason must be at least 5 characters" }
   }
 
-  const { data: affiliate, error: fetchError } = await admin
-    .from("affiliates")
-    .select("total_earned, total_paid")
-    .eq("id", affiliateId)
-    .single()
-
-  if (fetchError || !affiliate) {
-    return { success: false, error: "Affiliate not found" }
-  }
+  const affRes = await pool.query(
+    `SELECT total_earned, total_paid FROM affiliates WHERE id = $1 LIMIT 1`,
+    [affiliateId]
+  )
+  const affiliate = affRes.rows[0] as { total_earned: number; total_paid: number } | undefined
+  if (!affiliate) return { success: false, error: "Affiliate not found" }
 
   const currentValue = Number(affiliate[field]) || 0
   const delta = type === "credit" ? amount : -amount
   const newValue = Math.max(0, currentValue + delta)
 
   // Update the affiliate balance
-  const { error: updateError } = await admin
-    .from("affiliates")
-    .update({ [field]: newValue, updated_at: new Date().toISOString() })
-    .eq("id", affiliateId)
-
-  if (updateError) {
+  try {
+    await pool.query(
+      `UPDATE affiliates SET "${field}" = $1, updated_at = NOW() WHERE id = $2`,
+      [newValue, affiliateId]
+    )
+  } catch {
     return { success: false, error: "Failed to update balance" }
   }
 
   // Record the adjustment in audit trail
-  const { error: auditError } = await admin
-    .from("affiliate_balance_adjustments")
-    .insert({
-      affiliate_id: affiliateId,
-      admin_id: user.id,
-      type,
-      field,
-      amount,
-      balance_before: currentValue,
-      balance_after: newValue,
-      reason: reason.trim(),
-    })
-
-  if (auditError) {
-    console.error("[admin-affiliates] audit trail error:", auditError)
+  try {
+    await pool.query(
+      `INSERT INTO affiliate_balance_adjustments (affiliate_id, admin_id, type, field, amount, balance_before, balance_after, reason)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [affiliateId, user.id, type, field, amount, currentValue, newValue, reason.trim()]
+    )
+  } catch (e) {
+    console.error("[admin-affiliates] audit trail error:", e)
   }
 
   return { success: true }
@@ -624,17 +523,19 @@ export async function getApplicationCounts(): Promise<{
   all: number
 }> {
   await verifyAdmin()
-  const admin = getAdmin()
+  const pool = getPool()
 
-  const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
-    admin.from("affiliate_applications").select("id", { count: "exact", head: true }).eq("status", "pending"),
-    admin.from("affiliate_applications").select("id", { count: "exact", head: true }).eq("status", "approved"),
-    admin.from("affiliate_applications").select("id", { count: "exact", head: true }).eq("status", "rejected"),
-  ])
+  const res = await pool.query(
+    `SELECT status, COUNT(*) AS count FROM affiliate_applications GROUP BY status`
+  )
+  const counts: Record<string, number> = {}
+  for (const row of res.rows as { status: string; count: string }[]) {
+    counts[row.status] = parseInt(row.count, 10)
+  }
 
-  const pending = pendingRes.count ?? 0
-  const approved = approvedRes.count ?? 0
-  const rejected = rejectedRes.count ?? 0
+  const pending = counts["pending"] ?? 0
+  const approved = counts["approved"] ?? 0
+  const rejected = counts["rejected"] ?? 0
 
   return { pending, approved, rejected, all: pending + approved + rejected }
 }
@@ -643,32 +544,24 @@ export async function reopenApplication(
   applicationId: string
 ): Promise<{ success: boolean; error?: string }> {
   await verifyAdmin()
-  const admin = getAdmin()
+  const pool = getPool()
 
-  const { data: app } = await admin
-    .from("affiliate_applications")
-    .select("status")
-    .eq("id", applicationId)
-    .single()
-
-  if (!app) {
-    return { success: false, error: "Application not found" }
-  }
-
+  const appRes = await pool.query(
+    `SELECT status FROM affiliate_applications WHERE id = $1 LIMIT 1`,
+    [applicationId]
+  )
+  const app = appRes.rows[0] as { status: string } | undefined
+  if (!app) return { success: false, error: "Application not found" }
   if (app.status !== "rejected") {
     return { success: false, error: "Only rejected applications can be reopened" }
   }
 
-  const { error } = await admin
-    .from("affiliate_applications")
-    .update({
-      status: "pending",
-      reviewed_at: null,
-      review_notes: null,
-    })
-    .eq("id", applicationId)
-
-  if (error) {
+  try {
+    await pool.query(
+      `UPDATE affiliate_applications SET status = 'pending', reviewed_at = NULL, review_notes = NULL WHERE id = $1`,
+      [applicationId]
+    )
+  } catch {
     return { success: false, error: "Failed to reopen application" }
   }
 
@@ -677,25 +570,25 @@ export async function reopenApplication(
 
 export async function getAffiliateStats() {
   await verifyAdmin()
-  const admin = getAdmin()
+  const pool = getPool()
 
-  const { data, error } = await admin.rpc("admin_get_affiliate_stats")
-  if (error) {
-    console.error("[admin-affiliates] getAffiliateStats:", error)
+  try {
+    const res = await pool.query(`SELECT * FROM admin_get_affiliate_stats()`)
+    return res.rows[0] as {
+      total_applications: number
+      pending_applications: number
+      total_affiliates: number
+      active_affiliates: number
+      total_referrals: number
+      total_conversions: number
+      total_commissions_earned: number
+      total_commissions_paid: number
+      pending_withdrawals_count: number
+      pending_withdrawals_amount: number
+      conversion_rate: number
+    } | null
+  } catch (e) {
+    console.error("[admin-affiliates] getAffiliateStats:", e)
     return null
-  }
-
-  return data as {
-    total_applications: number
-    pending_applications: number
-    total_affiliates: number
-    active_affiliates: number
-    total_referrals: number
-    total_conversions: number
-    total_commissions_earned: number
-    total_commissions_paid: number
-    pending_withdrawals_count: number
-    pending_withdrawals_amount: number
-    conversion_rate: number
   }
 }

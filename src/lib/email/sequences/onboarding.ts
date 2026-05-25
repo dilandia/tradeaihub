@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@supabase/supabase-js"
+import { query, queryOne } from "@/lib/db"
 import { canSendEmail, recordSend } from "@/lib/email/scheduler"
 import { hasEvent } from "@/lib/email/events"
 import {
@@ -26,33 +26,30 @@ interface OnboardingResult {
  * Called by the email-lifecycle cron every 1-2 hours.
  */
 export async function processOnboardingEmails(): Promise<OnboardingResult> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
   const result: OnboardingResult = { processed: 0, sent: 0, skipped: 0, errors: 0 }
 
   // Get users who signed up after feature launch, within last 14 days
   const fourteenDaysAgo = new Date()
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14)
 
-  const { data: users, error } = await supabase
-    .from("profiles")
-    .select("id, email, full_name, created_at")
-    .gte("created_at", FEATURE_LAUNCH_DATE)
-    .gte("created_at", fourteenDaysAgo.toISOString())
-    .limit(100)
+  const users = await query<{ id: string; email: string; name: string | null; created_at: string }>(
+    `SELECT id, email, name, created_at
+     FROM better_auth_user
+     WHERE created_at >= $1
+       AND created_at >= $2
+     LIMIT 100`,
+    [FEATURE_LAUNCH_DATE, fourteenDaysAgo.toISOString()]
+  )
 
-  if (error || !users) {
-    console.error("[Onboarding] Failed to fetch users:", error?.message)
+  if (!users || users.length === 0) {
+    console.error("[Onboarding] No eligible users found or query failed")
     return result
   }
 
   for (const user of users) {
     result.processed++
     try {
-      const sent = await processUserOnboarding(user.id, user.email, user.full_name)
+      const sent = await processUserOnboarding(user.id, user.email, user.name)
       if (sent) result.sent++
       else result.skipped++
     } catch (err) {
@@ -136,52 +133,40 @@ async function processUserOnboarding(
 }
 
 async function getUserSignupDate(userId: string): Promise<Date | null> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  const row = await queryOne<{ created_at: string }>(
+    `SELECT created_at FROM better_auth_user WHERE id = $1`,
+    [userId]
   )
-  const { data } = await supabase
-    .from("profiles")
-    .select("created_at")
-    .eq("id", userId)
-    .single()
-  return data?.created_at ? new Date(data.created_at) : null
+  return row?.created_at ? new Date(row.created_at) : null
 }
 
 async function getUserOnboardingStats(userId: string): Promise<{ tradesAnalyzed?: number; insightsGenerated?: number; daysActive?: number } | undefined> {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const [tradeRow, aiRow, loginRow] = await Promise.all([
+      queryOne<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM trades WHERE user_id = $1 AND deleted_at IS NULL`,
+        [userId]
+      ),
+      queryOne<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM user_events WHERE user_id = $1 AND event_type = 'ai_agent_used'`,
+        [userId]
+      ),
+      queryOne<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM user_events WHERE user_id = $1 AND event_type = 'login'`,
+        [userId]
+      ),
+    ])
 
-    // Count trades
-    const { count: tradeCount } = await supabase
-      .from("trades")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .is("deleted_at", null)
-
-    // Count AI usages
-    const { count: aiCount } = await supabase
-      .from("user_events")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("event_type", "ai_agent_used")
-
-    // Days active (distinct login days)
-    const { count: loginCount } = await supabase
-      .from("user_events")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("event_type", "login")
+    const tradeCount = parseInt(tradeRow?.count ?? "0", 10)
+    const aiCount = parseInt(aiRow?.count ?? "0", 10)
+    const loginCount = parseInt(loginRow?.count ?? "0", 10)
 
     if (!tradeCount && !aiCount) return undefined
 
     return {
-      tradesAnalyzed: tradeCount ?? 0,
-      insightsGenerated: aiCount ?? 0,
-      daysActive: loginCount ?? 0,
+      tradesAnalyzed: tradeCount,
+      insightsGenerated: aiCount,
+      daysActive: loginCount,
     }
   } catch {
     return undefined

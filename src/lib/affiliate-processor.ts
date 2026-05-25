@@ -6,7 +6,7 @@
  * identical to the referral processor. Must run server-side.
  */
 import { cookies } from "next/headers"
-import { createClient } from "@supabase/supabase-js"
+import { getPool, queryOne } from "@/lib/db"
 
 export async function processAffiliateOnFirstLogin(userId: string): Promise<void> {
   const cookieStore = await cookies()
@@ -24,18 +24,14 @@ export async function processAffiliateOnFirstLogin(userId: string): Promise<void
     return
   }
 
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const pool = getPool()
 
   try {
     // Check if this user already has an affiliate attribution
-    const { data: existingRef } = await admin
-      .from("affiliate_referrals")
-      .select("id")
-      .eq("referred_user_id", userId)
-      .maybeSingle()
+    const existingRef = await queryOne<{ id: string }>(
+      `SELECT id FROM affiliate_referrals WHERE referred_user_id = $1`,
+      [userId]
+    )
 
     if (existingRef) {
       // Already attributed — clear the cookie
@@ -44,12 +40,10 @@ export async function processAffiliateOnFirstLogin(userId: string): Promise<void
     }
 
     // Look up affiliate by code (case-insensitive via uppercase normalization)
-    const { data: affiliate } = await admin
-      .from("affiliates")
-      .select("id, is_active, user_id")
-      .eq("affiliate_code", affiliateCode)
-      .eq("is_active", true)
-      .maybeSingle()
+    const affiliate = await queryOne<{ id: string; is_active: boolean; user_id: string }>(
+      `SELECT id, is_active, user_id FROM affiliates WHERE affiliate_code = $1 AND is_active = true`,
+      [affiliateCode]
+    )
 
     if (!affiliate) {
       cookieStore.delete("affiliate_ref")
@@ -63,40 +57,35 @@ export async function processAffiliateOnFirstLogin(userId: string): Promise<void
     }
 
     // Create attribution row
-    const { error: insertErr } = await admin.from("affiliate_referrals").insert({
-      affiliate_id: affiliate.id,
-      referred_user_id: userId,
-      status: "registered",
-    })
-
-    if (insertErr) {
+    try {
+      await pool.query(
+        `INSERT INTO affiliate_referrals (affiliate_id, referred_user_id, status) VALUES ($1, $2, 'registered')`,
+        [affiliate.id, userId]
+      )
+    } catch (insertErr: unknown) {
       // Likely unique constraint violation — user already referred
-      console.error("[affiliate-processor] insert referral:", insertErr.message)
+      const msg = insertErr instanceof Error ? insertErr.message : String(insertErr)
+      console.error("[affiliate-processor] insert referral:", msg)
       cookieStore.delete("affiliate_ref")
       return
     }
 
     // Atomically increment total_referrals using optimistic locking
     for (let retry = 0; retry < 3; retry++) {
-      const { data: current } = await admin
-        .from("affiliates")
-        .select("total_referrals")
-        .eq("id", affiliate.id)
-        .single()
+      const current = await queryOne<{ total_referrals: number }>(
+        `SELECT total_referrals FROM affiliates WHERE id = $1`,
+        [affiliate.id]
+      )
 
       if (!current) break
 
       const currentCount = current.total_referrals ?? 0
-      const { error: updateErr, count } = await admin
-        .from("affiliates")
-        .update({
-          total_referrals: currentCount + 1,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", affiliate.id)
-        .eq("total_referrals", currentCount)
+      const result = await pool.query(
+        `UPDATE affiliates SET total_referrals = $1, updated_at = $2 WHERE id = $3 AND total_referrals = $4`,
+        [currentCount + 1, new Date().toISOString(), affiliate.id, currentCount]
+      )
 
-      if (!updateErr && count && count > 0) break
+      if (result.rowCount && result.rowCount > 0) break
     }
 
     // Clear cookie after successful processing

@@ -9,7 +9,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useSession } from "@/lib/auth-client";
 import type { PlanInfo } from "@/lib/plan";
 
 type PlanContextValue = {
@@ -45,6 +45,7 @@ async function fetchPlan(): Promise<PlanInfo | null> {
 type Props = { children: ReactNode };
 
 export function PlanProvider({ children }: Props) {
+  const { data: session } = useSession();
   const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -112,49 +113,31 @@ export function PlanProvider({ children }: Props) {
     }
   }, [refetch]);
 
-  // Listen for auth state changes and refetch plan.
-  // INITIAL_SESSION is critical: after a server-action login + redirect, the
-  // browser Supabase client detects the session from cookies and fires
-  // INITIAL_SESSION (not SIGNED_IN). Without handling it, plan data never
-  // refreshes after login.
+  // Observa mudanças na sessão do Better Auth e refaz o fetch do plano.
+  // session muda quando: login, logout, token refresh.
   useEffect(() => {
-    const supabase = createClient();
+    // Clear any pending retry when session changes
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (
-          event === "SIGNED_IN" ||
-          event === "SIGNED_OUT" ||
-          event === "TOKEN_REFRESHED" ||
-          event === "USER_UPDATED" ||
-          event === "INITIAL_SESSION"
-        ) {
-          // Clear any pending retry from a previous event
-          if (retryTimerRef.current) {
-            clearTimeout(retryTimerRef.current);
-            retryTimerRef.current = null;
-          }
+    if (!session?.user) {
+      // Sem sessão — limpa o plano imediatamente
+      setPlanInfo(null);
+      setIsLoading(false);
+      return;
+    }
 
-          if (event === "SIGNED_OUT" || (event === "INITIAL_SESSION" && !session)) {
-            // No session — clear plan immediately
-            setPlanInfo(null);
-            setIsLoading(false);
-            return;
-          }
-
-          // Session exists — fetch plan
-          refetch();
-        }
-      }
-    );
+    // Sessão existe — fetch do plano
+    refetch();
 
     return () => {
-      subscription?.unsubscribe();
       if (retryTimerRef.current) {
         clearTimeout(retryTimerRef.current);
       }
     };
-  }, [refetch]);
+  }, [session, refetch]);
 
   const canUseMetaApi = useCallback(
     () => planInfo?.canUseMetaApi ?? false,

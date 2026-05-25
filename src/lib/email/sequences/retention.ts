@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@supabase/supabase-js"
+import { query, queryOne } from "@/lib/db"
 import { canSendEmail } from "@/lib/email/scheduler"
 import {
   sendRetentionR1Email,
@@ -93,34 +93,21 @@ export async function processRetentionEmails(): Promise<RetentionResult> {
  * Runs on 1st of each month.
  */
 async function processR1MonthlyUsage(): Promise<RetentionResult> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
   const result: RetentionResult = { processed: 0, sent: 0, skipped: 0, errors: 0 }
 
-  // Get paid users (active subscriptions)
-  const { data: subscriptions, error } = await supabase
-    .from("subscriptions")
-    .select("user_id, status")
-    .eq("status", "active")
-    .limit(200)
+  // Get paid users (active subscriptions) joined with user data
+  const profiles = await query<{ id: string; email: string; name: string | null }>(
+    `SELECT u.id, u.email, u.name
+     FROM better_auth_user u
+     INNER JOIN subscriptions s ON s.user_id = u.id
+     WHERE s.status = 'active'
+     LIMIT 200`
+  )
 
-  if (error || !subscriptions) {
-    console.error("[Retention R1] Failed to fetch subscriptions:", error?.message)
+  if (!profiles || profiles.length === 0) {
+    console.error("[Retention R1] Failed to fetch subscriptions or no active users")
     return result
   }
-
-  const userIds = subscriptions.map((s) => s.user_id)
-  if (userIds.length === 0) return result
-
-  // Get profiles for these users
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, email, full_name")
-    .in("id", userIds)
-
-  if (!profiles) return result
 
   // Date range for last month
   const now = new Date()
@@ -137,43 +124,40 @@ async function processR1MonthlyUsage(): Promise<RetentionResult> {
       }
 
       // Get monthly stats
-      const [tradeCount, aiCount, creditCount, strategyCount] = await Promise.all([
-        supabase
-          .from("trades")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", profile.id)
-          .is("deleted_at", null)
-          .gte("created_at", lastMonthStart.toISOString())
-          .lte("created_at", lastMonthEnd.toISOString()),
-        supabase
-          .from("user_events")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", profile.id)
-          .eq("event_type", "ai_agent_used")
-          .gte("created_at", lastMonthStart.toISOString())
-          .lte("created_at", lastMonthEnd.toISOString()),
-        supabase
-          .from("ai_credits")
-          .select("credits_used")
-          .eq("user_id", profile.id)
-          .single(),
-        supabase
-          .from("strategies")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", profile.id),
+      const [tradeRow, aiRow, creditRow, strategyRow] = await Promise.all([
+        queryOne<{ count: string }>(
+          `SELECT COUNT(*) AS count FROM trades
+           WHERE user_id = $1 AND deleted_at IS NULL
+             AND created_at >= $2 AND created_at <= $3`,
+          [profile.id, lastMonthStart.toISOString(), lastMonthEnd.toISOString()]
+        ),
+        queryOne<{ count: string }>(
+          `SELECT COUNT(*) AS count FROM user_events
+           WHERE user_id = $1 AND event_type = 'ai_agent_used'
+             AND created_at >= $2 AND created_at <= $3`,
+          [profile.id, lastMonthStart.toISOString(), lastMonthEnd.toISOString()]
+        ),
+        queryOne<{ credits_used: number }>(
+          `SELECT credits_used FROM ai_credits WHERE user_id = $1`,
+          [profile.id]
+        ),
+        queryOne<{ count: string }>(
+          `SELECT COUNT(*) AS count FROM strategies WHERE user_id = $1`,
+          [profile.id]
+        ),
       ])
 
       const stats = {
-        tradesAnalyzed: tradeCount.count ?? 0,
-        aiInsights: aiCount.count ?? 0,
-        creditsUsed: creditCount.data?.credits_used ?? 0,
-        strategiesActive: strategyCount.count ?? 0,
+        tradesAnalyzed: parseInt(tradeRow?.count ?? "0", 10),
+        aiInsights: parseInt(aiRow?.count ?? "0", 10),
+        creditsUsed: creditRow?.credits_used ?? 0,
+        strategiesActive: parseInt(strategyRow?.count ?? "0", 10),
         takerzScore: 0, // TakeZ Score calculated client-side, pass 0 for now
       }
 
       const sendResult = await sendRetentionR1Email({
         to: profile.email,
-        userName: profile.full_name || undefined,
+        userName: profile.name || undefined,
         userId: profile.id,
         stats,
       })
@@ -194,21 +178,18 @@ async function processR1MonthlyUsage(): Promise<RetentionResult> {
  * Check all users for newly crossed milestones.
  */
 async function processR2TradeMilestones(): Promise<RetentionResult> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
   const result: RetentionResult = { processed: 0, sent: 0, skipped: 0, errors: 0 }
 
   // Get users who signed up after feature launch
-  const { data: profiles, error } = await supabase
-    .from("profiles")
-    .select("id, email, full_name")
-    .gte("created_at", FEATURE_LAUNCH_DATE)
-    .limit(200)
+  const profiles = await query<{ id: string; email: string; name: string | null }>(
+    `SELECT id, email, name FROM better_auth_user
+     WHERE created_at >= $1
+     LIMIT 200`,
+    [FEATURE_LAUNCH_DATE]
+  )
 
-  if (error || !profiles) {
-    console.error("[Retention R2] Failed to fetch profiles:", error?.message)
+  if (!profiles || profiles.length === 0) {
+    console.error("[Retention R2] Failed to fetch profiles")
     return result
   }
 
@@ -216,13 +197,11 @@ async function processR2TradeMilestones(): Promise<RetentionResult> {
     result.processed++
     try {
       // Count total trades
-      const { count: tradeCount } = await supabase
-        .from("trades")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", profile.id)
-        .is("deleted_at", null)
-
-      const total = tradeCount ?? 0
+      const tradeRow = await queryOne<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM trades WHERE user_id = $1 AND deleted_at IS NULL`,
+        [profile.id]
+      )
+      const total = parseInt(tradeRow?.count ?? "0", 10)
 
       // Check each milestone
       for (const milestone of TRADE_MILESTONES) {
@@ -232,7 +211,7 @@ async function processR2TradeMilestones(): Promise<RetentionResult> {
           if (allowed) {
             const sendResult = await sendRetentionR2Email({
               to: profile.email,
-              userName: profile.full_name || undefined,
+              userName: profile.name || undefined,
               userId: profile.id,
               milestone,
             })
@@ -257,10 +236,6 @@ async function processR2TradeMilestones(): Promise<RetentionResult> {
  * Check profiles where created_at matches anniversary (+/- 1 day window).
  */
 async function processR3TimeMilestones(): Promise<RetentionResult> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
   const result: RetentionResult = { processed: 0, sent: 0, skipped: 0, errors: 0 }
 
   const now = new Date()
@@ -275,14 +250,14 @@ async function processR3TimeMilestones(): Promise<RetentionResult> {
     const windowEnd = new Date(targetDate)
     windowEnd.setDate(windowEnd.getDate() + 1)
 
-    const { data: profiles, error } = await supabase
-      .from("profiles")
-      .select("id, email, full_name")
-      .gte("created_at", windowStart.toISOString())
-      .lte("created_at", windowEnd.toISOString())
-      .limit(100)
+    const profiles = await query<{ id: string; email: string; name: string | null }>(
+      `SELECT id, email, name FROM better_auth_user
+       WHERE created_at >= $1 AND created_at <= $2
+       LIMIT 100`,
+      [windowStart.toISOString(), windowEnd.toISOString()]
+    )
 
-    if (error || !profiles) continue
+    if (!profiles || profiles.length === 0) continue
 
     for (const profile of profiles) {
       result.processed++
@@ -296,7 +271,7 @@ async function processR3TimeMilestones(): Promise<RetentionResult> {
 
         const sendResult = await sendRetentionR3Email({
           to: profile.email,
-          userName: profile.full_name || undefined,
+          userName: profile.name || undefined,
           userId: profile.id,
           months,
         })
@@ -318,21 +293,15 @@ async function processR3TimeMilestones(): Promise<RetentionResult> {
  * Paid users with no login event in 7+ days who had previous activity.
  */
 async function processR5ActivityDeclining(): Promise<RetentionResult> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
   const result: RetentionResult = { processed: 0, sent: 0, skipped: 0, errors: 0 }
 
-  // Get paid users
-  const { data: subscriptions, error } = await supabase
-    .from("subscriptions")
-    .select("user_id")
-    .eq("status", "active")
-    .limit(200)
+  // Get paid user IDs (active subscriptions)
+  const subscriptions = await query<{ user_id: string }>(
+    `SELECT user_id FROM subscriptions WHERE status = 'active' LIMIT 200`
+  )
 
-  if (error || !subscriptions) {
-    console.error("[Retention R5] Failed to fetch subscriptions:", error?.message)
+  if (!subscriptions || subscriptions.length === 0) {
+    console.error("[Retention R5] Failed to fetch subscriptions or none found")
     return result
   }
 
@@ -346,14 +315,13 @@ async function processR5ActivityDeclining(): Promise<RetentionResult> {
     result.processed++
     try {
       // Check last login event
-      const { data: lastLogin } = await supabase
-        .from("user_events")
-        .select("created_at")
-        .eq("user_id", userId)
-        .eq("event_type", "login")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single()
+      const lastLogin = await queryOne<{ created_at: string }>(
+        `SELECT created_at FROM user_events
+         WHERE user_id = $1 AND event_type = 'login'
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [userId]
+      )
 
       // Skip if user logged in within 7 days
       if (lastLogin && new Date(lastLogin.created_at) > sevenDaysAgo) {
@@ -374,11 +342,10 @@ async function processR5ActivityDeclining(): Promise<RetentionResult> {
       }
 
       // Get user profile for email
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("email, full_name")
-        .eq("id", userId)
-        .single()
+      const profile = await queryOne<{ email: string; name: string | null }>(
+        `SELECT email, name FROM better_auth_user WHERE id = $1`,
+        [userId]
+      )
 
       if (!profile) {
         result.skipped++
@@ -387,7 +354,7 @@ async function processR5ActivityDeclining(): Promise<RetentionResult> {
 
       const sendResult = await sendRetentionR5Email({
         to: profile.email,
-        userName: profile.full_name || undefined,
+        userName: profile.name || undefined,
         userId,
       })
 

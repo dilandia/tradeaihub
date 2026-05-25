@@ -8,7 +8,7 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { PlanHydrator } from "@/components/plan-hydrator";
 import { processReferralOnFirstLogin } from "@/lib/referral-processor";
 import { processAffiliateOnFirstLogin } from "@/lib/affiliate-processor";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
 import { getPlanInfo } from "@/lib/plan";
 
 export default async function DashboardLayout({
@@ -20,9 +20,7 @@ export default async function DashboardLayout({
   const locale = (cookieStore.get(COOKIE_LOCALE)?.value ?? DEFAULT_LOCALE) as Locale;
 
   /* Buscar dados compartilhados entre todas as páginas */
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  const user = session?.user ?? null;
+  const { user } = await getServerSession();
 
   const [summaries, tradingAccounts, userName, planInfo] = await Promise.all([
     getImportSummaries(),

@@ -1,7 +1,7 @@
 /**
  * Funções para persistir e carregar conversas do AI Copilot.
  */
-import { createClient } from "@/lib/supabase/server";
+import { createCompatClient } from "@/lib/supabase/server-compat";
 
 export type CopilotMessage = {
   id: string;
@@ -23,7 +23,7 @@ export type CopilotConversation = {
 
 /** Lista conversas do usuário (mais recentes primeiro) */
 export async function listConversations(userId: string, limit = 20) {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data, error } = await supabase
     .from("ai_copilot_conversations")
     .select("id, import_id, account_id, title, created_at, updated_at")
@@ -40,7 +40,7 @@ export async function getConversationMessages(
   conversationId: string,
   userId: string
 ): Promise<CopilotMessage[]> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data: conv } = await supabase
     .from("ai_copilot_conversations")
     .select("id")
@@ -66,7 +66,7 @@ export async function createConversation(
   importId?: string | null,
   accountId?: string | null
 ): Promise<string | null> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data, error } = await supabase
     .from("ai_copilot_conversations")
     .insert({
@@ -88,7 +88,7 @@ export async function addMessage(
   content: string,
   userId: string
 ): Promise<boolean> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data: conv } = await supabase
     .from("ai_copilot_conversations")
     .select("id")
@@ -131,7 +131,7 @@ export async function updateConversationTitle(
   title: string,
   userId: string
 ): Promise<boolean> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { error } = await supabase
     .from("ai_copilot_conversations")
     .update({

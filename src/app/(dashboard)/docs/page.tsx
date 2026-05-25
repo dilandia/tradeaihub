@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
 import { DocsPage } from "@/components/docs/docs-page";
 
 export const metadata: Metadata = {
@@ -9,10 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function Docs() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await getServerSession();
   if (!user) redirect("/login");
 
   return <DocsPage />;

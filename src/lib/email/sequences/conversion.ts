@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@supabase/supabase-js"
+import { query, queryOne } from "@/lib/db"
 import { canSendEmail, recordSend } from "@/lib/email/scheduler"
 import {
   sendConversionC2Email,
@@ -60,11 +60,6 @@ export async function processConversionEmails(): Promise<ConversionResult> {
  * Process behavioral conversion emails (C2: Power User, C5: 30-Day Milestone).
  */
 async function processBehavioralConversionEmails(): Promise<ConversionResult> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
   const result: ConversionResult = { processed: 0, sent: 0, skipped: 0, errors: 0 }
 
   // --- C2: Power Users (3+ distinct AI agents in 7 days, Free plan only) ---
@@ -72,11 +67,11 @@ async function processBehavioralConversionEmails(): Promise<ConversionResult> {
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
-    const { data: aiEvents } = await supabase
-      .from("user_events")
-      .select("user_id, event_data")
-      .eq("event_type", "ai_agent_used")
-      .gte("created_at", sevenDaysAgo.toISOString())
+    const aiEvents = await query<{ user_id: string; event_data: Record<string, unknown> }>(
+      `SELECT user_id, event_data FROM user_events
+       WHERE event_type = 'ai_agent_used' AND created_at >= $1`,
+      [sevenDaysAgo.toISOString()]
+    )
 
     if (aiEvents && aiEvents.length > 0) {
       // Group by user and count distinct agent types
@@ -97,7 +92,7 @@ async function processBehavioralConversionEmails(): Promise<ConversionResult> {
       for (const { userId, agentCount } of powerUsers) {
         result.processed++
         try {
-          const isFree = await isFreePlanUser(supabase, userId)
+          const isFree = await isFreePlanUser(userId)
           if (!isFree) {
             result.skipped++
             continue
@@ -108,11 +103,10 @@ async function processBehavioralConversionEmails(): Promise<ConversionResult> {
             continue
           }
 
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("email, full_name, locale")
-            .eq("id", userId)
-            .single()
+          const profile = await queryOne<{ email: string; name: string | null; locale: string | null }>(
+            `SELECT email, name, locale FROM better_auth_user WHERE id = $1`,
+            [userId]
+          )
 
           if (!profile?.email) {
             result.skipped++
@@ -121,7 +115,7 @@ async function processBehavioralConversionEmails(): Promise<ConversionResult> {
 
           const sendResult = await sendConversionC2Email({
             to: profile.email,
-            userName: profile.full_name || undefined,
+            userName: profile.name || undefined,
             locale: profile.locale || undefined,
             agentCount,
             userId,
@@ -151,19 +145,20 @@ async function processBehavioralConversionEmails(): Promise<ConversionResult> {
     const twentyNineDaysAgo = new Date()
     twentyNineDaysAgo.setDate(twentyNineDaysAgo.getDate() - 29)
 
-    const { data: milestoneUsers } = await supabase
-      .from("profiles")
-      .select("id, email, full_name, locale")
-      .gte("created_at", FEATURE_LAUNCH_DATE)
-      .gte("created_at", thirtyOneDaysAgo.toISOString())
-      .lte("created_at", twentyNineDaysAgo.toISOString())
-      .limit(100)
+    const milestoneUsers = await query<{ id: string; email: string; name: string | null; locale: string | null }>(
+      `SELECT id, email, name, locale FROM better_auth_user
+       WHERE created_at >= $1
+         AND created_at >= $2
+         AND created_at <= $3
+       LIMIT 100`,
+      [FEATURE_LAUNCH_DATE, thirtyOneDaysAgo.toISOString(), twentyNineDaysAgo.toISOString()]
+    )
 
     if (milestoneUsers) {
       for (const user of milestoneUsers) {
         result.processed++
         try {
-          const isFree = await isFreePlanUser(supabase, user.id)
+          const isFree = await isFreePlanUser(user.id)
           if (!isFree) {
             result.skipped++
             continue
@@ -178,7 +173,7 @@ async function processBehavioralConversionEmails(): Promise<ConversionResult> {
 
           const sendResult = await sendConversionC5Email({
             to: user.email,
-            userName: user.full_name || undefined,
+            userName: user.name || undefined,
             locale: user.locale || undefined,
             stats,
             userId: user.id,
@@ -208,29 +203,26 @@ async function getUserMilestoneStats(
   userId: string
 ): Promise<{ tradesAnalyzed?: number; insightsGenerated?: number } | undefined> {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-
-    const [{ count: tradeCount }, { count: aiCount }] = await Promise.all([
-      supabase
-        .from("trades")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .is("deleted_at", null),
-      supabase
-        .from("user_events")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("event_type", "ai_agent_used"),
+    const [tradeRow, aiRow] = await Promise.all([
+      queryOne<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM trades WHERE user_id = $1 AND deleted_at IS NULL`,
+        [userId]
+      ),
+      queryOne<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM user_events
+         WHERE user_id = $1 AND event_type = 'ai_agent_used'`,
+        [userId]
+      ),
     ])
+
+    const tradeCount = parseInt(tradeRow?.count ?? "0", 10)
+    const aiCount = parseInt(aiRow?.count ?? "0", 10)
 
     if (!tradeCount && !aiCount) return undefined
 
     return {
-      tradesAnalyzed: tradeCount ?? 0,
-      insightsGenerated: aiCount ?? 0,
+      tradesAnalyzed: tradeCount,
+      insightsGenerated: aiCount,
     }
   } catch {
     return undefined
@@ -246,11 +238,6 @@ async function getUserMilestoneStats(
  * Called by the email-lifecycle cron every 1-2 hours.
  */
 export async function processTemporalConversionEmails(): Promise<ConversionResult> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
   const result: ConversionResult = { processed: 0, sent: 0, skipped: 0, errors: 0 }
 
   // Get Free plan users who signed up 13-31 days ago (covers C6 at 14d, C7 at 21d, C8 at 30d)
@@ -260,16 +247,17 @@ export async function processTemporalConversionEmails(): Promise<ConversionResul
   const thirteenDaysAgo = new Date()
   thirteenDaysAgo.setDate(thirteenDaysAgo.getDate() - 13)
 
-  const { data: users, error } = await supabase
-    .from("profiles")
-    .select("id, email, full_name, created_at")
-    .gte("created_at", FEATURE_LAUNCH_DATE)
-    .gte("created_at", thirtyOneDaysAgo.toISOString())
-    .lte("created_at", thirteenDaysAgo.toISOString())
-    .limit(200)
+  const users = await query<{ id: string; email: string; name: string | null; created_at: string }>(
+    `SELECT id, email, name, created_at FROM better_auth_user
+     WHERE created_at >= $1
+       AND created_at >= $2
+       AND created_at <= $3
+     LIMIT 200`,
+    [FEATURE_LAUNCH_DATE, thirtyOneDaysAgo.toISOString(), thirteenDaysAgo.toISOString()]
+  )
 
-  if (error || !users) {
-    console.error("[Conversion] Failed to fetch users:", error?.message)
+  if (!users || users.length === 0) {
+    console.error("[Conversion] Failed to fetch users or none found")
     return result
   }
 
@@ -277,7 +265,7 @@ export async function processTemporalConversionEmails(): Promise<ConversionResul
     result.processed++
     try {
       // Check if user is still on Free plan (no active subscription)
-      const isFree = await isFreePlanUser(supabase, user.id)
+      const isFree = await isFreePlanUser(user.id)
       if (!isFree) {
         result.skipped++
         continue
@@ -286,7 +274,7 @@ export async function processTemporalConversionEmails(): Promise<ConversionResul
       const sent = await processUserConversion(
         user.id,
         user.email,
-        user.full_name,
+        user.name,
         new Date(user.created_at)
       )
       if (sent) result.sent++
@@ -303,19 +291,14 @@ export async function processTemporalConversionEmails(): Promise<ConversionResul
 /**
  * Check if a user is on the Free plan (no active subscription).
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function isFreePlanUser(
-  supabase: any,
-  userId: string
-): Promise<boolean> {
-  const { data } = await supabase
-    .from("subscriptions")
-    .select("id, status")
-    .eq("user_id", userId)
-    .in("status", ["active", "trialing"])
-    .limit(1)
-
-  return !data || data.length === 0
+async function isFreePlanUser(userId: string): Promise<boolean> {
+  const row = await queryOne<{ id: string }>(
+    `SELECT id FROM subscriptions
+     WHERE user_id = $1 AND status IN ('active', 'trialing')
+     LIMIT 1`,
+    [userId]
+  )
+  return !row
 }
 
 /**

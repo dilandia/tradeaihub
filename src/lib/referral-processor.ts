@@ -4,78 +4,86 @@
  * Fire-and-forget — failures are logged but never block the user.
  */
 
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createCompatClient } from "@/lib/supabase/server-compat";
+import { getPool, queryOne } from "@/lib/db";
 
 const REFERRED_BONUS_CREDITS = 10;
 
 export async function processReferralOnFirstLogin(): Promise<void> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) return;
 
-  const referralCode = user.user_metadata?.referral_code as string | undefined;
+  // Busca referral_code do metadata do usuário via profiles
+  const profile = await queryOne<{ referral_code: string | null }>(
+    `SELECT referral_code FROM profiles WHERE id = $1`,
+    [user.id]
+  );
+
+  const referralCode = profile?.referral_code;
   if (!referralCode) return;
 
-  const admin = createAdminClient();
+  const pool = getPool();
 
   // Check if referral already processed
-  const { data: existingRef } = await admin
-    .from("referrals")
-    .select("id")
-    .eq("referred_id", user.id)
-    .single();
+  const existingRef = await queryOne<{ id: string }>(
+    `SELECT id FROM referrals WHERE referred_id = $1`,
+    [user.id]
+  );
 
   if (existingRef) {
-    // Already processed — clear metadata
-    await admin.auth.admin.updateUserById(user.id, {
-      user_metadata: { referral_code: null },
-    });
+    // Already processed — clear referral_code in profiles
+    await pool.query(
+      `UPDATE profiles SET referral_code = NULL WHERE id = $1`,
+      [user.id]
+    );
     return;
   }
 
   // Validate referral code
-  const { data: codeData } = await admin
-    .from("referral_codes")
-    .select("user_id, code")
-    .eq("code", referralCode.toUpperCase().trim())
-    .eq("is_active", true)
-    .single();
+  const codeData = await queryOne<{ user_id: string; code: string }>(
+    `SELECT user_id, code FROM referral_codes WHERE code = $1 AND is_active = true`,
+    [referralCode.toUpperCase().trim()]
+  );
 
-  if (!codeData || (codeData.user_id as string) === user.id) {
-    // Invalid code or self-referral — clear metadata
-    await admin.auth.admin.updateUserById(user.id, {
-      user_metadata: { referral_code: null },
-    });
+  if (!codeData || codeData.user_id === user.id) {
+    // Invalid code or self-referral — clear referral_code in profiles
+    await pool.query(
+      `UPDATE profiles SET referral_code = NULL WHERE id = $1`,
+      [user.id]
+    );
     return;
   }
 
   // Create referral record
-  const { error } = await admin.from("referrals").insert({
-    referrer_id: codeData.user_id,
-    referred_id: user.id,
-    referral_code: codeData.code,
-    status: "pending",
-  });
-
-  if (error) {
+  try {
+    await pool.query(
+      `INSERT INTO referrals (referrer_id, referred_id, referral_code, status) VALUES ($1, $2, $3, 'pending')`,
+      [codeData.user_id, user.id, codeData.code]
+    );
+  } catch (error) {
     console.error("[referral-processor] Failed to create referral:", error);
     return;
   }
 
   // Grant bonus credits to the referred user
   if (REFERRED_BONUS_CREDITS > 0) {
-    await admin.rpc("add_referral_credits", {
-      p_user_id: user.id,
-      p_amount: REFERRED_BONUS_CREDITS,
-    });
+    try {
+      await pool.query(
+        `SELECT * FROM add_referral_credits(p_user_id => $1, p_amount => $2)`,
+        [user.id, REFERRED_BONUS_CREDITS]
+      );
+    } catch (error) {
+      console.error("[referral-processor] Failed to add referral credits:", error);
+    }
   }
 
-  // Clear the referral code from metadata (processed)
-  await admin.auth.admin.updateUserById(user.id, {
-    user_metadata: { referral_code: null },
-  });
+  // Clear the referral code from profiles (processed)
+  await pool.query(
+    `UPDATE profiles SET referral_code = NULL WHERE id = $1`,
+    [user.id]
+  );
 }

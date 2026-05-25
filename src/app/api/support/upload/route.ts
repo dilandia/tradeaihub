@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
+import { getPool } from "@/lib/db";
+import { writeFile, mkdir } from "fs/promises";
+import { join } from "path";
 import sharp from "sharp";
 
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
@@ -7,15 +10,10 @@ const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_WIDTH = 1200;
 const WEBP_QUALITY = 75;
 
+const uploadsDir = join(process.cwd(), "public", "uploads");
+
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  let user = null;
-  try {
-    const { data, error } = await supabase.auth.getUser();
-    if (!error) user = data.user;
-  } catch {
-    // Auth check failed silently — user remains null
-  }
+  const { user } = await getServerSession();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -33,38 +31,33 @@ export async function POST(req: NextRequest) {
   }
 
   // Check if user is admin
+  const pool = getPool();
+  const { rows: profileRows } = await pool.query(
+    `SELECT role FROM profiles WHERE id = $1`,
+    [user.id]
+  );
   const isAdmin =
-    user.app_metadata?.role === "admin" ||
-    user.app_metadata?.role === "super_admin";
+    profileRows[0]?.role === "admin" ||
+    profileRows[0]?.role === "super_admin";
 
   // Verify ticket access: admins can upload to any ticket, users only to their own
   if (isAdmin) {
-    const { createClient: createServiceClient } = await import("@supabase/supabase-js");
-    const serviceClient = createServiceClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    const { rows: ticketRows } = await pool.query(
+      `SELECT id FROM support_tickets WHERE id = $1 LIMIT 1`,
+      [ticketId]
     );
-    const { data: ticket, error: ticketError } = await serviceClient
-      .from("support_tickets")
-      .select("id")
-      .eq("id", ticketId)
-      .single();
-
-    if (ticketError || !ticket) {
+    if (ticketRows.length === 0) {
       return NextResponse.json(
         { error: "Ticket not found" },
         { status: 404 }
       );
     }
   } else {
-    const { data: ticket, error: ticketError } = await supabase
-      .from("support_tickets")
-      .select("id")
-      .eq("id", ticketId)
-      .eq("user_id", user.id)
-      .single();
-
-    if (ticketError || !ticket) {
+    const { rows: ticketRows } = await pool.query(
+      `SELECT id FROM support_tickets WHERE id = $1 AND user_id = $2 LIMIT 1`,
+      [ticketId, user.id]
+    );
+    if (ticketRows.length === 0) {
       return NextResponse.json(
         { error: "Ticket not found or access denied" },
         { status: 403 }
@@ -100,7 +93,7 @@ export async function POST(req: NextRequest) {
     .replace(/\.[^.]+$/, "") // remove original extension
     .replace(/[^a-zA-Z0-9.-]/g, "_")
     .substring(0, 50);
-  const path = `${user.id}/${ticketId}/${timestamp}-${safeName}.webp`;
+  const filename = `${timestamp}-${safeName}.webp`;
 
   const originalKB = Math.round(rawBuffer.length / 1024);
   const compressedKB = Math.round(compressed.length / 1024);
@@ -108,24 +101,12 @@ export async function POST(req: NextRequest) {
     `[support/upload] Compressed: ${originalKB}KB → ${compressedKB}KB (${Math.round((1 - compressed.length / rawBuffer.length) * 100)}% reduction)`
   );
 
-  const { error } = await supabase.storage
-    .from("ticket-attachments")
-    .upload(path, compressed, {
-      contentType: "image/webp",
-      upsert: false,
-    });
+  // Save to local filesystem
+  const dirPath = join(uploadsDir, user.id, ticketId);
+  await mkdir(dirPath, { recursive: true });
+  await writeFile(join(dirPath, filename), compressed);
 
-  if (error) {
-    console.error("[support/upload] Upload error:", error);
-    return NextResponse.json(
-      { error: "Failed to upload file" },
-      { status: 500 }
-    );
-  }
-
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from("ticket-attachments").getPublicUrl(path);
+  const publicUrl = `/uploads/${user.id}/${ticketId}/${filename}`;
 
   return NextResponse.json({ url: publicUrl });
 }

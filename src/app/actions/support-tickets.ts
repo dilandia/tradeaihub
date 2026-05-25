@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createCompatClient } from "@/lib/supabase/server-compat";
 import { z } from "zod";
 
 const CreateTicketSchema = z.object({
@@ -19,7 +19,7 @@ const ReplySchema = z.object({
 type CreateTicketInput = z.infer<typeof CreateTicketSchema>;
 
 export async function createTicket(input: CreateTicketInput) {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -58,7 +58,7 @@ export async function createTicket(input: CreateTicketInput) {
 }
 
 export async function getUserTickets() {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -76,7 +76,7 @@ export async function getUserTickets() {
 }
 
 export async function getTicketDetail(ticketId: string) {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -106,7 +106,7 @@ export async function replyToUserTicket(input: {
   content: string;
   attachmentUrl?: string;
 }) {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -169,7 +169,7 @@ export async function replyToUserTicket(input: {
 }
 
 export async function cancelTicket(ticketId: string) {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

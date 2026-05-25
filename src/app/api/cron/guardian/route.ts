@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
-import { createClient } from "@supabase/supabase-js"
+import { getPool } from "@/lib/db"
 import OpenAI from "openai"
 import { sendGuardianAlertEmail } from "@/lib/email/send"
 
@@ -12,14 +12,6 @@ function isValidCronSecret(provided: string | null): boolean {
   const b = Buffer.from(provided)
   if (a.length !== b.length) return false
   return crypto.timingSafeEqual(a, b)
-}
-
-function getServiceClient() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return createClient<any>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
 }
 
 interface ScanEvent {
@@ -54,21 +46,20 @@ export async function GET(req: NextRequest) {
   }
 
   const scanType = req.nextUrl.searchParams.get("type") || "full"
-  const supabase = getServiceClient()
+  const pool = getPool()
   const startedAt = new Date()
 
   // Create scan record
-  const { data: scanRecord, error: scanError } = await supabase
-    .from("guardian_scan_results")
-    .insert({
-      scan_type: scanType,
-      started_at: startedAt.toISOString(),
-      status: "running",
-    })
-    .select("id")
-    .single()
-
-  if (scanError || !scanRecord) {
+  let scanId: string
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO guardian_scan_results (scan_type, started_at, status)
+       VALUES ($1, $2, 'running') RETURNING id`,
+      [scanType, startedAt.toISOString()]
+    )
+    scanId = rows[0]?.id
+    if (!scanId) throw new Error("No scan ID returned")
+  } catch (scanError) {
     console.error("[Guardian] Failed to create scan record:", scanError)
     return NextResponse.json(
       { error: "Failed to initialize scan" },
@@ -76,7 +67,6 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  const scanId = scanRecord.id
   let totalChecks = 0
   let totalEvents = 0
   let criticalCount = 0
@@ -91,7 +81,7 @@ export async function GET(req: NextRequest) {
     // ============================================================
     // MODULE 1: Credit Anomaly Detection [CRITICAL]
     // ============================================================
-    const creditResult = await runModule(supabase, "guardian_run_credit_anomaly_check")
+    const creditResult = await runModule(pool, "guardian_run_credit_anomaly_check")
     if (creditResult) {
       modulesRun.push("credit_anomaly")
       totalChecks += creditResult.checks
@@ -106,14 +96,15 @@ export async function GET(req: NextRequest) {
         if (evt.check_name === "free_users_with_credits" && evt.details) {
           const details = evt.details as { user_id?: string }
           if (details.user_id) {
-            const { error: resetErr } = await supabase
-              .from("ai_credits")
-              .update({ credits_remaining: 0 })
-              .eq("user_id", details.user_id)
-
-            if (!resetErr) {
+            try {
+              await pool.query(
+                `UPDATE ai_credits SET credits_remaining = 0 WHERE user_id = $1`,
+                [details.user_id]
+              )
               autoFixesApplied++
               evt.auto_action_taken = `Credits reset to 0 for user ${(details.user_id as string).slice(0, 8)}...`
+            } catch {
+              // Non-critical
             }
           }
         }
@@ -123,7 +114,7 @@ export async function GET(req: NextRequest) {
     // ============================================================
     // MODULE 2: RPC Permission Audit [CRITICAL]
     // ============================================================
-    const rpcResult = await runModule(supabase, "guardian_run_rpc_permission_audit")
+    const rpcResult = await runModule(pool, "guardian_run_rpc_permission_audit")
     if (rpcResult) {
       modulesRun.push("rpc_permissions")
       totalChecks += rpcResult.checks
@@ -142,9 +133,9 @@ export async function GET(req: NextRequest) {
               const sig = details.args
                 ? `${details.function}(${details.args})`
                 : details.function
-              await supabase.rpc("exec_sql_admin", {
-                query: `REVOKE EXECUTE ON FUNCTION public.${sig} FROM anon, authenticated`,
-              })
+              await pool.query(
+                `REVOKE EXECUTE ON FUNCTION public.${sig} FROM anon, authenticated`
+              )
               autoFixesApplied++
               evt.auto_action_taken = `REVOKE EXECUTE from anon/authenticated on ${details.function}`
             } catch {
@@ -160,7 +151,7 @@ export async function GET(req: NextRequest) {
       // ============================================================
       // MODULE 3: RLS Policy Audit [HIGH]
       // ============================================================
-      const rlsResult = await runModule(supabase, "guardian_run_rls_audit")
+      const rlsResult = await runModule(pool, "guardian_run_rls_audit")
       if (rlsResult) {
         modulesRun.push("rls_audit")
         totalChecks += rlsResult.checks
@@ -174,7 +165,7 @@ export async function GET(req: NextRequest) {
       // ============================================================
       // MODULE 4: Table Grant Audit [HIGH]
       // ============================================================
-      const grantResult = await runModule(supabase, "guardian_run_grant_audit")
+      const grantResult = await runModule(pool, "guardian_run_grant_audit")
       if (grantResult) {
         modulesRun.push("grant_audit")
         totalChecks += grantResult.checks
@@ -189,13 +180,13 @@ export async function GET(req: NextRequest) {
             const details = evt.details as { table?: string; privilege?: string; grantee?: string }
             if (details.table && details.privilege && details.grantee === "anon") {
               try {
-                await supabase.rpc("exec_sql_admin", {
-                  query: `REVOKE ${details.privilege} ON TABLE public.${details.table} FROM anon`,
-                })
+                await pool.query(
+                  `REVOKE ${details.privilege} ON TABLE public.${details.table} FROM anon`
+                )
                 autoFixesApplied++
                 evt.auto_action_taken = `REVOKE ${details.privilege} on ${details.table} from anon`
               } catch {
-                // exec_sql_admin may not exist, log and continue
+                // Non-critical
               }
             }
           }
@@ -205,7 +196,7 @@ export async function GET(req: NextRequest) {
       // ============================================================
       // MODULE 7: Function Security Audit [MEDIUM]
       // ============================================================
-      const funcResult = await runModule(supabase, "guardian_run_function_security_audit")
+      const funcResult = await runModule(pool, "guardian_run_function_security_audit")
       if (funcResult) {
         modulesRun.push("function_security")
         totalChecks += funcResult.checks
@@ -223,13 +214,13 @@ export async function GET(req: NextRequest) {
                 const sig = details.args
                   ? `${details.function}(${details.args})`
                   : `${details.function}()`
-                await supabase.rpc("exec_sql_admin", {
-                  query: `ALTER FUNCTION public.${sig} SET search_path = public`,
-                })
+                await pool.query(
+                  `ALTER FUNCTION public.${sig} SET search_path = public`
+                )
                 autoFixesApplied++
                 evt.auto_action_taken = `SET search_path = public on ${details.function}`
               } catch {
-                // exec_sql_admin may not exist, log and continue
+                // Non-critical
               }
             }
           }
@@ -241,22 +232,25 @@ export async function GET(req: NextRequest) {
     // Store all events
     // ============================================================
     if (allEvents.length > 0) {
-      const eventRows = allEvents.map((evt) => ({
-        scan_id: scanId,
-        severity: evt.severity,
-        module: evt.module,
-        check_name: evt.check_name,
-        description: evt.description,
-        details: evt.details || {},
-        auto_action_taken: evt.auto_action_taken || null,
-      }))
-
-      const { error: insertErr } = await supabase
-        .from("security_events")
-        .insert(eventRows)
-
-      if (insertErr) {
-        console.error("[Guardian] Failed to store events:", insertErr)
+      for (const evt of allEvents) {
+        try {
+          await pool.query(
+            `INSERT INTO security_events
+               (scan_id, severity, module, check_name, description, details, auto_action_taken)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              scanId,
+              evt.severity,
+              evt.module,
+              evt.check_name,
+              evt.description,
+              JSON.stringify(evt.details || {}),
+              evt.auto_action_taken || null,
+            ]
+          )
+        } catch (insertErr) {
+          console.error("[Guardian] Failed to store event:", insertErr)
+        }
       }
     }
 
@@ -266,21 +260,25 @@ export async function GET(req: NextRequest) {
     const completedAt = new Date()
     const durationMs = completedAt.getTime() - startedAt.getTime()
 
-    await supabase
-      .from("guardian_scan_results")
-      .update({
-        completed_at: completedAt.toISOString(),
-        duration_ms: durationMs,
-        modules_run: modulesRun,
-        total_checks: totalChecks,
-        events_found: totalEvents,
-        critical_count: criticalCount,
-        high_count: highCount,
-        medium_count: mediumCount,
-        low_count: lowCount,
-        auto_fixes_applied: autoFixesApplied,
-        status: "completed",
-        summary: {
+    await pool.query(
+      `UPDATE guardian_scan_results SET
+         completed_at = $1, duration_ms = $2, modules_run = $3,
+         total_checks = $4, events_found = $5, critical_count = $6,
+         high_count = $7, medium_count = $8, low_count = $9,
+         auto_fixes_applied = $10, status = 'completed', summary = $11
+       WHERE id = $12`,
+      [
+        completedAt.toISOString(),
+        durationMs,
+        JSON.stringify(modulesRun),
+        totalChecks,
+        totalEvents,
+        criticalCount,
+        highCount,
+        mediumCount,
+        lowCount,
+        autoFixesApplied,
+        JSON.stringify({
           scan_type: scanType,
           modules: modulesRun.length,
           verdict:
@@ -289,9 +287,10 @@ export async function GET(req: NextRequest) {
               : highCount > 0
                 ? "WARNINGS"
                 : "ALL_CLEAR",
-        },
-      })
-      .eq("id", scanId)
+        }),
+        scanId,
+      ]
+    )
 
     // Log summary
     const verdict =
@@ -314,10 +313,10 @@ export async function GET(req: NextRequest) {
     let learnings: unknown[] = []
     let trends: Record<string, unknown> = {}
     try {
-      const { data: learnData } = await supabase.rpc("guardian_get_learnings")
-      if (learnData) learnings = learnData as unknown[]
-      const { data: trendData } = await supabase.rpc("guardian_get_scan_trends", { p_days: 7 })
-      if (trendData) trends = trendData as Record<string, unknown>
+      const { rows: learnRows } = await pool.query(`SELECT * FROM guardian_get_learnings()`)
+      if (learnRows) learnings = learnRows
+      const { rows: trendRows } = await pool.query(`SELECT * FROM guardian_get_scan_trends($1)`, [7])
+      if (trendRows?.[0]) trends = trendRows[0] as Record<string, unknown>
     } catch {
       // Non-critical: continue without memory context
     }
@@ -325,13 +324,16 @@ export async function GET(req: NextRequest) {
     // Record learnings from this scan's findings
     for (const evt of allEvents) {
       try {
-        await supabase.rpc("guardian_record_learning", {
-          p_category: evt.auto_action_taken ? "fix" : "pattern",
-          p_module: evt.module,
-          p_title: `${evt.check_name}: ${evt.description.slice(0, 100)}`,
-          p_description: evt.description,
-          p_context: { severity: evt.severity, auto_fixed: !!evt.auto_action_taken, scan_date: new Date().toISOString() },
-        })
+        await pool.query(
+          `SELECT guardian_record_learning($1, $2, $3, $4, $5)`,
+          [
+            evt.auto_action_taken ? "fix" : "pattern",
+            evt.module,
+            `${evt.check_name}: ${evt.description.slice(0, 100)}`,
+            evt.description,
+            JSON.stringify({ severity: evt.severity, auto_fixed: !!evt.auto_action_taken, scan_date: new Date().toISOString() }),
+          ]
+        )
       } catch {
         // Non-critical
       }
@@ -358,10 +360,10 @@ export async function GET(req: NextRequest) {
     })
 
     if (aiAssessment) {
-      await supabase
-        .from("guardian_scan_results")
-        .update({ ai_assessment: aiAssessment })
-        .eq("id", scanId)
+      await pool.query(
+        `UPDATE guardian_scan_results SET ai_assessment = $1 WHERE id = $2`,
+        [aiAssessment, scanId]
+      )
     }
 
     // ============================================================
@@ -410,15 +412,16 @@ export async function GET(req: NextRequest) {
     })
   } catch (error) {
     // Update scan record as failed
-    await supabase
-      .from("guardian_scan_results")
-      .update({
-        completed_at: new Date().toISOString(),
-        status: "failed",
-        error_message:
-          error instanceof Error ? error.message : "Unknown error",
-      })
-      .eq("id", scanId)
+    await pool.query(
+      `UPDATE guardian_scan_results SET
+         completed_at = $1, status = 'failed', error_message = $2
+       WHERE id = $3`,
+      [
+        new Date().toISOString(),
+        error instanceof Error ? error.message : "Unknown error",
+        scanId,
+      ]
+    )
 
     console.error("[Guardian] Scan failed:", error)
     return NextResponse.json(
@@ -435,18 +438,15 @@ export async function GET(req: NextRequest) {
 /**
  * Execute a guardian scan module RPC and return its result.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+import { Pool } from "pg"
 async function runModule(
-  supabase: any,
+  pool: Pool,
   rpcName: string
 ): Promise<ScanModuleResult | null> {
   try {
-    const { data, error } = await supabase.rpc(rpcName)
-    if (error) {
-      console.error(`[Guardian] Module ${rpcName} failed:`, error)
-      return null
-    }
-    return data as ScanModuleResult
+    const { rows } = await pool.query(`SELECT * FROM ${rpcName}()`)
+    if (!rows?.[0]) return null
+    return rows[0] as ScanModuleResult
   } catch (err) {
     console.error(`[Guardian] Module ${rpcName} exception:`, err)
     return null

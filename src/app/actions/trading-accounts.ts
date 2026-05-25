@@ -1,6 +1,7 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createCompatClient } from "@/lib/supabase/server-compat";
+import { getPool } from "@/lib/db";
 import { encrypt } from "@/lib/crypto";
 import type { TradingAccountSafe } from "@/lib/trading-accounts";
 import { getPlanInfo } from "@/lib/plan";
@@ -38,7 +39,7 @@ type CreateInput = {
 export async function createTradingAccount(
   input: CreateInput
 ): Promise<ActionResult> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -114,7 +115,7 @@ type UpdateInput = {
 export async function updateTradingAccount(
   input: UpdateInput
 ): Promise<ActionResult> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -167,7 +168,7 @@ export async function updateTradingAccount(
 export async function deleteTradingAccount(
   accountId: string
 ): Promise<ActionResult> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -202,38 +203,31 @@ export async function deleteTradingAccount(
       }
     }
 
-    // Use admin client to bypass RLS — the SELECT policy (deleted_at IS NULL)
-    // conflicts with setting deleted_at via regular client.
-    // Ownership still enforced via .eq("user_id", user.id) filters.
-    const adminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    const { createClient: createAdmin } = await import("@supabase/supabase-js");
-    const admin = createAdmin(adminUrl, adminKey);
-
+    // Use getPool() para bypass de RLS — a política SELECT (deleted_at IS NULL)
+    // conflita com setar deleted_at via cliente regular.
+    // Ownership ainda enforçado via WHERE user_id = $n.
+    const pool = getPool();
     const now = new Date().toISOString();
 
     // 1) Soft-delete trades vinculados
-    const { error: tradesError } = await admin
-      .from("trades")
-      .update({ deleted_at: now })
-      .eq("trading_account_id", accountId)
-      .eq("user_id", user.id)
-      .is("deleted_at", null);
-
-    if (tradesError) {
-      console.error("[deleteTradingAccount] trades soft-delete:", tradesError.message);
+    try {
+      await pool.query(
+        `UPDATE trades SET deleted_at = $1 WHERE trading_account_id = $2 AND user_id = $3 AND deleted_at IS NULL`,
+        [now, accountId, user.id]
+      );
+    } catch (tradesErr) {
+      console.error("[deleteTradingAccount] trades soft-delete:", tradesErr);
       return { success: false, error: "Erro ao deletar trades vinculados." };
     }
 
     // 2) Soft-delete conta
-    const { error } = await admin
-      .from("trading_accounts")
-      .update({ deleted_at: now, updated_at: now })
-      .eq("id", accountId)
-      .eq("user_id", user.id);
-
-    if (error) {
-      console.error("[deleteTradingAccount]", error.message);
+    try {
+      await pool.query(
+        `UPDATE trading_accounts SET deleted_at = $1, updated_at = $1 WHERE id = $2 AND user_id = $3`,
+        [now, accountId, user.id]
+      );
+    } catch (err) {
+      console.error("[deleteTradingAccount]", err);
       return { success: false, error: "Erro ao deletar conta." };
     }
 
@@ -250,7 +244,7 @@ export async function deleteTradingAccount(
 export async function clearTradingAccountTrades(
   accountId: string
 ): Promise<ActionResult> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -302,7 +296,7 @@ export async function clearTradingAccountTrades(
 export async function syncTradingAccount(
   accountId: string
 ): Promise<ActionResult> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

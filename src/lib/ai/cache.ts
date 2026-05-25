@@ -2,7 +2,7 @@
  * Cache de insights de IA no Supabase.
  * TTL: 1 hora. Reduz custos de chamadas repetidas à OpenAI.
  */
-import { createClient } from "@/lib/supabase/server";
+import { createCompatClient } from "@/lib/supabase/server-compat";
 
 const TTL_HOURS = 1;
 
@@ -26,7 +26,7 @@ export async function getCachedInsight(
   agentType: string,
   params: { importId?: string | null; accountId?: string | null; period?: string; reportType?: string; locale?: string }
 ): Promise<string | null> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
@@ -48,7 +48,7 @@ export async function setCachedInsight(
   params: { importId?: string | null; accountId?: string | null; period?: string; reportType?: string; locale?: string },
   response: string
 ): Promise<void> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
 

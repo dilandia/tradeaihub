@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createCompatClient } from "@/lib/supabase/server-compat";
 
 /* ─── Types ─── */
 
@@ -30,7 +30,7 @@ export type ProfileUpdatePayload = {
 /* ─── Queries ─── */
 
 export async function getProfile(): Promise<ProfileData | null> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -65,7 +65,7 @@ export async function getProfile(): Promise<ProfileData | null> {
 export async function updateProfile(
   payload: ProfileUpdatePayload
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -85,12 +85,7 @@ export async function updateProfile(
     return { success: false, error: "Erro ao atualizar perfil. Tente novamente." };
   }
 
-  // Atualizar metadata do auth também (fire-and-forget para não bloquear)
-  if (payload.full_name !== undefined) {
-    supabase.auth.updateUser({
-      data: { full_name: payload.full_name },
-    }).catch(() => { /* non-critical */ });
-  }
+  // TODO: Após migração completa para Better Auth, atualizar metadata via better-auth API
 
   return { success: true };
 }
@@ -98,7 +93,7 @@ export async function updateProfile(
 export async function updateAvatar(
   avatarUrl: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -122,7 +117,7 @@ export async function deleteAvatar(): Promise<{
   success: boolean;
   error?: string;
 }> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();

@@ -1,7 +1,7 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createCompatClient } from "@/lib/supabase/server-compat";
+import { getPool } from "@/lib/db";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -31,7 +31,7 @@ export type ReferralHistoryItem = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function getAuthUserId(): Promise<string> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -63,7 +63,7 @@ function maskEmail(email: string): string {
  */
 export async function getOrCreateReferralCode(): Promise<string> {
   const userId = await getAuthUserId();
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
 
   // Check for existing code
   const { data: existing } = await supabase
@@ -73,13 +73,15 @@ export async function getOrCreateReferralCode(): Promise<string> {
     .eq("is_active", true)
     .single();
 
-  if (existing?.code) return existing.code;
+  if (existing?.code) return existing.code as string;
 
-  // Get user name for code generation
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const name = (user?.user_metadata?.full_name as string) || "USER";
+  // Get user name for code generation via pg
+  const pool = getPool();
+  const userRow = await pool.query(
+    `SELECT name FROM better_auth_user WHERE id = $1`,
+    [userId]
+  );
+  const name = (userRow.rows[0]?.name as string) || "USER";
   const code = generateCode(name);
 
   const { error } = await supabase.from("referral_codes").insert({
@@ -107,12 +109,13 @@ export async function getOrCreateReferralCode(): Promise<string> {
  */
 export async function getReferralStats(): Promise<ReferralStats> {
   const userId = await getAuthUserId();
-  const admin = createAdminClient();
+  const pool = getPool();
 
-  const { data: referrals } = await admin
-    .from("referrals")
-    .select("status, reward_amount")
-    .eq("referrer_id", userId);
+  const result = await pool.query(
+    `SELECT status, reward_amount FROM referrals WHERE referrer_id = $1`,
+    [userId]
+  );
+  const referrals = result.rows;
 
   if (!referrals || referrals.length === 0) {
     return { totalReferrals: 0, converted: 0, pending: 0, creditsEarned: 0 };
@@ -125,7 +128,7 @@ export async function getReferralStats(): Promise<ReferralStats> {
   const pending = referrals.filter((r) => r.status === "pending").length;
   const creditsEarned = referrals
     .filter((r) => r.status === "rewarded")
-    .reduce((sum, r) => sum + (r.reward_amount ?? 0), 0);
+    .reduce((sum: number, r) => sum + (Number(r.reward_amount) ?? 0), 0);
 
   return { totalReferrals: total, converted, pending, creditsEarned };
 }
@@ -135,26 +138,31 @@ export async function getReferralStats(): Promise<ReferralStats> {
  */
 export async function getReferralHistory(): Promise<ReferralHistoryItem[]> {
   const userId = await getAuthUserId();
-  const admin = createAdminClient();
+  const pool = getPool();
 
-  const { data: referrals } = await admin
-    .from("referrals")
-    .select("id, referred_id, status, created_at, converted_at, rewarded_at, reward_amount")
-    .eq("referrer_id", userId)
-    .order("created_at", { ascending: false });
+  const result = await pool.query(
+    `SELECT id, referred_id, status, created_at, converted_at, rewarded_at, reward_amount
+     FROM referrals WHERE referrer_id = $1 ORDER BY created_at DESC`,
+    [userId]
+  );
+  const referrals = result.rows;
 
   if (!referrals || referrals.length === 0) return [];
 
-  // Get referred user info
+  // Get referred user info from better_auth_user
   const referredIds = referrals.map((r) => r.referred_id as string);
   const userNames: Record<string, { name: string; email: string }> = {};
 
   for (const refId of referredIds) {
-    const { data } = await admin.auth.admin.getUserById(refId);
-    if (data?.user) {
+    const userRes = await pool.query(
+      `SELECT name, email FROM better_auth_user WHERE id = $1`,
+      [refId]
+    );
+    const row = userRes.rows[0];
+    if (row) {
       userNames[refId] = {
-        name: (data.user.user_metadata?.full_name as string) || "User",
-        email: data.user.email || "",
+        name: (row.name as string) || "User",
+        email: (row.email as string) || "",
       };
     }
   }
@@ -180,15 +188,14 @@ export async function getReferralHistory(): Promise<ReferralHistoryItem[]> {
  */
 export async function applyReferralCode(code: string): Promise<boolean> {
   const userId = await getAuthUserId();
-  const admin = createAdminClient();
+  const pool = getPool();
 
   // Validate referral code exists and is active
-  const { data: codeData } = await admin
-    .from("referral_codes")
-    .select("user_id, code")
-    .eq("code", code.toUpperCase().trim())
-    .eq("is_active", true)
-    .single();
+  const codeRes = await pool.query(
+    `SELECT user_id, code FROM referral_codes WHERE code = $1 AND is_active = true LIMIT 1`,
+    [code.toUpperCase().trim()]
+  );
+  const codeData = codeRes.rows[0];
 
   if (!codeData) return false;
 
@@ -198,30 +205,28 @@ export async function applyReferralCode(code: string): Promise<boolean> {
   if (referrerId === userId) return false;
 
   // Check if already referred
-  const { data: existingRef } = await admin
-    .from("referrals")
-    .select("id")
-    .eq("referred_id", userId)
-    .single();
-
-  if (existingRef) return false;
+  const existingRes = await pool.query(
+    `SELECT id FROM referrals WHERE referred_id = $1 LIMIT 1`,
+    [userId]
+  );
+  if (existingRes.rows.length > 0) return false;
 
   // Create referral record
-  const { error } = await admin.from("referrals").insert({
-    referrer_id: referrerId,
-    referred_id: userId,
-    referral_code: codeData.code,
-    status: "pending",
-  });
-
-  if (error) {
-    console.error("[referrals] Failed to create referral:", error);
+  try {
+    await pool.query(
+      `INSERT INTO referrals (referrer_id, referred_id, referral_code, status)
+       VALUES ($1, $2, $3, 'pending')`,
+      [referrerId, userId, codeData.code]
+    );
+  } catch (err) {
+    console.error("[referrals] Failed to create referral:", err);
     return false;
   }
 
-  // Grant bonus credits to the referred user
+  // Grant bonus credits to the referred user via RPC
   if (REFERRED_BONUS_CREDITS > 0) {
-    await admin.rpc("add_referral_credits", {
+    const supabase = await createCompatClient();
+    await supabase.rpc("add_referral_credits", {
       p_user_id: userId,
       p_amount: REFERRED_BONUS_CREDITS,
     });
@@ -235,38 +240,35 @@ export async function applyReferralCode(code: string): Promise<boolean> {
  * Marks referral as converted and grants reward to the referrer.
  */
 export async function convertReferral(referredUserId: string): Promise<boolean> {
-  const admin = createAdminClient();
+  const pool = getPool();
 
   // Find pending referral for this user
-  const { data: referral } = await admin
-    .from("referrals")
-    .select("id, referrer_id, status")
-    .eq("referred_id", referredUserId)
-    .single();
+  const refRes = await pool.query(
+    `SELECT id, referrer_id, status FROM referrals WHERE referred_id = $1 LIMIT 1`,
+    [referredUserId]
+  );
+  const referral = refRes.rows[0];
 
   if (!referral || referral.status !== "pending") return false;
 
   const now = new Date().toISOString();
 
   // Mark as converted + rewarded and record reward
-  const { error } = await admin
-    .from("referrals")
-    .update({
-      status: "rewarded",
-      reward_type: "credits",
-      reward_amount: REFERRER_REWARD_CREDITS,
-      converted_at: now,
-      rewarded_at: now,
-    })
-    .eq("id", referral.id);
-
-  if (error) {
-    console.error("[referrals] Failed to convert referral:", error);
+  try {
+    await pool.query(
+      `UPDATE referrals SET status = 'rewarded', reward_type = 'credits',
+       reward_amount = $1, converted_at = $2, rewarded_at = $2
+       WHERE id = $3`,
+      [REFERRER_REWARD_CREDITS, now, referral.id]
+    );
+  } catch (err) {
+    console.error("[referrals] Failed to convert referral:", err);
     return false;
   }
 
-  // Grant credits to the referrer
-  await admin.rpc("add_referral_credits", {
+  // Grant credits to the referrer via RPC
+  const supabase = await createCompatClient();
+  await supabase.rpc("add_referral_credits", {
     p_user_id: referral.referrer_id,
     p_amount: REFERRER_REWARD_CREDITS,
   });

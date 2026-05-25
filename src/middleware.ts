@@ -1,53 +1,132 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
+// src/middleware.ts
+import { NextResponse, type NextRequest } from 'next/server';
+import { auth } from '@/lib/auth';
 
 export async function middleware(request: NextRequest) {
-  // Global timeout safety net: if the entire middleware takes >9s, redirect to login.
-  // This is the last line of defense against Supabase hangs causing 502.
-  // (Cloudflare times out at 100s, but we fail fast to keep UX responsive)
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-  const globalTimeoutPromise = new Promise<NextResponse>((resolve) => {
-    timeoutId = setTimeout(() => {
-      console.error("[Middleware] Global 9s timeout hit — forcing login redirect");
-      const r = NextResponse.redirect(new URL("/login", request.url));
-      r.headers.set("Clear-Site-Data", '"cache", "cookies", "storage"');
-      resolve(r);
-    }, 9000);
-  });
+  const path = request.nextUrl.pathname;
+  const rawHost =
+    request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() ||
+    request.headers.get('host') ||
+    request.nextUrl.hostname ||
+    '';
+  const host = rawHost.split(':')[0];
 
-  try {
-    const result = await Promise.race([updateSession(request), globalTimeoutPromise]);
-    if (timeoutId !== null) clearTimeout(timeoutId);
-    return result;
-  } catch (error) {
-    if (timeoutId !== null) clearTimeout(timeoutId);
-    // SAFETY NET: If middleware crashes for ANY reason, never return 500.
-    // Clear all auth cookies and redirect to /login so the user can start fresh.
-    // This prevents the 502 that Cloudflare shows when origin returns 500.
-    console.error("[Middleware] Unhandled crash, emergency redirect:", error);
+  const isProdLandingDomain =
+    host === 'tradeaihub.com' || host === 'www.tradeaihub.com';
+  const isLocalhost = host === 'localhost' || host === '127.0.0.1';
 
-    const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
-    if (isApiRoute) {
-      return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-    }
+  const isApiRoute = path.startsWith('/api/');
+  const isAuthPage =
+    path === '/login' ||
+    path === '/register' ||
+    path === '/forgot-password' ||
+    path === '/reset-password' ||
+    path === '/auth/refresh';
+  const isAuthCallback = path.startsWith('/api/auth/');
 
-    const emergencyRedirect = NextResponse.redirect(
-      new URL("/login", request.url)
-    );
-    // Delete ALL supabase auth cookies
-    request.cookies.getAll().forEach(({ name }) => {
-      if (name.startsWith("sb-")) {
-        emergencyRedirect.cookies.delete(name);
-      }
+  const isSelfAuthApi =
+    path.startsWith('/api/cron/') ||
+    path.startsWith('/api/webhooks/') ||
+    path.startsWith('/api/stripe/webhook') ||
+    path === '/api/affiliates/apply' ||
+    path === '/api/health' ||
+    path.startsWith('/api/auth/');
+
+  // Affiliate tracking: ?aff=CODE sets a 30-day httpOnly cookie
+  const rawAffCode = request.nextUrl.searchParams.get('aff');
+  const affiliateCode = rawAffCode?.toUpperCase();
+  if (affiliateCode && /^[A-Z0-9-]{6,30}$/.test(affiliateCode)) {
+    const cleanUrl = new URL(request.nextUrl);
+    cleanUrl.searchParams.delete('aff');
+    const redirectResponse = NextResponse.redirect(cleanUrl);
+    const isProd = request.nextUrl.hostname.includes('tradeaihub.com');
+    redirectResponse.cookies.set('affiliate_ref', affiliateCode, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      path: '/',
+      ...(isProd ? { domain: '.tradeaihub.com' } : {}),
+      maxAge: 30 * 24 * 60 * 60,
     });
-    // Nuclear: clear cache + cookies + storage for this origin
-    emergencyRedirect.headers.set("Clear-Site-Data", '"cache", "cookies", "storage"');
-    return emergencyRedirect;
+    return redirectResponse;
   }
+
+  // Landing domain — redireciona para app
+  if (isProdLandingDomain) {
+    if (path === '/') {
+      const rewriteUrl = request.nextUrl.clone();
+      rewriteUrl.pathname = '/landing-internal';
+      return NextResponse.rewrite(rewriteUrl);
+    }
+    if (isAuthPage) {
+      return NextResponse.redirect(new URL(path, 'https://app.tradeaihub.com'));
+    }
+  }
+
+  // Self-auth APIs — always pass through
+  if (isSelfAuthApi) {
+    return NextResponse.next();
+  }
+
+  // Static assets — pass through
+  if (
+    path.startsWith('/_next/') ||
+    path.startsWith('/favicon') ||
+    path.match(/\.(svg|png|jpg|jpeg|gif|webp)$/)
+  ) {
+    return NextResponse.next();
+  }
+
+  // Get session via Better Auth (reads cookie, no network call to auth server)
+  let session: Awaited<ReturnType<typeof auth.api.getSession>> = null;
+  try {
+    session = await auth.api.getSession({
+      headers: request.headers,
+    });
+  } catch {
+    // Session read failed — treat as unauthenticated
+  }
+
+  if (!session?.user) {
+    if (isAuthPage) {
+      return NextResponse.next();
+    }
+    if (isApiRoute) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (isLocalhost && path === '/') {
+      const rewriteUrl = request.nextUrl.clone();
+      rewriteUrl.pathname = '/landing-internal';
+      return NextResponse.rewrite(rewriteUrl);
+    }
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // Usuário autenticado
+  const user = session.user;
+
+  if (isAuthPage) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  // Admin protection
+  if (path.startsWith('/admin')) {
+    const role = (user as { role?: string }).role;
+    const isAdmin = role === 'admin' || role === 'super_admin';
+    if (!isAdmin) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+  }
+
+  if (path === '/') {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|webmanifest)$).*)",
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|webmanifest)$).*)',
   ],
 };

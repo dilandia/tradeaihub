@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
 import { generateCompareAnalysis } from "@/lib/ai/agents/compare-analysis";
 import { getCachedInsight, setCachedInsight } from "@/lib/ai/cache";
 import { checkAiCredits, consumeCreditsAfterSuccess } from "@/lib/ai/plan-gate";
@@ -63,15 +63,13 @@ export async function POST(req: NextRequest) {
       locale,
     } = validation.data;
 
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) {
+    const { user } = await getServerSession();
+    if (!user) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401, headers: corsHeaders }
       );
     }
-    const user = session.user;
 
     // TDR-06: Rate limiting check
     const { allowed: rateLimitAllowed, remaining, resetIn } = checkRateLimit(user.id);

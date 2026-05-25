@@ -8,7 +8,8 @@
  * - portalUrl: string | null
  */
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
+import { getPool } from "@/lib/db";
 import Stripe from "stripe";
 import { formatCurrencyAmount } from "@/lib/format-currency";
 
@@ -21,27 +22,19 @@ export async function GET() {
     );
   }
 
-  const supabase = await createClient();
-  let user = null;
-  try {
-    const { data, error } = await supabase.auth.getUser();
-    if (!error) user = data.user;
-  } catch {
-    // Auth check failed silently — user remains null
-  }
-
+  const { user } = await getServerSession();
   if (!user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     // Get subscription record with stripe_customer_id
-    const { data: sub } = await supabase
-      .from("subscriptions")
-      .select("stripe_customer_id, plan, billing_interval, status")
-      .eq("user_id", user.id)
-      .single();
-
+    const pool = getPool();
+    const subRes = await pool.query(
+      `SELECT stripe_customer_id, plan, billing_interval, status FROM subscriptions WHERE user_id = $1 LIMIT 1`,
+      [user.id]
+    );
+    const sub = subRes.rows[0] ?? null;
     const customerId = sub?.stripe_customer_id;
 
     // Free user or no Stripe customer — return nulls gracefully

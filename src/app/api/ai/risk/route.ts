@@ -1,6 +1,6 @@
 import { checkRateLimit } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
 import { generateRiskAnalysis } from "@/lib/ai/agents/risk-analysis";
 import { getCachedInsight, setCachedInsight } from "@/lib/ai/cache";
 import { checkAiCredits, consumeCreditsAfterSuccess } from "@/lib/ai/plan-gate";
@@ -32,14 +32,7 @@ export async function POST(req: NextRequest) {
 
     const { importId, accountId, period, locale } = validation.data;
 
-    const supabase = await createClient();
-    let user = null;
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error) user = data.user;
-    } catch {
-      // Auth check failed silently — user remains null
-    }
+    const { user } = await getServerSession();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

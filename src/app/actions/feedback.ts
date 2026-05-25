@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createCompatClient } from "@/lib/supabase/server-compat";
 
 /* ─── Types ─── */
 
@@ -30,7 +30,7 @@ export type SubmitFeedbackInput = {
 export async function submitFeedback(
   input: SubmitFeedbackInput
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -75,7 +75,7 @@ export async function submitFeedback(
 /* ─── Queries ─── */
 
 export async function getUserFeedback(): Promise<FeedbackRow[]> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

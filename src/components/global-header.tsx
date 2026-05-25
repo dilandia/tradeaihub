@@ -15,7 +15,6 @@ import {
 import { LanguageSelector } from "@/components/language-selector";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { signOut } from "@/app/actions/auth";
-import { createClient } from "@/lib/supabase/client";
 
 type Props = {
   userName: string | null;
@@ -131,17 +130,23 @@ export function GlobalHeader({ userName, lastSyncAt }: Props) {
       }
 
       const finishedAccounts = new Set<string>();
-      const supabase = createClient();
 
       pollIntervalRef.current = setInterval(async () => {
         try {
-          const { data } = await supabase
-            .from("trading_accounts")
-            .select("id, status, account_name, error_message")
-            .in("id", accountIds)
-            .is("deleted_at", null);
+          const res = await fetch(
+            `/api/accounts/status?ids=${accountIds.join(",")}`,
+            { method: "GET" }
+          );
+          if (!res.ok) return;
+          const json = await res.json();
+          const data: Array<{
+            id: string;
+            account_name: string;
+            status: string;
+            error_message: string | null;
+          }> = json.data ?? [];
 
-          if (!data) return;
+          if (!data.length) return;
 
           for (const row of data) {
             if (finishedAccounts.has(row.id)) continue;

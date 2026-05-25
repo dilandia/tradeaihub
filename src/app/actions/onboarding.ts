@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createCompatClient } from "@/lib/supabase/server-compat";
 
 export type OnboardingPayload = {
   experienceLevel?: string;
@@ -11,7 +11,7 @@ export type OnboardingPayload = {
 export async function saveOnboardingResponse(
   payload: OnboardingPayload
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -39,7 +39,7 @@ export async function saveOnboardingResponse(
 }
 
 export async function checkOnboardingCompleted(): Promise<boolean> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

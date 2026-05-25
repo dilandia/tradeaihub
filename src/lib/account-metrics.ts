@@ -2,7 +2,7 @@
  * Helper functions to read MetaStats metrics from account_metrics table.
  * Server-side only (uses server Supabase client).
  */
-import { createClient } from "@/lib/supabase/server";
+import { createCompatClient } from "@/lib/supabase/server-compat";
 
 export type MetricsSummary = {
   gain: number | null;
@@ -57,7 +57,7 @@ export type AccountMetrics = {
 export async function getAccountMetrics(
   tradingAccountId: string
 ): Promise<AccountMetrics | null> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data } = await supabase
     .from("account_metrics")
     .select("id, trading_account_id, user_id, metrics_summary, trades_count, updated_at")
@@ -70,7 +70,7 @@ export async function getAccountMetrics(
 export async function getUserMetrics(
   userId: string
 ): Promise<AccountMetrics[]> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data } = await supabase
     .from("account_metrics")
     .select("id, trading_account_id, user_id, metrics_summary, trades_count, updated_at")

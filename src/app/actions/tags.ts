@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createCompatClient } from "@/lib/supabase/server-compat";
 
 /* ─── Types ─── */
 
@@ -17,7 +17,7 @@ export type UserTag = {
 /* ─── Queries ─── */
 
 export async function getUserTags(): Promise<UserTag[]> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -56,7 +56,7 @@ export async function createTag(
 ): Promise<{ success: boolean; error?: string }> {
   if (!name.trim()) return { success: false, error: "Nome é obrigatório." };
 
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -89,7 +89,7 @@ export async function updateTag(
 ): Promise<{ success: boolean; error?: string }> {
   if (!name.trim()) return { success: false, error: "Nome é obrigatório." };
 
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -144,7 +144,7 @@ export async function updateTag(
 export async function deleteTag(
   id: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

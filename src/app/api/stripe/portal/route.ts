@@ -6,7 +6,8 @@
  * Returns: { url: string }
  */
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
+import { getPool } from "@/lib/db";
 import Stripe from "stripe";
 
 export async function POST() {
@@ -18,28 +19,19 @@ export async function POST() {
     );
   }
 
-  const supabase = await createClient();
-  let user = null;
-  try {
-    const { data, error } = await supabase.auth.getUser();
-    if (!error) user = data.user;
-  } catch {
-    // Auth check failed silently — user remains null
-  }
-
+  const { user } = await getServerSession();
   if (!user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     // Get stripe_customer_id from subscriptions table
-    const { data: sub } = await supabase
-      .from("subscriptions")
-      .select("stripe_customer_id")
-      .eq("user_id", user.id)
-      .single();
-
-    const customerId = sub?.stripe_customer_id;
+    const pool = getPool();
+    const subRes = await pool.query(
+      `SELECT stripe_customer_id FROM subscriptions WHERE user_id = $1 LIMIT 1`,
+      [user.id]
+    );
+    const customerId: string | undefined = subRes.rows[0]?.stripe_customer_id;
     if (!customerId) {
       return NextResponse.json(
         { error: "No Stripe customer found. Please subscribe to a plan first." },

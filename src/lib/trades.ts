@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { createCompatClient } from "@/lib/supabase/server-compat";
 
 export type DbTrade = {
   id: string;
@@ -103,7 +103,7 @@ export type Metrics = {
 
 /** Busca o primeiro nome do usuário logado (para boas-vindas) - cached per request */
 export const getUserFirstName = cache(async (): Promise<string | null> => {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
@@ -126,7 +126,7 @@ export const getUserFirstName = cache(async (): Promise<string | null> => {
 
 /** Busca um trade específico por ID (excludes soft-deleted by default via RLS) */
 export async function getTradeById(id: string): Promise<DbTrade | null> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
@@ -146,7 +146,7 @@ export async function getTradeById(id: string): Promise<DbTrade | null> {
 export async function getTradeWithMetaApiInfo(
   id: string
 ): Promise<TradeWithMetaApi | null> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
@@ -181,7 +181,7 @@ export const getTrades = cache(
     include_deleted?: boolean,
     source?: "import" | "sync" | "manual" | null
   ): Promise<DbTrade[]> => {
-    const supabase = await createClient();
+    const supabase = await createCompatClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
@@ -219,7 +219,7 @@ export const getTrades = cache(
 /** Busca todos os import summaries do usuário (mais recente primeiro) - cached per request.
  *  Soft-deleted summaries are excluded by RLS + explicit filter. */
 export const getImportSummaries = cache(async (): Promise<DbImportSummary[]> => {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
@@ -236,7 +236,7 @@ export const getImportSummaries = cache(async (): Promise<DbImportSummary[]> => 
 
 /** Busca um import summary específico (excludes soft-deleted) */
 export async function getImportSummary(id: string): Promise<DbImportSummary | null> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -268,7 +268,7 @@ export async function getTradeMetricsRpc(
   startDate?: string | null,
   endDate?: string | null
 ): Promise<Metrics> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return {
@@ -611,7 +611,7 @@ export const getTradesByDateRange = cache(
     importId?: string | null,
     accountId?: string | null
   ): Promise<DbTrade[]> => {
-    const supabase = await createClient();
+    const supabase = await createCompatClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

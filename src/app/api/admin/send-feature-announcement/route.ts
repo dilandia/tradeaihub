@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { getPool } from "@/lib/db"
 import { sendRetentionR8Email } from "@/lib/email/send"
 
 const MAX_BATCH_SIZE = 200
@@ -34,20 +34,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const pool = getPool()
 
     // Get all profiles
-    const { data: profiles, error: profilesError } = await supabase
-      .from("profiles")
-      .select("id, email, full_name")
-      .limit(MAX_BATCH_SIZE)
+    const profilesRes = await pool.query(
+      `SELECT id, email, full_name FROM profiles LIMIT $1`,
+      [MAX_BATCH_SIZE]
+    )
+    const profiles = profilesRes.rows as { id: string; email: string; full_name: string | null }[]
 
-    if (profilesError || !profiles) {
+    if (!profiles.length) {
       return NextResponse.json(
-        { error: `Failed to fetch profiles: ${profilesError?.message}` },
+        { error: "Failed to fetch profiles or no profiles found" },
         { status: 500 }
       )
     }
@@ -57,12 +55,10 @@ export async function POST(req: NextRequest) {
 
     if (segment === "free" || segment === "paid") {
       // Get users with active subscriptions
-      const { data: subs } = await supabase
-        .from("subscriptions")
-        .select("user_id")
-        .in("status", ["active", "trialing"])
-
-      const paidUserIds = new Set((subs || []).map((s) => s.user_id))
+      const subsRes = await pool.query(
+        `SELECT user_id FROM subscriptions WHERE status IN ('active', 'trialing')`
+      )
+      const paidUserIds = new Set((subsRes.rows as { user_id: string }[]).map((s) => s.user_id))
 
       if (segment === "free") {
         targetUsers = profiles.filter((p) => !paidUserIds.has(p.id))

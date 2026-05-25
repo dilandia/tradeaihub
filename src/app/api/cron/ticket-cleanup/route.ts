@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { createClient } from "@supabase/supabase-js";
+import { getPool } from "@/lib/db";
+import { unlink } from "fs/promises";
+import { join } from "path";
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const DAYS_THRESHOLD = 30;
@@ -13,20 +15,12 @@ function isValidCronSecret(provided: string | null): boolean {
   return crypto.timingSafeEqual(a, b);
 }
 
-function getServiceClient() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return createClient<any>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
-
 /**
- * Cleanup ticket attachments from Storage for tickets
+ * Cleanup ticket attachments from local filesystem for tickets
  * resolved/closed more than 30 days ago.
  *
  * The attachment_url in the DB is kept (shows expired placeholder on frontend).
- * Only the actual file in Supabase Storage is deleted to free space.
+ * Only the actual file in public/uploads/ is deleted to free space.
  *
  * Run via cron: GET /api/cron/ticket-cleanup?secret=...
  */
@@ -36,18 +30,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = getServiceClient();
+  const pool = getPool();
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - DAYS_THRESHOLD);
 
   // Find tickets resolved/closed more than 30 days ago
-  const { data: tickets, error: ticketError } = await supabase
-    .from("support_tickets")
-    .select("id")
-    .in("status", ["resolved", "closed"])
-    .lt("updated_at", cutoffDate.toISOString());
+  const { rows: tickets, rowCount: ticketRowCount } = await pool.query(
+    `SELECT id FROM support_tickets
+     WHERE status IN ('resolved', 'closed') AND updated_at < $1`,
+    [cutoffDate.toISOString()]
+  );
 
-  if (ticketError || !tickets || tickets.length === 0) {
+  if (!ticketRowCount || tickets.length === 0) {
     return NextResponse.json({
       message: "No tickets to cleanup",
       ticketsFound: 0,
@@ -57,11 +51,13 @@ export async function GET(req: NextRequest) {
   const ticketIds = tickets.map((t: { id: string }) => t.id);
 
   // Find replies with attachments for those tickets
-  const { data: replies } = await supabase
-    .from("support_ticket_replies")
-    .select("id, attachment_url, ticket_id")
-    .in("ticket_id", ticketIds)
-    .not("attachment_url", "is", null);
+  const placeholders = ticketIds.map((_: string, i: number) => `$${i + 1}`).join(", ");
+  const { rows: replies } = await pool.query(
+    `SELECT id, attachment_url, ticket_id
+     FROM support_ticket_replies
+     WHERE ticket_id IN (${placeholders}) AND attachment_url IS NOT NULL`,
+    ticketIds
+  );
 
   if (!replies || replies.length === 0) {
     return NextResponse.json({
@@ -74,28 +70,27 @@ export async function GET(req: NextRequest) {
   let deletedCount = 0;
   let errorCount = 0;
 
+  const uploadsDir = join(process.cwd(), "public", "uploads");
+
   for (const reply of replies) {
-    // Extract storage path from public URL
-    // URL format: https://{ref}.supabase.co/storage/v1/object/public/ticket-attachments/{path}
+    // Extract filesystem path from public URL
+    // URL format: /uploads/{userId}/{ticketId}/{filename}
     const url = reply.attachment_url as string;
-    const bucketPrefix = "/ticket-attachments/";
-    const pathIndex = url.indexOf(bucketPrefix);
-    if (pathIndex === -1) continue;
+    const uploadsPrefix = "/uploads/";
+    if (!url.startsWith(uploadsPrefix)) continue;
 
-    const storagePath = url.substring(pathIndex + bucketPrefix.length);
+    const relativePath = url.substring(uploadsPrefix.length);
+    const filePath = join(uploadsDir, relativePath);
 
-    const { error: deleteError } = await supabase.storage
-      .from("ticket-attachments")
-      .remove([storagePath]);
-
-    if (deleteError) {
+    try {
+      await unlink(filePath);
+      deletedCount++;
+    } catch (deleteError) {
       console.error(
-        `[ticket-cleanup] Failed to delete ${storagePath}:`,
+        `[ticket-cleanup] Failed to delete ${filePath}:`,
         deleteError
       );
       errorCount++;
-    } else {
-      deletedCount++;
     }
   }
 

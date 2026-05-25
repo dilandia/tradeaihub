@@ -12,15 +12,13 @@
  * - STRIPE_WEBHOOK_SECRET (obtido ao criar o webhook no Dashboard)
  */
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getPool } from "@/lib/db";
 import Stripe from "stripe";
 import { sendPaymentFailedEmail, sendPaymentConfirmationEmail, sendUpgradeConfirmedEmail, sendCancellationEmail } from "@/lib/email/send";
 import { trackEvent } from "@/lib/email/events";
 import { formatCurrencyAmount } from "@/lib/format-currency";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function POST(req: Request) {
   const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -45,7 +43,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const pool = getPool();
 
   try {
     switch (event.type) {
@@ -63,24 +61,22 @@ export async function POST(req: Request) {
 
           // Idempotency: check if this credit purchase was already processed
           if (paymentIntentId) {
-            const { data: existingPurchase } = await supabase
-              .from("credit_purchases")
-              .select("id")
-              .eq("stripe_payment_intent_id", paymentIntentId)
-              .maybeSingle();
-
-            if (existingPurchase) {
+            const { rows: existing } = await pool.query(
+              `SELECT id FROM credit_purchases WHERE stripe_payment_intent_id = $1 LIMIT 1`,
+              [paymentIntentId]
+            );
+            if (existing.length > 0) {
               console.log("[stripe/webhook] Duplicate credit purchase skipped:", paymentIntentId);
               return NextResponse.json({ received: true, deduplicated: true });
             }
           }
 
           if (creditsAmount > 0) {
-            const { data: existing } = await supabase
-              .from("ai_credits")
-              .select("credits_remaining, period_end")
-              .eq("user_id", userId)
-              .single();
+            const { rows: existingRows } = await pool.query(
+              `SELECT credits_remaining, period_end FROM ai_credits WHERE user_id = $1`,
+              [userId]
+            );
+            const existing = existingRows[0] ?? null;
 
             const now = new Date();
             const periodEnd = existing?.period_end ? new Date(existing.period_end) : null;
@@ -90,40 +86,38 @@ export async function POST(req: Request) {
               const periodStart = now;
               const end = new Date(periodStart);
               end.setMonth(end.getMonth() + 1);
-              await supabase.from("ai_credits").upsert(
-                {
-                  user_id: userId,
-                  credits_remaining: creditsAmount,
-                  credits_used_this_period: 0,
-                  period_start: periodStart.toISOString(),
-                  period_end: end.toISOString(),
-                  updated_at: now.toISOString(),
-                },
-                { onConflict: "user_id" }
+              await pool.query(
+                `INSERT INTO ai_credits
+                   (user_id, credits_remaining, credits_used_this_period, period_start, period_end, updated_at)
+                 VALUES ($1, $2, 0, $3, $4, $5)
+                 ON CONFLICT (user_id) DO UPDATE SET
+                   credits_remaining = $2, credits_used_this_period = 0,
+                   period_start = $3, period_end = $4, updated_at = $5`,
+                [userId, creditsAmount, periodStart.toISOString(), end.toISOString(), now.toISOString()]
               );
             } else {
-              await supabase
-                .from("ai_credits")
-                .update({
-                  credits_remaining: (existing.credits_remaining ?? 0) + creditsAmount,
-                  updated_at: now.toISOString(),
-                })
-                .eq("user_id", userId);
+              await pool.query(
+                `UPDATE ai_credits SET
+                   credits_remaining = credits_remaining + $1, updated_at = $2
+                 WHERE user_id = $3`,
+                [creditsAmount, now.toISOString(), userId]
+              );
             }
 
-            const { error: insertError } = await supabase.from("credit_purchases").insert({
-              user_id: userId,
-              credits_amount: creditsAmount,
-              amount_paid_usd: amountUsd,
-              stripe_payment_intent_id: paymentIntentId ?? null,
-            });
-
-            // Handle duplicate key (UNIQUE constraint on stripe_payment_intent_id)
-            // This is a safety net in case the application-level idempotency check above
-            // was bypassed by a race condition between concurrent webhook retries
-            if (insertError?.code === "23505") {
-              console.log("[stripe/webhook] Duplicate credit purchase caught by DB constraint:", paymentIntentId);
-              return NextResponse.json({ received: true, deduplicated: true });
+            try {
+              await pool.query(
+                `INSERT INTO credit_purchases
+                   (user_id, credits_amount, amount_paid_usd, stripe_payment_intent_id)
+                 VALUES ($1, $2, $3, $4)`,
+                [userId, creditsAmount, amountUsd, paymentIntentId ?? null]
+              );
+            } catch (insertError: unknown) {
+              // Handle duplicate key (UNIQUE constraint on stripe_payment_intent_id)
+              if ((insertError as { code?: string })?.code === "23505") {
+                console.log("[stripe/webhook] Duplicate credit purchase caught by DB constraint:", paymentIntentId);
+                return NextResponse.json({ received: true, deduplicated: true });
+              }
+              throw insertError;
             }
           }
           break;
@@ -144,49 +138,45 @@ export async function POST(req: Request) {
         const periodEnd = firstItem?.current_period_end ? new Date(firstItem.current_period_end * 1000).toISOString() : null;
 
         if (periodStart) {
-          const { data: existingSub } = await supabase
-            .from("subscriptions")
-            .select("id")
-            .eq("stripe_subscription_id", subscriptionId)
-            .eq("current_period_start", periodStart)
-            .maybeSingle();
-
-          if (existingSub) {
+          const { rows: existingSubRows } = await pool.query(
+            `SELECT id FROM subscriptions
+             WHERE stripe_subscription_id = $1 AND current_period_start = $2 LIMIT 1`,
+            [subscriptionId, periodStart]
+          );
+          if (existingSubRows.length > 0) {
             console.log("[stripe/webhook] Duplicate subscription checkout skipped:", subscriptionId);
             return NextResponse.json({ received: true, deduplicated: true });
           }
         }
 
         const checkoutCurrency = session.currency ?? session.metadata?.currency ?? "usd";
-        await supabase.from("subscriptions").upsert(
-          {
-            user_id: userId,
-            plan: plan,
-            billing_interval: interval ?? "monthly",
-            stripe_subscription_id: subscriptionId,
-            stripe_price_id: priceId,
-            stripe_customer_id: session.customer as string,
-            current_period_start: periodStart,
-            current_period_end: periodEnd,
-            currency: checkoutCurrency,
-            status: "active",
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_id" }
+        await pool.query(
+          `INSERT INTO subscriptions
+             (user_id, plan, billing_interval, stripe_subscription_id, stripe_price_id,
+              stripe_customer_id, current_period_start, current_period_end, currency, status, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active', $10)
+           ON CONFLICT (user_id) DO UPDATE SET
+             plan = $2, billing_interval = $3, stripe_subscription_id = $4,
+             stripe_price_id = $5, stripe_customer_id = $6,
+             current_period_start = $7, current_period_end = $8,
+             currency = $9, status = 'active', updated_at = $10`,
+          [
+            userId, plan, interval ?? "monthly", subscriptionId, priceId,
+            session.customer as string, periodStart, periodEnd,
+            checkoutCurrency, new Date().toISOString(),
+          ]
         );
 
         const creditsPerMonth = plan === "pro" ? 30 : plan === "elite" ? 60 : 0;
         if (creditsPerMonth > 0 && periodStart && periodEnd) {
-          await supabase.from("ai_credits").upsert(
-            {
-              user_id: userId,
-              credits_remaining: creditsPerMonth,
-              credits_used_this_period: 0,
-              period_start: periodStart,
-              period_end: periodEnd,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_id" }
+          await pool.query(
+            `INSERT INTO ai_credits
+               (user_id, credits_remaining, credits_used_this_period, period_start, period_end, updated_at)
+             VALUES ($1, $2, 0, $3, $4, $5)
+             ON CONFLICT (user_id) DO UPDATE SET
+               credits_remaining = $2, credits_used_this_period = 0,
+               period_start = $3, period_end = $4, updated_at = $5`,
+            [userId, creditsPerMonth, periodStart, periodEnd, new Date().toISOString()]
           );
         }
 
@@ -194,11 +184,11 @@ export async function POST(req: Request) {
 
         // Send payment confirmation + upgrade email
         try {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("email, full_name, locale")
-            .eq("id", userId)
-            .single();
+          const { rows: profileRows } = await pool.query(
+            `SELECT email, full_name, locale FROM profiles WHERE id = $1`,
+            [userId]
+          );
+          const profile = profileRows[0] ?? null;
 
           if (profile?.email) {
             const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
@@ -236,31 +226,28 @@ export async function POST(req: Request) {
 
         // Convert referral: if this user was referred and is subscribing for the first time
         try {
-          const { data: pendingRef } = await supabase
-            .from("referrals")
-            .select("id, referrer_id, status")
-            .eq("referred_id", userId)
-            .eq("status", "pending")
-            .single();
+          const { rows: refRows } = await pool.query(
+            `SELECT id, referrer_id, status FROM referrals
+             WHERE referred_id = $1 AND status = 'pending' LIMIT 1`,
+            [userId]
+          );
+          const pendingRef = refRows[0] ?? null;
 
           if (pendingRef) {
             const refNow = new Date().toISOString();
-            await supabase
-              .from("referrals")
-              .update({
-                status: "rewarded",
-                reward_type: "credits",
-                reward_amount: 20,
-                converted_at: refNow,
-                rewarded_at: refNow,
-              })
-              .eq("id", pendingRef.id);
+            await pool.query(
+              `UPDATE referrals SET
+                 status = 'rewarded', reward_type = 'credits', reward_amount = 20,
+                 converted_at = $1, rewarded_at = $1
+               WHERE id = $2`,
+              [refNow, pendingRef.id]
+            );
 
             // Grant 20 credits to the referrer
-            await supabase.rpc("add_referral_credits", {
-              p_user_id: pendingRef.referrer_id,
-              p_amount: 20,
-            });
+            await pool.query(
+              `SELECT add_referral_credits($1, $2)`,
+              [pendingRef.referrer_id, 20]
+            );
           }
         } catch (refErr) {
           console.error("[stripe/webhook] referral conversion failed:", refErr);
@@ -273,60 +260,62 @@ export async function POST(req: Request) {
             ? session.payment_intent
             : session.payment_intent?.id;
 
-          const { data: affRef } = await supabase
-            .from("affiliate_referrals")
-            .select("id, affiliate_id, status")
-            .eq("referred_user_id", userId)
-            .maybeSingle();
+          const { rows: affRefRows } = await pool.query(
+            `SELECT id, affiliate_id, status FROM affiliate_referrals
+             WHERE referred_user_id = $1 LIMIT 1`,
+            [userId]
+          );
+          const affRef = affRefRows[0] ?? null;
 
           if (affRef) {
-            const { data: affiliate } = await supabase
-              .from("affiliates")
-              .select("id, commission_rate, is_active")
-              .eq("id", affRef.affiliate_id)
-              .single();
+            const { rows: affiliateRows } = await pool.query(
+              `SELECT id, commission_rate, is_active FROM affiliates WHERE id = $1`,
+              [affRef.affiliate_id]
+            );
+            const affiliate = affiliateRows[0] ?? null;
 
             if (affiliate?.is_active) {
               const paymentAmount = (session.amount_total ?? 0) / 100;
               const commissionAmount = +(paymentAmount * Number(affiliate.commission_rate)).toFixed(2);
               const idempotencyKey = paymentIntentId ?? `checkout_${session.id}`;
 
-              const { data: existingComm } = await supabase
-                .from("affiliate_commissions")
-                .select("id")
-                .eq("idempotency_key", idempotencyKey)
-                .maybeSingle();
+              const { rows: existingCommRows } = await pool.query(
+                `SELECT id FROM affiliate_commissions WHERE idempotency_key = $1 LIMIT 1`,
+                [idempotencyKey]
+              );
+              const existingComm = existingCommRows[0] ?? null;
 
               if (!existingComm && commissionAmount > 0) {
                 const commissionCurrency = session.currency ?? session.metadata?.currency ?? "usd";
-                await supabase.from("affiliate_commissions").insert({
-                  affiliate_id: affiliate.id,
-                  referral_id: affRef.id,
-                  stripe_payment_intent_id: paymentIntentId ?? null,
-                  payment_amount: paymentAmount,
-                  commission_rate: affiliate.commission_rate,
-                  commission_amount: commissionAmount,
-                  currency: commissionCurrency,
-                  idempotency_key: idempotencyKey,
-                  status: "pending",
-                });
+                await pool.query(
+                  `INSERT INTO affiliate_commissions
+                     (affiliate_id, referral_id, stripe_payment_intent_id, payment_amount,
+                      commission_rate, commission_amount, currency, idempotency_key, status)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')`,
+                  [
+                    affiliate.id, affRef.id, paymentIntentId ?? null,
+                    paymentAmount, affiliate.commission_rate, commissionAmount,
+                    commissionCurrency, idempotencyKey,
+                  ]
+                );
 
-                await supabase.rpc("affiliate_record_commission", {
-                  p_affiliate_id: affiliate.id,
-                  p_amount: commissionAmount,
-                });
+                await pool.query(
+                  `SELECT affiliate_record_commission($1, $2)`,
+                  [affiliate.id, commissionAmount]
+                );
 
                 // Mark referred user as converted if first time
                 if (affRef.status === "registered") {
-                  await supabase
-                    .from("affiliate_referrals")
-                    .update({ status: "converted", converted_at: new Date().toISOString() })
-                    .eq("id", affRef.id);
+                  await pool.query(
+                    `UPDATE affiliate_referrals SET status = 'converted', converted_at = $1 WHERE id = $2`,
+                    [new Date().toISOString(), affRef.id]
+                  );
 
                   // Atomically increment total_conversions via RPC
-                  await supabase.rpc("affiliate_increment_conversions", {
-                    p_affiliate_id: affiliate.id,
-                  });
+                  await pool.query(
+                    `SELECT affiliate_increment_conversions($1)`,
+                    [affiliate.id]
+                  );
                 }
               }
             }
@@ -360,47 +349,43 @@ export async function POST(req: Request) {
         const periodStart = firstItem?.current_period_start ? new Date(firstItem.current_period_start * 1000).toISOString() : null;
         const periodEnd = firstItem?.current_period_end ? new Date(firstItem.current_period_end * 1000).toISOString() : null;
 
-        await supabase
-          .from("subscriptions")
-          .update({
-            plan: plan,
-            status,
-            current_period_start: periodStart,
-            current_period_end: periodEnd,
-            stripe_subscription_id: subscription.id,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("user_id", userId);
+        await pool.query(
+          `UPDATE subscriptions SET
+             plan = $1, status = $2, current_period_start = $3, current_period_end = $4,
+             stripe_subscription_id = $5, updated_at = $6
+           WHERE user_id = $7`,
+          [plan, status, periodStart, periodEnd, subscription.id, new Date().toISOString(), userId]
+        );
 
         if (status !== "active") {
-          await supabase
-            .from("ai_credits")
-            .update({ credits_remaining: 0, updated_at: new Date().toISOString() })
-            .eq("user_id", userId);
+          await pool.query(
+            `UPDATE ai_credits SET credits_remaining = 0, updated_at = $1 WHERE user_id = $2`,
+            [new Date().toISOString(), userId]
+          );
 
           // Mark affiliate referral as churned (if user was referred)
           try {
-            await supabase
-              .from("affiliate_referrals")
-              .update({ status: "churned" })
-              .eq("referred_user_id", userId)
-              .eq("status", "converted");
+            await pool.query(
+              `UPDATE affiliate_referrals SET status = 'churned'
+               WHERE referred_user_id = $1 AND status = 'converted'`,
+              [userId]
+            );
           } catch (churnErr) {
             console.error("[stripe/webhook] affiliate churn update failed:", churnErr);
           }
 
           // Send cancellation email and track event
           try {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("email, full_name, locale")
-              .eq("id", userId)
-              .single();
+            const { rows: profileRows } = await pool.query(
+              `SELECT email, full_name, locale FROM profiles WHERE id = $1`,
+              [userId]
+            );
+            const profile = profileRows[0] ?? null;
 
             if (profile?.email) {
-              const periodEnd = firstItem?.current_period_end;
-              const accessEndDate = periodEnd
-                ? new Date(periodEnd * 1000).toLocaleDateString(
+              const rawPeriodEnd = firstItem?.current_period_end;
+              const accessEndDate = rawPeriodEnd
+                ? new Date(rawPeriodEnd * 1000).toLocaleDateString(
                     profile.locale?.startsWith("pt") ? "pt-BR" : "en-US",
                     { year: "numeric", month: "long", day: "numeric" }
                   )
@@ -442,50 +427,49 @@ export async function POST(req: Request) {
           const userId = sub.metadata?.supabase_user_id;
           if (!userId) break;
 
-          const { data: affRef } = await supabase
-            .from("affiliate_referrals")
-            .select("id, affiliate_id")
-            .eq("referred_user_id", userId)
-            .maybeSingle();
-
+          const { rows: affRefRows } = await pool.query(
+            `SELECT id, affiliate_id FROM affiliate_referrals
+             WHERE referred_user_id = $1 LIMIT 1`,
+            [userId]
+          );
+          const affRef = affRefRows[0] ?? null;
           if (!affRef) break;
 
-          const { data: affiliate } = await supabase
-            .from("affiliates")
-            .select("id, commission_rate, is_active")
-            .eq("id", affRef.affiliate_id)
-            .single();
-
+          const { rows: affiliateRows } = await pool.query(
+            `SELECT id, commission_rate, is_active FROM affiliates WHERE id = $1`,
+            [affRef.affiliate_id]
+          );
+          const affiliate = affiliateRows[0] ?? null;
           if (!affiliate?.is_active) break;
 
           const paymentAmount = (invoice.amount_paid ?? 0) / 100;
           const commissionAmount = +(paymentAmount * Number(affiliate.commission_rate)).toFixed(2);
           const idempotencyKey = invoice.id as string;
 
-          const { data: existingComm } = await supabase
-            .from("affiliate_commissions")
-            .select("id")
-            .eq("idempotency_key", idempotencyKey)
-            .maybeSingle();
+          const { rows: existingCommRows } = await pool.query(
+            `SELECT id FROM affiliate_commissions WHERE idempotency_key = $1 LIMIT 1`,
+            [idempotencyKey]
+          );
+          const existingComm = existingCommRows[0] ?? null;
 
           if (!existingComm && commissionAmount > 0) {
             const invoiceCurrency = invoice.currency ?? "usd";
-            await supabase.from("affiliate_commissions").insert({
-              affiliate_id: affiliate.id,
-              referral_id: affRef.id,
-              stripe_invoice_id: invoice.id,
-              payment_amount: paymentAmount,
-              commission_rate: affiliate.commission_rate,
-              commission_amount: commissionAmount,
-              currency: invoiceCurrency,
-              idempotency_key: idempotencyKey,
-              status: "pending",
-            });
+            await pool.query(
+              `INSERT INTO affiliate_commissions
+                 (affiliate_id, referral_id, stripe_invoice_id, payment_amount,
+                  commission_rate, commission_amount, currency, idempotency_key, status)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')`,
+              [
+                affiliate.id, affRef.id, invoice.id,
+                paymentAmount, affiliate.commission_rate, commissionAmount,
+                invoiceCurrency, idempotencyKey,
+              ]
+            );
 
-            await supabase.rpc("affiliate_record_commission", {
-              p_affiliate_id: affiliate.id,
-              p_amount: commissionAmount,
-            });
+            await pool.query(
+              `SELECT affiliate_record_commission($1, $2)`,
+              [affiliate.id, commissionAmount]
+            );
           }
         } catch (affRenewalErr) {
           console.error("[stripe/webhook] affiliate commission (renewal) failed:", affRenewalErr);
@@ -509,11 +493,11 @@ export async function POST(req: Request) {
           if (!userId) break;
 
           // Get user profile for email and locale
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("email, full_name, locale")
-            .eq("id", userId)
-            .single();
+          const { rows: profileRows } = await pool.query(
+            `SELECT email, full_name, locale FROM profiles WHERE id = $1`,
+            [userId]
+          );
+          const profile = profileRows[0] ?? null;
 
           if (profile?.email) {
             await sendPaymentFailedEmail({
@@ -540,23 +524,24 @@ export async function POST(req: Request) {
         if (!refundPaymentIntentId) break;
 
         try {
-          const { data: commission } = await supabase
-            .from("affiliate_commissions")
-            .select("id, affiliate_id, commission_amount, status")
-            .eq("stripe_payment_intent_id", refundPaymentIntentId)
-            .eq("status", "pending")
-            .maybeSingle();
+          const { rows: commRows } = await pool.query(
+            `SELECT id, affiliate_id, commission_amount, status
+             FROM affiliate_commissions
+             WHERE stripe_payment_intent_id = $1 AND status = 'pending' LIMIT 1`,
+            [refundPaymentIntentId]
+          );
+          const commission = commRows[0] ?? null;
 
           if (commission) {
-            await supabase
-              .from("affiliate_commissions")
-              .update({ status: "refunded" })
-              .eq("id", commission.id);
+            await pool.query(
+              `UPDATE affiliate_commissions SET status = 'refunded' WHERE id = $1`,
+              [commission.id]
+            );
 
-            await supabase.rpc("affiliate_reverse_commission", {
-              p_affiliate_id: commission.affiliate_id,
-              p_amount: commission.commission_amount,
-            });
+            await pool.query(
+              `SELECT affiliate_reverse_commission($1, $2)`,
+              [commission.affiliate_id, commission.commission_amount]
+            );
           }
         } catch (refundErr) {
           console.error("[stripe/webhook] affiliate refund reversal failed:", refundErr);

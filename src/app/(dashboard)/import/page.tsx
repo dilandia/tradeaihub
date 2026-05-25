@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
 import { getImportSummaries } from "@/lib/trades";
 import { getPlanInfo } from "@/lib/plan";
 import { COOKIE_LOCALE, DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
@@ -9,13 +9,10 @@ import { ImportPageContent } from "@/components/import/import-page-content";
 export default async function ImportTradesPage() {
   const cookieStore = await cookies();
   const locale = (cookieStore.get(COOKIE_LOCALE)?.value ?? DEFAULT_LOCALE) as Locale;
+  const { user } = await getServerSession();
   const [summaries, planInfo] = await Promise.all([
     getImportSummaries(),
-    (async () => {
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      return user ? getPlanInfo(user.id) : null;
-    })(),
+    user ? getPlanInfo(user.id) : Promise.resolve(null),
   ]);
 
   const startOfMonth = new Date();

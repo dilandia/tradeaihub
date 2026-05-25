@@ -3,17 +3,12 @@
  * Receives affiliate program applications.
  * No auth required — applicants may not have an account.
  * Rate limit: 3 requests per IP per hour.
- * Uses service_role for the insert (RLS bypass).
+ * Uses direct DB pool (bypasses RLS).
  */
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { getPool } from "@/lib/db"
 import { z } from "zod"
 import { sendAffiliateApplicationReceivedEmail } from "@/lib/email/send"
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 // ─── In-memory rate limiter (single-server VPS) ───────────────────────────────
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -87,14 +82,15 @@ export async function POST(req: Request) {
   }
 
   const data = parsed.data
+  const pool = getPool()
 
   // Check for duplicate email (pending or approved)
-  const { data: existing } = await supabase
-    .from("affiliate_applications")
-    .select("id, status")
-    .eq("email", data.email)
-    .in("status", ["pending", "approved"])
-    .maybeSingle()
+  const { rows: existingRows } = await pool.query(
+    `SELECT id, status FROM affiliate_applications
+     WHERE email = $1 AND status IN ('pending', 'approved') LIMIT 1`,
+    [data.email]
+  )
+  const existing = existingRows[0] ?? null
 
   if (existing) {
     if (existing.status === "approved") {
@@ -114,27 +110,34 @@ export async function POST(req: Request) {
   const preferredLocale = acceptLang.startsWith("pt") ? "pt-BR" : acceptLang.split(",")[0]?.split(";")[0]?.trim() || "en"
 
   // Insert application
-  const { error: insertError } = await supabase.from("affiliate_applications").insert({
-    full_name: data.fullName,
-    email: data.email,
-    whatsapp: data.whatsapp || null,
-    primary_social: data.primarySocial,
-    social_url: data.socialUrl || null,
-    audience_size: data.audienceSize || null,
-    pitch: data.pitch,
-    trading_experience: data.tradingExperience || null,
-    preferred_locale: preferredLocale,
-  })
-
-  if (insertError) {
+  try {
+    await pool.query(
+      `INSERT INTO affiliate_applications
+         (full_name, email, whatsapp, primary_social, social_url, audience_size,
+          pitch, trading_experience, preferred_locale)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        data.fullName,
+        data.email,
+        data.whatsapp || null,
+        data.primarySocial,
+        data.socialUrl || null,
+        data.audienceSize || null,
+        data.pitch,
+        data.tradingExperience || null,
+        preferredLocale,
+      ]
+    )
+  } catch (insertError: unknown) {
     // Handle unique constraint violation (race condition on duplicate email)
-    if (insertError.code === "23505") {
+    if ((insertError as { code?: string })?.code === "23505") {
       return NextResponse.json(
         { error: "An application with this email already exists." },
         { status: 409 }
       )
     }
-    console.error("[affiliates/apply] Insert error:", { code: insertError.code, message: insertError.message })
+    const pgErr = insertError as { code?: string; message?: string }
+    console.error("[affiliates/apply] Insert error:", { code: pgErr.code, message: pgErr.message })
     return NextResponse.json({ error: "Failed to submit application. Please try again." }, { status: 500 })
   }
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createCompatClient } from "@/lib/supabase/server-compat";
 
 /* ─── Types ─── */
 
@@ -40,7 +40,7 @@ const DEFAULTS: TradePreferences = {
 /* ─── Queries ─── */
 
 export async function getTradePreferences(): Promise<TradePreferences> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -76,7 +76,7 @@ export async function getTradePreferences(): Promise<TradePreferences> {
 export async function updateTradePreferences(
   payload: Partial<TradePreferences>
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

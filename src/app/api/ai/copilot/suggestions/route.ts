@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
 import { getTrades, getTradesByDateRange, toCalendarTrades } from "@/lib/trades";
 import { buildPerformanceMetrics } from "@/lib/dashboard-calc";
 import { periodToDateRange } from "@/lib/date-utils";
@@ -47,14 +47,7 @@ export async function GET(req: NextRequest) {
     const accountId = searchParams.get("account") ?? undefined;
     const period = searchParams.get("period") ?? "all";
 
-    const supabase = await createClient();
-    let user = null;
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error) user = data.user;
-    } catch {
-      // Auth check failed silently — user remains null
-    }
+    const { user } = await getServerSession();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

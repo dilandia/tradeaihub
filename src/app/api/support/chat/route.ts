@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
+import { createCompatClient } from "@/lib/supabase/server-compat";
 import { buildSupportSystemPrompt } from "@/lib/ai/prompts/support";
 import { chatCompletionStream } from "@/lib/ai/client";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -26,14 +27,7 @@ export async function POST(req: NextRequest) {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"));
 
   try {
-    const supabase = await createClient();
-    let user = null;
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error) user = data.user;
-    } catch {
-      // Auth check failed silently — user remains null
-    }
+    const { user } = await getServerSession();
 
     if (!user) {
       return NextResponse.json(
@@ -62,6 +56,8 @@ export async function POST(req: NextRequest) {
 
     const { message, conversationId, locale } = parsed.data;
 
+    const supabase = await createCompatClient();
+
     // Create or get conversation
     let convId = conversationId;
     if (!convId) {
@@ -77,7 +73,7 @@ export async function POST(req: NextRequest) {
           { status: 500, headers: corsHeaders }
         );
       }
-      convId = conv.id;
+      convId = (conv as { id: string }).id;
     }
 
     // Get conversation history (before saving user message, to count replies)
@@ -88,7 +84,7 @@ export async function POST(req: NextRequest) {
       .order("created_at", { ascending: true })
       .limit(MAX_HISTORY_MESSAGES);
 
-    const previousMessages = (history ?? []).map((m) => ({
+    const previousMessages = ((history as Array<{ role: string; content: string }>) ?? []).map((m) => ({
       role: m.role as "user" | "assistant" | "system",
       content: m.content,
     }));

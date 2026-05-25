@@ -6,7 +6,7 @@
 
 import { hasEvent, trackEvent } from "@/lib/email/events"
 import { sendConversionC4Email } from "@/lib/email/send"
-import { createAdminClient } from "@/lib/supabase/admin"
+import { queryOne } from "@/lib/db"
 
 /**
  * Check if this is the user's first AI insight and send C4 email if so.
@@ -25,10 +25,15 @@ export async function fireAhaMomentEmail(
     trackEvent(userId, "aha_moment", { insight_type: insightType }).catch(() => {})
 
     // Check if user is on Free plan (only target Free users for conversion)
-    const supabase = createAdminClient()
-    const [{ data: profile }, { data: sub }] = await Promise.all([
-      supabase.from("profiles").select("email, full_name, locale").eq("id", userId).single(),
-      supabase.from("subscriptions").select("plan, status").eq("user_id", userId).single(),
+    const [profile, sub] = await Promise.all([
+      queryOne<{ email: string; full_name: string | null; locale: string | null }>(
+        `SELECT email, full_name, locale FROM profiles WHERE id = $1`,
+        [userId]
+      ),
+      queryOne<{ plan: string; status: string }>(
+        `SELECT plan, status FROM subscriptions WHERE user_id = $1`,
+        [userId]
+      ),
     ])
 
     const isFreePlan = !sub || sub.plan === "free" || (sub.status !== "active" && sub.status !== "trialing")

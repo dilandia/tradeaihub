@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
 import { getNotificationPrefs } from "@/app/actions/notifications";
 import { NotificationsForm } from "@/components/settings/notifications-form";
 
@@ -9,10 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function NotificationsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await getServerSession();
   if (!user) redirect("/login");
 
   const prefs = await getNotificationPrefs();

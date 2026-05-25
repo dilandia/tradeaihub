@@ -2,20 +2,18 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { getSession } from "@/lib/auth-client";
 
 /**
- * /auth/refresh — Client-side session refresh page.
+ * /auth/refresh — Session check page.
  *
- * Middleware redirects here when the access token is expired.
- * The Supabase browser client automatically refreshes using the
- * refresh_token stored in cookies. No 502 risk because this runs
- * in the browser, not in the Edge Runtime middleware.
+ * Better Auth handles token refresh automatically via its session management.
+ * This page simply checks if the user has an active session and redirects
+ * to `next` if so, or to /login if not.
  *
  * Flow:
- *   expired token → middleware → /auth/refresh?next=/dashboard
- *   → getSession() refreshes silently → redirect to next
- *   → if refresh fails → redirect to /login (emergencyClearAndRedirect)
+ *   no/expired session → middleware → /auth/refresh?next=/dashboard
+ *   → getSession() checks session → redirect to next (or /login)
  */
 export default function AuthRefreshPage() {
   const router = useRouter();
@@ -28,17 +26,13 @@ export default function AuthRefreshPage() {
     const safePath =
       next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
 
-    const supabase = createClient();
-
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (session && !error) {
-        // Session refreshed (or still valid) — continue
+    getSession().then(({ data, error }) => {
+      if (data?.session && !error) {
+        // Session active — continue
         router.replace(safePath);
       } else {
-        // Refresh failed — clear everything and go to login
-        supabase.auth.signOut().finally(() => {
-          router.replace("/login");
-        });
+        // No session — redirect to login
+        router.replace("/login");
       }
     });
   }, [router, searchParams]);

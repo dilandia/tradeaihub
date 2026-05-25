@@ -11,7 +11,7 @@
  *    to RLS "auth.uid() = user_id" but immune to token sync issues.
  */
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getPool, query, queryOne } from "@/lib/db";
 
 export type Plan = "free" | "pro" | "elite";
 
@@ -97,17 +97,15 @@ const PLAN_LIMITS: Record<
 };
 
 /** Obtém o plano do usuário a partir do banco (subscriptions).
- *  Uses admin client to avoid token-sync issues after login redirects. */
+ *  Uses direct DB query to avoid token-sync issues after login redirects. */
 export async function getUserPlan(userId: string): Promise<Plan> {
   try {
-    const supabase = createAdminClient();
-    const { data, error } = await supabase
-      .from("subscriptions")
-      .select("plan, status")
-      .eq("user_id", userId)
-      .single();
+    const data = await queryOne<{ plan: string; status: string }>(
+      `SELECT plan, status FROM subscriptions WHERE user_id = $1`,
+      [userId]
+    );
 
-    if (error || !data || (data.status !== "active" && data.status !== "trialing")) {
+    if (!data || (data.status !== "active" && data.status !== "trialing")) {
       return "free";
     }
     const plan = data.plan as Plan;
@@ -121,12 +119,10 @@ export async function getUserPlan(userId: string): Promise<Plan> {
 export async function getUserBillingInterval(
   userId: string
 ): Promise<"monthly" | "annual"> {
-  const supabase = createAdminClient();
-  const { data } = await supabase
-    .from("subscriptions")
-    .select("billing_interval")
-    .eq("user_id", userId)
-    .single();
+  const data = await queryOne<{ billing_interval: string }>(
+    `SELECT billing_interval FROM subscriptions WHERE user_id = $1`,
+    [userId]
+  );
 
   const interval = data?.billing_interval;
   return interval === "annual" ? "annual" : "monthly";
@@ -138,12 +134,14 @@ export async function getUserAiCredits(userId: string): Promise<{
   creditsUsedThisPeriod: number;
   periodEnd: string | null;
 }> {
-  const supabase = createAdminClient();
-  const { data } = await supabase
-    .from("ai_credits")
-    .select("credits_remaining, credits_used_this_period, period_end")
-    .eq("user_id", userId)
-    .single();
+  const data = await queryOne<{
+    credits_remaining: number;
+    credits_used_this_period: number;
+    period_end: string | null;
+  }>(
+    `SELECT credits_remaining, credits_used_this_period, period_end FROM ai_credits WHERE user_id = $1`,
+    [userId]
+  );
 
   return {
     creditsRemaining: data?.credits_remaining ?? 0,
@@ -197,23 +195,25 @@ export async function consumeAiCredits(
   userId: string,
   amount: number
 ): Promise<{ success: boolean; creditsRemaining: number }> {
-  const supabase = createAdminClient();
-  const { data, error } = await supabase.rpc("consume_ai_credits_atomic", {
-    p_user_id: userId,
-    p_amount: amount,
-  });
+  try {
+    const result = await queryOne<{ success: boolean; credits_remaining: number }>(
+      `SELECT * FROM consume_ai_credits_atomic(p_user_id => $1, p_amount => $2)`,
+      [userId, amount]
+    );
 
-  if (error) {
+    if (!result) {
+      console.error(`Failed to consume AI credits for user ${userId}: no result`);
+      return { success: false, creditsRemaining: -1 };
+    }
+
+    return {
+      success: result.success ?? false,
+      creditsRemaining: result.credits_remaining ?? -1,
+    };
+  } catch (error) {
     console.error(`Failed to consume AI credits for user ${userId}:`, error);
     return { success: false, creditsRemaining: -1 };
   }
-
-  // RPC returns { success: boolean, credits_remaining: integer }
-  const result = data as { success: boolean; credits_remaining: number } | null;
-  return {
-    success: result?.success ?? false,
-    creditsRemaining: result?.credits_remaining ?? -1,
-  };
 }
 
 /** Garante que o usuário tem registro em ai_credits e reseta período se necessário.
@@ -222,14 +222,15 @@ export async function ensureAiCreditsForPeriod(
   userId: string,
   plan: Plan
 ): Promise<{ creditsRemaining: number }> {
-  const supabase = createAdminClient();
   const creditsPerMonth = PLAN_LIMITS[plan].aiCreditsPerMonth;
 
-  const { data: existing } = await supabase
-    .from("ai_credits")
-    .select("*")
-    .eq("user_id", userId)
-    .single();
+  const existing = await queryOne<{
+    credits_remaining: number;
+    period_end: string | null;
+  }>(
+    `SELECT credits_remaining, period_end FROM ai_credits WHERE user_id = $1`,
+    [userId]
+  );
 
   const now = new Date();
   const periodEnd = existing?.period_end ? new Date(existing.period_end) : null;
@@ -240,13 +241,11 @@ export async function ensureAiCreditsForPeriod(
     const end = new Date(periodStart);
     end.setMonth(end.getMonth() + 1);
 
-    await supabase.from("ai_credits").insert({
-      user_id: userId,
-      credits_remaining: creditsPerMonth,
-      credits_used_this_period: 0,
-      period_start: periodStart.toISOString(),
-      period_end: end.toISOString(),
-    });
+    await getPool().query(
+      `INSERT INTO ai_credits (user_id, credits_remaining, credits_used_this_period, period_start, period_end)
+       VALUES ($1, $2, 0, $3, $4)`,
+      [userId, creditsPerMonth, periodStart.toISOString(), end.toISOString()]
+    );
     return { creditsRemaining: creditsPerMonth };
   }
 
@@ -255,16 +254,13 @@ export async function ensureAiCreditsForPeriod(
     const end = new Date(periodStart);
     end.setMonth(end.getMonth() + 1);
 
-    await supabase
-      .from("ai_credits")
-      .update({
-        credits_remaining: creditsPerMonth,
-        credits_used_this_period: 0,
-        period_start: periodStart.toISOString(),
-        period_end: end.toISOString(),
-        updated_at: now.toISOString(),
-      })
-      .eq("user_id", userId);
+    await getPool().query(
+      `UPDATE ai_credits
+       SET credits_remaining = $1, credits_used_this_period = 0,
+           period_start = $2, period_end = $3, updated_at = $4
+       WHERE user_id = $5`,
+      [creditsPerMonth, periodStart.toISOString(), end.toISOString(), now.toISOString(), userId]
+    );
 
     return { creditsRemaining: creditsPerMonth };
   }

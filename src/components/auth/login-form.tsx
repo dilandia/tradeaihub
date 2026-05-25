@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useRef } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { signIn } from "@/lib/auth-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField, type FieldState } from "@/components/ui/form-field";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -88,8 +88,7 @@ export function LoginForm({ message }: Props) {
       return;
     }
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await signIn.email({ email, password });
 
     if (error) {
       setFormError(friendlyAuthError(error.message));

@@ -12,8 +12,8 @@
  * - NEXT_PUBLIC_APP_URL
  */
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getServerSession } from "@/lib/get-session";
+import { getPool } from "@/lib/db";
 import Stripe from "stripe";
 import { SUPPORTED_CURRENCIES } from "@/lib/format-currency";
 
@@ -55,14 +55,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const supabase = await createClient();
-  let user = null;
-  try {
-    const { data, error } = await supabase.auth.getUser();
-    if (!error) user = data.user;
-  } catch {
-    // Auth check failed silently — user remains null
-  }
+  const { user } = await getServerSession();
   if (!user?.id || !user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -101,13 +94,12 @@ export async function POST(req: Request) {
     const stripe = new Stripe(secretKey);
 
     // Buscar ou criar Stripe Customer
-    const { data: sub } = await supabase
-      .from("subscriptions")
-      .select("stripe_customer_id")
-      .eq("user_id", user.id)
-      .single();
-
-    let customerId = sub?.stripe_customer_id;
+    const pool = getPool();
+    const subRes = await pool.query(
+      `SELECT stripe_customer_id FROM subscriptions WHERE user_id = $1 LIMIT 1`,
+      [user.id]
+    );
+    let customerId: string | undefined = subRes.rows[0]?.stripe_customer_id;
 
     if (!customerId) {
       const customer = await stripe.customers.create({
@@ -115,18 +107,12 @@ export async function POST(req: Request) {
         metadata: { supabase_user_id: user.id },
       });
       customerId = customer.id;
-      // Use admin client: RLS blocks user INSERT/UPDATE on subscriptions (TDR-03)
-      const supabaseAdmin = createAdminClient();
-      await supabaseAdmin.from("subscriptions").upsert(
-        {
-          user_id: user.id,
-          plan: "free",
-          billing_interval: "monthly",
-          stripe_customer_id: customerId,
-          status: "active",
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" }
+      // Upsert via pg direto (sem RLS)
+      await pool.query(
+        `INSERT INTO subscriptions (user_id, plan, billing_interval, stripe_customer_id, status, updated_at)
+         VALUES ($1, 'free', 'monthly', $2, 'active', NOW())
+         ON CONFLICT (user_id) DO UPDATE SET stripe_customer_id = EXCLUDED.stripe_customer_id, updated_at = NOW()`,
+        [user.id, customerId]
       );
     }
 

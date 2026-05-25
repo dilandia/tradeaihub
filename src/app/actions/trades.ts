@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath, revalidateTag } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createCompatClient } from "@/lib/supabase/server-compat";
+import { getPool } from "@/lib/db";
 import { parseNumber, parseExcel, parseCsv, parseHtml, diagnoseHeaders, extractRawRows, parseWithAIMapping } from "@/lib/parsers";
 import type { TradeInsert } from "@/lib/parsers";
 import { getPlanInfo } from "@/lib/plan";
@@ -12,7 +13,6 @@ import {
 } from "@/lib/validation/trade-schemas";
 import { trackEvent } from "@/lib/email/events";
 import { sendImportCompletedEmail } from "@/lib/email/send";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 /* ─────────────────────────────────────────────
@@ -20,7 +20,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
  * ───────────────────────────────────────────── */
 
 export async function createTrade(formData: FormData): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado." };
 
@@ -76,7 +76,7 @@ export async function importTradesFromFile(formData: FormData): Promise<{
   imported?: number;
   importId?: string;
 }> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado." };
 
@@ -93,24 +93,24 @@ export async function importTradesFromFile(formData: FormData): Promise<{
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const [{ count: totalManual }, { count: importsThisMonth }] = await Promise.all([
-      supabase
-        .from("import_summaries")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .is("deleted_at", null),
-      supabase
-        .from("import_summaries")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .is("deleted_at", null)
-        .gte("created_at", startOfMonth.toISOString()),
+    const pool = getPool();
+    const [totalManualResult, importsThisMonthResult] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*) FROM import_summaries WHERE user_id = $1 AND deleted_at IS NULL`,
+        [user.id]
+      ),
+      pool.query(
+        `SELECT COUNT(*) FROM import_summaries WHERE user_id = $1 AND deleted_at IS NULL AND created_at >= $2`,
+        [user.id, startOfMonth.toISOString()]
+      ),
     ]);
+    const totalManual = parseInt(totalManualResult.rows[0]?.count ?? '0', 10);
+    const importsThisMonth = parseInt(importsThisMonthResult.rows[0]?.count ?? '0', 10);
 
-    if ((totalManual ?? 0) >= planInfo.maxManualAccounts) {
+    if (totalManual >= planInfo.maxManualAccounts) {
       return { error: "planErrors.maxManualFree" };
     }
-    if ((importsThisMonth ?? 0) >= planInfo.importLimitPerMonth) {
+    if (importsThisMonth >= planInfo.importLimitPerMonth) {
       return { error: "planErrors.importLimit" };
     }
   }
@@ -309,12 +309,13 @@ export async function importTradesFromFile(formData: FormData): Promise<{
     account_name: file.name,
   }).catch(() => {})
 
-  const adminSupabase = createAdminClient()
-  const { data: profile } = await adminSupabase
-    .from("profiles")
-    .select("email, full_name, locale")
-    .eq("id", user.id)
-    .single()
+  // Buscar profile para envio de email usando pg direto
+  const profilePool = getPool();
+  const profileResult = await profilePool.query(
+    `SELECT email, full_name, locale FROM profiles WHERE id = $1`,
+    [user.id]
+  ).catch(() => ({ rows: [] as Array<{ email: string; full_name: string | null; locale: string | null }> }));
+  const profile = profileResult.rows[0] ?? null;
 
   if (profile?.email) {
     sendImportCompletedEmail({
@@ -336,26 +337,19 @@ export async function importTradesFromFile(formData: FormData): Promise<{
  * ───────────────────────────────────────────── */
 
 export async function softDeleteTrade(tradeId: string): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado." };
 
-  // Use admin client to bypass RLS — the SELECT policy (deleted_at IS NULL)
-  // conflicts with setting deleted_at via regular client.
-  const adminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const { createClient: createAdmin } = await import("@supabase/supabase-js");
-  const admin = createAdmin(adminUrl, adminKey);
-
-  const { error } = await admin
-    .from("trades")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("id", tradeId)
-    .eq("user_id", user.id)
-    .is("deleted_at", null);
-
-  if (error) {
-    console.error("[trades] softDeleteTrade:", error.message);
+  // Usando pg direto — sem RLS, ownership enforçado pelo filtro user_id
+  const pool = getPool();
+  try {
+    await pool.query(
+      `UPDATE trades SET deleted_at = $1 WHERE id = $2 AND user_id = $3 AND deleted_at IS NULL`,
+      [new Date().toISOString(), tradeId, user.id]
+    );
+  } catch (err) {
+    console.error("[trades] softDeleteTrade:", err);
     return { error: "Erro ao deletar trade. Tente novamente." };
   }
 
@@ -371,43 +365,38 @@ export async function softDeleteTrade(tradeId: string): Promise<{ error?: string
  * ───────────────────────────────────────────── */
 
 export async function restoreTrade(tradeId: string): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado." };
 
-  // Use admin client to bypass RLS (deleted trades are hidden by SELECT policy)
-  const adminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const { createClient: createAdmin } = await import("@supabase/supabase-js");
-  const admin = createAdmin(adminUrl, adminKey);
+  // Usando pg direto — sem RLS, ownership enforçado pelos filtros
+  const pool = getPool();
+  try {
+    // Verificar ownership antes de restaurar
+    const { rows } = await pool.query(
+      `SELECT id, user_id, deleted_at FROM trades WHERE id = $1`,
+      [tradeId]
+    );
+    const trade = rows[0];
 
-  // Verify ownership before restoring
-  const { data: trade, error: fetchErr } = await admin
-    .from("trades")
-    .select("id, user_id, deleted_at")
-    .eq("id", tradeId)
-    .single();
+    if (!trade) {
+      return { error: "Trade não encontrado." };
+    }
 
-  if (fetchErr || !trade) {
-    return { error: "Trade não encontrado." };
-  }
+    if (trade.user_id !== user.id) {
+      return { error: "Sem permissão para restaurar este trade." };
+    }
 
-  if (trade.user_id !== user.id) {
-    return { error: "Sem permissão para restaurar este trade." };
-  }
+    if (!trade.deleted_at) {
+      return { error: "Este trade não está deletado." };
+    }
 
-  if (!trade.deleted_at) {
-    return { error: "Este trade não está deletado." };
-  }
-
-  const { error } = await admin
-    .from("trades")
-    .update({ deleted_at: null })
-    .eq("id", tradeId)
-    .eq("user_id", user.id);
-
-  if (error) {
-    console.error("[trades] restoreTrade:", error.message);
+    await pool.query(
+      `UPDATE trades SET deleted_at = NULL WHERE id = $1 AND user_id = $2`,
+      [tradeId, user.id]
+    );
+  } catch (err) {
+    console.error("[trades] restoreTrade:", err);
     return { error: "Erro ao restaurar trade. Tente novamente." };
   }
 
@@ -422,54 +411,36 @@ export async function restoreTrade(tradeId: string): Promise<{ error?: string }>
  * ───────────────────────────────────────────── */
 
 export async function deleteImport(importId: string): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado." };
 
-  // Use admin client to bypass RLS — the SELECT policy (deleted_at IS NULL)
-  // conflicts with UPDATE's implicit WITH CHECK when setting deleted_at,
-  // causing "new row violates row-level security policy" errors.
-  // Ownership is still enforced via .eq("user_id", user.id) filters.
-  const adminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const { createClient: createAdmin } = await import("@supabase/supabase-js");
-  const admin = createAdmin(adminUrl, adminKey);
-
+  // Usando pg direto — sem RLS, ownership enforçado pelos filtros user_id
+  const pool = getPool();
   const now = new Date().toISOString();
 
-  // 1) Soft-delete trades vinculados pelo import_id
-  const { error: tradesErr } = await admin
-    .from("trades")
-    .update({ deleted_at: now })
-    .eq("import_id", importId)
-    .eq("user_id", user.id)
-    .is("deleted_at", null);
+  try {
+    // 1) Soft-delete trades vinculados pelo import_id
+    await pool.query(
+      `UPDATE trades SET deleted_at = $1 WHERE import_id = $2 AND user_id = $3 AND deleted_at IS NULL`,
+      [now, importId, user.id]
+    );
 
-  if (tradesErr) {
-    console.error("[trades] deleteImport trades:", tradesErr.message);
-    return { error: "Erro ao remover trades. Tente novamente." };
-  }
+    // 2) Soft-delete o registro de importação
+    await pool.query(
+      `UPDATE import_summaries SET deleted_at = $1 WHERE id = $2 AND user_id = $3`,
+      [now, importId, user.id]
+    );
 
-  // 2) Soft-delete o registro de importação
-  const { error: importErr } = await admin
-    .from("import_summaries")
-    .update({ deleted_at: now })
-    .eq("id", importId)
-    .eq("user_id", user.id);
-
-  if (importErr) {
-    console.error("[trades] deleteImport summary:", importErr.message);
+    // 3) Soft-delete trades órfãos (sem import_id e sem trading_account_id)
+    await pool.query(
+      `UPDATE trades SET deleted_at = $1 WHERE import_id IS NULL AND trading_account_id IS NULL AND user_id = $2 AND deleted_at IS NULL`,
+      [now, user.id]
+    );
+  } catch (err) {
+    console.error("[trades] deleteImport:", err);
     return { error: "Erro ao remover importação. Tente novamente." };
   }
-
-  // 3) Soft-delete trades órfãos (sem import_id e sem trading_account_id)
-  await admin
-    .from("trades")
-    .update({ deleted_at: now })
-    .is("import_id", null)
-    .is("trading_account_id", null)
-    .eq("user_id", user.id)
-    .is("deleted_at", null);
 
   revalidatePath("/", "layout");
   revalidatePath("/import");
@@ -487,7 +458,7 @@ export async function updateTradeNotesAndTags(
   tags: string[],
   strategyId?: string | null
 ): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado." };
 
@@ -572,7 +543,7 @@ export async function getTradesWithTags(
   importId?: string,
   accountId?: string
 ): Promise<TradeWithTagDetails[]> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

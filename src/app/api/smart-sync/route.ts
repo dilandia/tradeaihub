@@ -8,8 +8,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getServerSession } from "@/lib/get-session";
+import { getPool } from "@/lib/db";
 import { getPlanInfo } from "@/lib/plan";
 import { syncAccountWithMetaApi } from "@/lib/metaapi-sync";
 import { syncLogger } from "@/lib/logger";
@@ -22,41 +22,37 @@ export async function POST(request: Request) {
   const force = searchParams.get("force") === "true";
   try {
     // 1. Auth
-    const supabase = await createClient();
-    let user = null;
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error) user = data.user;
-    } catch {
-      // Auth check failed silently — user remains null
-    }
+    const { user } = await getServerSession();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 2. Plan gate (server-side, admin client)
+    // 2. Plan gate (server-side)
     const planInfo = await getPlanInfo(user.id);
     if (!planInfo?.canUseMetaApi) {
       return NextResponse.json({ skipped: true, reason: "free_plan" });
     }
 
+    const pool = getPool();
+
     // 3. Fetch candidate accounts
     // When force=true (manual sync), include ALL active accounts regardless of auto_sync_enabled.
     // The auto_sync_enabled flag only gates automatic background sync, not explicit user-triggered sync.
-    const admin = createAdminClient();
-    let query = admin
-      .from("trading_accounts")
-      .select("id, account_name, last_sync_at, status, updated_at")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .is("deleted_at", null)
-      .not("metaapi_account_id", "is", null);
+    let accountQuery = `
+      SELECT id, account_name, last_sync_at, status, updated_at
+      FROM trading_accounts
+      WHERE user_id = $1
+        AND is_active = true
+        AND deleted_at IS NULL
+        AND metaapi_account_id IS NOT NULL
+    `;
+    const queryParams: unknown[] = [user.id];
 
     if (!force) {
-      query = query.eq("auto_sync_enabled", true);
+      accountQuery += ` AND auto_sync_enabled = true`;
     }
 
-    const { data: accounts } = await query;
+    const { rows: accounts } = await pool.query(accountQuery, queryParams);
 
     if (!accounts || accounts.length === 0) {
       return NextResponse.json({ skipped: true, reason: "no_accounts" });
@@ -69,17 +65,19 @@ export async function POST(request: Request) {
         const stuckFor = now - new Date(a.updated_at).getTime();
         if (stuckFor > STALE_SYNC_MS) {
           syncLogger.warn({ accountName: a.account_name, stuckMinutes: Math.round(stuckFor / 60000) }, "Auto-recovering stale sync");
-          await admin
-            .from("trading_accounts")
-            .update({ status: "error", error_message: "Sync interrompido (recuperação automática)", updated_at: new Date().toISOString() })
-            .eq("id", a.id);
+          await pool.query(
+            `UPDATE trading_accounts
+             SET status = 'error', error_message = $1, updated_at = $2
+             WHERE id = $3`,
+            ["Sync interrompido (recuperação automática)", new Date().toISOString(), a.id]
+          );
           a.status = "error"; // Update in-memory too for the filter below
         }
       }
     }
 
     // 4. Cooldown filter (bypassed when force=true for manual sync)
-    const eligible = accounts.filter((a) => {
+    const eligible = accounts.filter((a: { status: string; last_sync_at: string | null }) => {
       if (a.status === "syncing") return false;
       if (force) return true;
       if (!a.last_sync_at) return true;
@@ -91,44 +89,38 @@ export async function POST(request: Request) {
     }
 
     // 5. Respond immediately (non-blocking)
-    const accountIds = eligible.map((a) => a.id);
+    const accountIds = eligible.map((a: { id: string }) => a.id);
 
     // 6. Fire-and-forget: sequential background sync
     const userId = user.id;
     const runSequentialSync = async () => {
       for (const account of eligible) {
         try {
-          await admin
-            .from("trading_accounts")
-            .update({ status: "syncing", updated_at: new Date().toISOString() })
-            .eq("id", account.id)
-            .eq("user_id", userId);
+          await pool.query(
+            `UPDATE trading_accounts SET status = 'syncing', updated_at = $1
+             WHERE id = $2 AND user_id = $3`,
+            [new Date().toISOString(), account.id, userId]
+          );
 
           const result = await syncAccountWithMetaApi(account.id, userId);
 
           if (!result.success) {
-            await admin
-              .from("trading_accounts")
-              .update({
-                status: "error",
-                error_message: result.error ?? "Smart sync failed",
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", account.id)
-              .eq("user_id", userId);
+            await pool.query(
+              `UPDATE trading_accounts
+               SET status = 'error', error_message = $1, updated_at = $2
+               WHERE id = $3 AND user_id = $4`,
+              [result.error ?? "Smart sync failed", new Date().toISOString(), account.id, userId]
+            );
           }
           // On success, syncAccountWithMetaApi already updates status to "connected"
         } catch (err) {
           syncLogger.error({ accountId: account.id, error: err instanceof Error ? err.message : String(err) }, "Background sync failed");
-          await admin
-            .from("trading_accounts")
-            .update({
-              status: "error",
-              error_message: "Smart sync error",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", account.id)
-            .eq("user_id", userId);
+          await pool.query(
+            `UPDATE trading_accounts
+             SET status = 'error', error_message = $1, updated_at = $2
+             WHERE id = $3 AND user_id = $4`,
+            ["Smart sync error", new Date().toISOString(), account.id, userId]
+          );
         }
       }
       syncLogger.info({ accountCount: accountIds.length }, "Background sync complete");

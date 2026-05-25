@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-import { createClient as createServerClient } from "@/lib/supabase/server"
+import { verifyAdmin } from "@/lib/admin-auth"
+import { getPool } from "@/lib/db"
 import OpenAI from "openai"
-
-function getServiceClient() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return createClient<any>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
 
 /**
  * POST /api/admin/guardian — Trigger manual Guardian scan
@@ -17,51 +9,30 @@ function getServiceClient() {
  */
 export async function POST(req: NextRequest) {
   // Verify admin auth
-  const supabase = await createServerClient()
-  let user = null
-  try {
-    const { data: { session } } = await supabase.auth.getSession()
-    user = session?.user ?? null
-  } catch {
-    // Auth check failed silently — user remains null
-  }
+  const admin = await verifyAdmin()
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const isAdmin =
-    user.app_metadata?.role === "admin" ||
-    user.app_metadata?.role === "super_admin"
-
-  if (!isAdmin) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
-
+  const pool = getPool()
   const scanType =
     req.nextUrl.searchParams.get("type") === "quick" ? "quick" : "full"
-  const serviceClient = getServiceClient()
   const startedAt = new Date()
 
   // Create scan record
-  const { data: scanRecord, error: scanError } = await serviceClient
-    .from("guardian_scan_results")
-    .insert({
-      scan_type: scanType,
-      started_at: startedAt.toISOString(),
-      status: "running",
-    })
-    .select("id")
-    .single()
-
-  if (scanError || !scanRecord) {
+  let scanId: string
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO guardian_scan_results (scan_type, started_at, status)
+       VALUES ($1, $2, 'running') RETURNING id`,
+      [scanType, startedAt.toISOString()]
+    )
+    scanId = rows[0]?.id
+    if (!scanId) throw new Error("No scan ID returned")
+  } catch (scanError) {
     return NextResponse.json(
       { error: "Failed to initialize scan" },
       { status: 500 }
     )
   }
 
-  const scanId = scanRecord.id
   let totalChecks = 0
   let totalEvents = 0
   let criticalCount = 0
@@ -105,8 +76,9 @@ export async function POST(req: NextRequest) {
 
     for (const rpcName of modules) {
       try {
-        const { data, error } = await serviceClient.rpc(rpcName)
-        if (error || !data) continue
+        const { rows } = await pool.query(`SELECT * FROM ${rpcName}()`)
+        const data = rows[0] ?? null
+        if (!data) continue
 
         const result = data as {
           events: ScanEvent[]
@@ -132,17 +104,22 @@ export async function POST(req: NextRequest) {
 
     // Store events
     if (allEvents.length > 0) {
-      await serviceClient.from("security_events").insert(
-        allEvents.map((evt) => ({
-          scan_id: scanId,
-          severity: evt.severity,
-          module: evt.module,
-          check_name: evt.check_name,
-          description: evt.description,
-          details: evt.details || {},
-          auto_action_taken: evt.auto_action_taken || null,
-        }))
-      )
+      for (const evt of allEvents) {
+        await pool.query(
+          `INSERT INTO security_events
+           (scan_id, severity, module, check_name, description, details, auto_action_taken)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            scanId,
+            evt.severity,
+            evt.module,
+            evt.check_name,
+            evt.description,
+            JSON.stringify(evt.details || {}),
+            evt.auto_action_taken || null,
+          ]
+        )
+      }
     }
 
     // Update scan record
@@ -189,29 +166,35 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    await serviceClient
-      .from("guardian_scan_results")
-      .update({
-        completed_at: completedAt.toISOString(),
-        duration_ms: durationMs,
-        modules_run: modulesRun,
-        total_checks: totalChecks,
-        events_found: totalEvents,
-        critical_count: criticalCount,
-        high_count: highCount,
-        medium_count: mediumCount,
-        low_count: lowCount,
-        auto_fixes_applied: autoFixesApplied,
-        status: "completed",
-        ai_assessment: aiAssessment,
-        summary: {
+    await pool.query(
+      `UPDATE guardian_scan_results SET
+         completed_at = $1, duration_ms = $2, modules_run = $3,
+         total_checks = $4, events_found = $5, critical_count = $6,
+         high_count = $7, medium_count = $8, low_count = $9,
+         auto_fixes_applied = $10, status = 'completed',
+         ai_assessment = $11, summary = $12
+       WHERE id = $13`,
+      [
+        completedAt.toISOString(),
+        durationMs,
+        JSON.stringify(modulesRun),
+        totalChecks,
+        totalEvents,
+        criticalCount,
+        highCount,
+        mediumCount,
+        lowCount,
+        autoFixesApplied,
+        aiAssessment,
+        JSON.stringify({
           scan_type: scanType,
           modules: modulesRun.length,
           verdict,
-          triggered_by: user.email,
-        },
-      })
-      .eq("id", scanId)
+          triggered_by: admin.email,
+        }),
+        scanId,
+      ]
+    )
 
     return NextResponse.json({
       success: true,
@@ -228,15 +211,16 @@ export async function POST(req: NextRequest) {
       ai_assessment: aiAssessment,
     })
   } catch (error) {
-    await serviceClient
-      .from("guardian_scan_results")
-      .update({
-        completed_at: new Date().toISOString(),
-        status: "failed",
-        error_message:
-          error instanceof Error ? error.message : "Unknown error",
-      })
-      .eq("id", scanId)
+    await pool.query(
+      `UPDATE guardian_scan_results SET
+         completed_at = $1, status = 'failed', error_message = $2
+       WHERE id = $3`,
+      [
+        new Date().toISOString(),
+        error instanceof Error ? error.message : "Unknown error",
+        scanId,
+      ]
+    )
 
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Scan failed" },

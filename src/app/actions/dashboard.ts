@@ -1,7 +1,7 @@
 "use server";
 
 import { cache } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { createCompatClient } from "@/lib/supabase/server-compat";
 
 /* ─── Types ─── */
 
@@ -110,7 +110,7 @@ async function _getDashboardMetrics(
   startDate?: string | null,
   endDate?: string | null
 ): Promise<DashboardMetrics> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -208,7 +208,7 @@ async function _getEquityCurve(
   endDate?: string | null,
   useDollar: boolean = true
 ): Promise<EquityCurvePoint[]> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -252,7 +252,7 @@ async function _getDrawdownAnalysis(
   accountId?: string | null,
   useDollar: boolean = true
 ): Promise<DrawdownAnalysis> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -355,7 +355,7 @@ async function _getDrawdownCurve(
   endDate?: string | null,
   useDollar: boolean = true
 ): Promise<DrawdownCurvePoint[]> {
-  const supabase = await createClient();
+  const supabase = await createCompatClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

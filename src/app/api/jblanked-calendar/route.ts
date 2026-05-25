@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/get-session";
+import { getPool } from "@/lib/db";
 
 /** Horas até considerar cache expirado. Dados econômicos atualizam ao longo do dia (actual values). */
 const CACHE_HOURS_TODAY = 4;
@@ -155,14 +155,7 @@ function getCacheHours(period: string): number {
 }
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  let user = null;
-  try {
-    const { data, error } = await supabase.auth.getUser();
-    if (!error) user = data.user;
-  } catch {
-    // Auth check failed silently — user remains null
-  }
+  const { user } = await getServerSession();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -180,15 +173,12 @@ export async function GET(request: NextRequest) {
 
     if (!refresh) {
       try {
-        const supabase = createAdminClient();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: row } = await (supabase as any)
-          .from("economic_calendar_cache")
-          .select("data, fetched_at")
-          .eq("cache_key", cacheKey)
-          .single();
-
-        const cached = row as { data: unknown; fetched_at: string } | null;
+        const pool = getPool();
+        const cacheRes = await pool.query(
+          `SELECT data, fetched_at FROM economic_calendar_cache WHERE cache_key = $1 LIMIT 1`,
+          [cacheKey]
+        );
+        const cached = cacheRes.rows[0] as { data: unknown; fetched_at: string } | undefined;
         if (cached && new Date(cached.fetched_at) > cutoff) {
           const events = cached.data as CalendarEvent[];
           return NextResponse.json(Array.isArray(events) ? events : []);
@@ -214,15 +204,12 @@ export async function GET(request: NextRequest) {
     const events = result.data.map(mapEvent);
 
     try {
-      const supabase = createAdminClient();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase as any).from("economic_calendar_cache").upsert(
-        {
-          cache_key: cacheKey,
-          data: events,
-          fetched_at: new Date().toISOString(),
-        },
-        { onConflict: "cache_key" }
+      const pool = getPool();
+      await pool.query(
+        `INSERT INTO economic_calendar_cache (cache_key, data, fetched_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (cache_key) DO UPDATE SET data = EXCLUDED.data, fetched_at = NOW()`,
+        [cacheKey, JSON.stringify(events)]
       );
     } catch {
       // Falha ao salvar não impede resposta
