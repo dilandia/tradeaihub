@@ -21,14 +21,13 @@ const db = new Kysely({
   plugins: [new CamelCasePlugin()],
 });
 
+// Scrypt params matching better-auth defaults; maxmem must be explicit for Node.js
+const SCRYPT_PARAMS = { N: 16384, r: 16, p: 1, maxmem: 128 * 16384 * 16 * 2 } as const;
+
 // Custom password hashing using scrypt (same params as better-auth default)
 async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString('hex');
-  const key = (await scrypt(Buffer.from(password.normalize('NFKC')), salt, 64, {
-    N: 16384,
-    r: 16,
-    p: 1,
-  })) as Buffer;
+  const key = (await scrypt(Buffer.from(password.normalize('NFKC')), salt, 64, SCRYPT_PARAMS)) as Buffer;
   return `${salt}:${key.toString('hex')}`;
 }
 
@@ -50,11 +49,12 @@ async function verifyPassword({
   if (!salt || !key) return false;
 
   try {
-    const targetKey = (await scrypt(Buffer.from(password.normalize('NFKC')), salt, 64, {
-      N: 16384,
-      r: 16,
-      p: 1,
-    })) as Buffer;
+    const targetKey = (await scrypt(
+      Buffer.from(password.normalize('NFKC')),
+      salt,
+      64,
+      SCRYPT_PARAMS,
+    )) as Buffer;
     return targetKey.toString('hex') === key;
   } catch {
     return false;
